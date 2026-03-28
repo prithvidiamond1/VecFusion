@@ -1,13 +1,12 @@
 #!/bin/bash
 
-export BISHENG_HOME=~/BiShengCompiler
-export LLM_BASE_URL="https://api.siliconflow.cn/v1"
-export API_KEY=""
-export ENGINE="Pro/deepseek-ai/DeepSeek-V3"
-export ALIVE2_HOME=~/ALIVE2
-#
-export PATH=$BISHENG_HOME/bin:$ALIVE2_HOME:$PATH
-export LD_LIBRARY_LIB=$BISHENG_HOME/lib:$LD_LIBRARY_LIB
-#
-export CLANG_PATH=$BISHENG_HOME/bin/clang
-export PYTHONPATH=".:../:.:src:../:../../:.:prompt-lib"
+export ALIVE2_HOME="$HOME/ALIVE2/build"
+export LLM_BASE_URL="https://api.anthropic.com/v1/"
+export ANTHROPIC_API_KEY="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"
+export OPENAI_API_KEY="$ANTHROPIC_API_KEY"
+export API_KEY="$ANTHROPIC_API_KEY"
+export ENGINE="claude-sonnet-4-6"
+export PATH=$ALIVE2_HOME:$PATH
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+export CLANG_PATH=/usr/local/bin/clang
+export PYTHONPATH=".:../:src:../../:prompt-lib"

@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: prompt-lib
 Version: 0.1
 Summary: Library for running few-shot inference on large language models
@@ -9,6 +9,11 @@ Requires-Dist: pandas
 Requires-Dist: tqdm==4.49.0
 Requires-Dist: wandb==0.13.2
 Requires-Dist: PyYAML
+Dynamic: description
+Dynamic: license
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: summary
 
 # Prompt-lib
 

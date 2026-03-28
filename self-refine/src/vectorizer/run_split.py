@@ -1,3 +1,4 @@
+import os
 from src.vectorizer.task_split_init import SplitGenTaskInit
 from src.vectorizer.task_split_iterate import SplitGenTaskIterate
 from src.vectorizer.task_split_feedback import SplitGenFeedback
@@ -141,8 +142,8 @@ if __name__ == "__main__":
     
     test_path = 'test_case'
     for filename in os.listdir(test_path):
-        # if filename != 's256.c':
-        #     continue
+        if filename != 's112.c':
+            continue
         file_path = os.path.join(test_path, filename)
         reset_cache()
         with open(file_path, 'r') as file:
