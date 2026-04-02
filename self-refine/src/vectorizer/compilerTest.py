@@ -3,6 +3,7 @@ import os
 import re
 from prompt_lib.backends import openai_api
 
+
 clang_path = os.getenv("CLANG_PATH", "clang")
 
 # Test if it can compile correctly
@@ -11,6 +12,7 @@ def CompilerTest(vectorize_code : str) -> str:
 #include<stdlib.h>
 #include<stdio.h>
 #include<math.h>
+#include <string.h>
 '''
     vectorize_code = include_head + vectorize_code
     # Write to a temporary file
@@ -49,6 +51,7 @@ def FormalVerification(source_code: str, target_code: str):
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 '''
     head_index_src = source_code.find(')')
     if head_index_src != -1:

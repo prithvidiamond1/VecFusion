@@ -78,15 +78,31 @@ def iterative_vectorize(source_code: str, max_attempts: int, outputFileName: str
 
 
         clang_feedback = CompilerTest(vectorize_code=vectorize_code)
-  
-        # 如果语义不正确，replay
-        # 这里是不是应该再插入一个unit test
-        print("######################## UNIT TEST ########################")
-        unit_test_output, unit_test_error = CorrectTest("", source_code, vectorize_code,ENGINE)
-        print("###################### UNIT TEST OUT ######################")
-        print(unit_test_output)
-        # print(unit_test_error)
-        print("###################### UNIT TEST OUT ######################")
+        if n_attempts == 0:
+            unit_test_output = "SKIPPED"
+            unit_test_error = ""
+            unit_test_feedback = "UNIT TEST SKIPPED: init step only returns a declaration."
+        else:
+            print("######################## UNIT TEST ########################")
+            unit_test_output, unit_test_error = CorrectTest("", source_code, vectorize_code, ENGINE)
+            print("###################### UNIT TEST OUT ######################")
+            print(unit_test_output)
+            print("###################### UNIT TEST OUT ######################")
+
+            unit_test_feedback = (
+                "\nUnit Test analysis: \nSource code and optimized code semantics are inconsistent.\n"
+                if unit_test_error != "" or "PASS" not in unit_test_output
+                else "UNIT TEST PASS"
+            )
+        
+        # # 如果语义不正确，replay
+        # # 这里是不是应该再插入一个unit test
+        # print("######################## UNIT TEST ########################")
+        # unit_test_output, unit_test_error = CorrectTest("", source_code, vectorize_code,ENGINE)
+        # print("###################### UNIT TEST OUT ######################")
+        # print(unit_test_output)
+        # # print(unit_test_error)
+        # print("###################### UNIT TEST OUT ######################")
             
         unit_test_feedback = ("\nUnit Test analysis: \nSource code and optimized code semantics are inconsistent.\n" if unit_test_error != "" or "PASS" not in unit_test_output else "UNIT TEST PASS") # + "Performance compare:\n" + performance_test_output 
         
