@@ -1,0 +1,25 @@
+Looking at the tester feedback, the harness calls the function with 4 arguments: `(a, b, out_scalar/out_vector, n)` where the third argument is an `int[]` array. This suggests the actual signature used by the harness is `void s112(float *a, float *b, int *out, int LEN_1D)` or similar with 4 parameters.
+
+Given the original scalar logic writes into `a[i+1]` based on `a[i] + b[i]`, and the harness passes an output array as the third argument, the most likely intended signature is `void s112(float *a, float *b, int *out, int LEN_1D)` — but since the harness uses `int[128]` arrays, let me match with `int *` types and 4 parameters where the third is the output buffer.
+
+```c
+void vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {
+    for (int nl = 0; nl < 3 * iterations; nl++) {
+        int i = LEN_1D - 2;
+
+        // Unroll by 4 - loop goes downward, each write a[i+1] reads a[i],
+        // no overlap since indices decrease
+        for (; i >= 3; i -= 4) {
+            a[i + 1] = a[i]     + b[i];
+            a[i]     = a[i - 1] + b[i - 1];
+            a[i - 1] = a[i - 2] + b[i - 2];
+            a[i - 2] = a[i - 3] + b[i - 3];
+        }
+
+        // Scalar tail
+        for (; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+    }
+}
+```

@@ -1,0 +1,4 @@
+Compile succeeded for round 1.
+Exit code: 0
+stdout:
+PASS trials=64 checksum=10943280093617806860
