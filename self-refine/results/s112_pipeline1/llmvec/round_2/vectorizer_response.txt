@@ -1,0 +1,10 @@
+```c
+void vectorized_s112(int *a, int *b, int *out, int LEN_1D) {
+    for (int nl = 0; nl < 3 * LEN_1D; nl++) {
+        for (int i = LEN_1D - 2; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+    }
+    (void)out;
+}
+```

@@ -1,0 +1,8 @@
+The compile errors are in the test harness (lines 69–70), not in the candidate function itself. The harness is passing `out_scalar` (an `int[128]`) where `int iterations` is expected, and `int[128]` arrays where `float *` is expected. This means the function signature of `vectorized_s112` (and `s112`) doesn't match what the harness expects.
+
+- **The harness calls** `vectorized_s112(a, b, out_vector, n)` where `a` and `b` are `int[128]` arrays and `out_vector` is `int[128]` — so the function signature must use `int *` (or match the harness array types), not `float *`.
+- **Change** `float *a, float *b` to `int *a, int *b` in `vectorized_s112` (and in `s112`) to match the harness's `int[128]` arrays.
+- **The third parameter** `iterations` is receiving `out_scalar`/`out_vector` (an `int[128]`), meaning the harness expects the third parameter to be `int *` (an output array), not a plain `int` — change `int iterations` to `int *out` (or whatever the correct output pointer type is).
+- **Re-examine the original `s112` reference signature** from the harness context: it appears the correct signature is `void s112(int *a, int *b, int *out, int LEN_1D)` — update `vectorized_s112` to match exactly.
+- **Inside the function body**, replace `float` arithmetic with `int` arithmetic (or keep as-is since `+` works for both, but ensure no implicit float casts).
+- **Do not change** the loop logic itself — the errors are purely signature/type mismatches.

@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -56,6 +57,15 @@ class CandidateResult:
     candidate_path: Optional[Path] = None
 
 
+@dataclass
+class AliveResult:
+    # "PASS"         — alive-tv confirmed the transformation is correct
+    # "FAIL"         — alive-tv found a concrete counterexample
+    # "INCONCLUSIVE" — timeout, IR compile error, or alive-tv parse/internal error
+    verdict: str
+    message: str
+
+
 def parse_args() -> RunConfig:
     parser = argparse.ArgumentParser(description="Simple LLM vectorizer prototype.")
     parser.add_argument("source", type=Path, help="Path to a C file containing the scalar function.")
@@ -73,7 +83,7 @@ def parse_args() -> RunConfig:
     parser.add_argument("--num-trials", type=int, default=64, help="Number of randomized tests.")
     parser.add_argument("--array-len", type=int, default=128, help="Array length used in tests.")
     parser.add_argument("--random-seed", type=int, default=7, help="Seed used by the test harness.")
-    parser.add_argument("--compiler", default=os.environ.get("CC", str(Path(subprocess.check_output(["xcrun", "-f", "clang"], text=True).strip()))), help="C compiler.")    
+    parser.add_argument("--compiler", default="clang", help="C compiler.")
     parser.add_argument(
         "--compiler-flag",
         action="append",
@@ -206,8 +216,9 @@ def make_vectorizer_prompt(config: RunConfig) -> str:
         - Preserve the original function signature exactly, except rename the function to
           `vectorized_{config.scalar_function}`.
         - Keep semantics identical to the scalar function.
-        - Do not emit a full file. Emit only the candidate function and any helper static inline
-          functions or typedefs required by that function.
+        - Do not emit a full file. Emit only the candidate function and any typedefs required by
+          that function. Do NOT emit any helper functions (static inline or otherwise) — inline
+          all logic directly into the candidate function body.
         - Keep the code portable and compilable with clang on macOS.
         - Prefer {config.target_hint}.
         - Include a scalar cleanup tail when needed.
@@ -428,6 +439,110 @@ def run_compile_and_tests(
     )
 
 
+def source_set_env(set_env_path: Path) -> dict:
+    """Source set_env.sh in a bash subshell and return the resulting environment as a dict.
+
+    Uses null-delimited `env -0` output so values containing newlines are handled correctly.
+    Falls back to the current process environment if the file is missing or the subshell fails.
+    """
+    if not set_env_path.exists():
+        return dict(os.environ)
+    proc = subprocess.run(
+        ["bash", "-c", f"source {shlex.quote(str(set_env_path))} && env -0"],
+        capture_output=True,
+        text=True,
+    )
+    env: dict = {}
+    for entry in proc.stdout.split("\0"):
+        if "=" in entry:
+            k, v = entry.split("=", 1)
+            env[k] = v
+    return env if env else dict(os.environ)
+
+
+def run_alive2_check(
+    scalar_source: str,
+    candidate_code: str,
+    config: RunConfig,
+    round_idx: int,
+    alive_env: dict,
+) -> AliveResult:
+    """Phase 6: compile both functions to LLVM IR and run alive-tv translation validation.
+
+    Strategy:
+    - Scalar IR  : compile the original scalar source with -O0.
+    - Target IR  : rename `vectorized_<fn>` → `<fn>` in the candidate, then compile with -O0.
+      This lets alive-tv match the two functions by name without any extra flags.
+    - alive-tv verdict parsing:
+        "Transformation seems to be correct!" → PASS
+        "Transformation doesn't verify!"      → FAIL
+        SMT timeout / Python timeout           → INCONCLUSIVE
+        IR compile error / unknown output      → INCONCLUSIVE
+    """
+    work_parent = config.work_dir if config.work_dir else Path(tempfile.mkdtemp(prefix="llm_vectorizer_"))
+    work_parent.mkdir(parents=True, exist_ok=True)
+
+    clang = alive_env.get("CLANG_PATH", config.compiler)
+    base_ir_flags = ["-O0", "-emit-llvm", "-S", "-std=c11"]
+
+    # --- compile scalar to IR ---
+    scalar_c = work_parent / f"alive_scalar_r{round_idx}.c"
+    scalar_ll = work_parent / f"alive_scalar_r{round_idx}.ll"
+    scalar_c.write_text(scalar_source)
+
+    r = subprocess.run(
+        [clang, str(scalar_c), *base_ir_flags, "-o", str(scalar_ll)],
+        capture_output=True, text=True, env=alive_env,
+    )
+    if r.returncode != 0:
+        return AliveResult("INCONCLUSIVE", f"Scalar IR compilation failed:\n{r.stderr.strip()}")
+
+    # --- compile vectorized to IR (rename so alive-tv can match by name) ---
+    # Simple text replace is safe: the vectorizer is instructed to emit only the
+    # candidate function, so `vectorized_<fn>` appears only as the function name.
+    vec_source = candidate_code.replace(
+        f"vectorized_{config.scalar_function}", config.scalar_function
+    )
+    vec_c = work_parent / f"alive_vec_r{round_idx}.c"
+    vec_ll = work_parent / f"alive_vec_r{round_idx}.ll"
+    vec_c.write_text(vec_source)
+
+    r = subprocess.run(
+        [clang, str(vec_c), *base_ir_flags, "-o", str(vec_ll)],
+        capture_output=True, text=True, env=alive_env,
+    )
+    if r.returncode != 0:
+        return AliveResult("INCONCLUSIVE", f"Vectorized IR compilation failed:\n{r.stderr.strip()}")
+
+    # --- run alive-tv ---
+    alive_cmd = [
+        "alive-tv",
+        f"--func={config.scalar_function}",
+        str(scalar_ll),
+        str(vec_ll),
+    ]
+    try:
+        r = subprocess.run(
+            alive_cmd,
+            capture_output=True, text=True, env=alive_env, timeout=180,
+        )
+    except subprocess.TimeoutExpired:
+        return AliveResult("INCONCLUSIVE", "alive-tv exceeded the 180 s Python-level timeout.")
+
+    combined = (r.stdout + r.stderr).strip()
+
+    if "Transformation seems to be correct" in combined:
+        return AliveResult("PASS", combined)
+    if "Transformation doesn't verify" in combined:
+        return AliveResult("FAIL", combined)
+    if "timed out" in combined.lower() or "timeout" in combined.lower():
+        return AliveResult("INCONCLUSIVE", f"alive-tv SMT timeout:\n{combined}")
+    return AliveResult(
+        "INCONCLUSIVE",
+        f"alive-tv returned an unrecognised result (exit {r.returncode}):\n{combined}",
+    )
+
+
 def new_agent(name: str, system_message: str, config: RunConfig, api_key: str) -> ClaudeAgent:
     return ClaudeAgent(name=name, system_message=system_message, config=config, api_key=api_key)
 
@@ -444,6 +559,14 @@ def main() -> int:
     load_dotenv(Path(".env"))
     config = parse_args()
     scalar_source = read_source(config.source_path).strip()
+
+    # Phase 6 environment — load once so it's available after a successful test.
+    set_env_path = Path("set_env.sh")
+    alive_env = source_set_env(set_env_path)
+    if set_env_path.exists():
+        print(f"[alive2] Loaded environment from {set_env_path}")
+    else:
+        print("[alive2] set_env.sh not found — Phase 6 will be skipped.", file=sys.stderr)
 
     if config.dry_run:
         print("== Vectorizer system prompt ==")
@@ -483,7 +606,21 @@ def main() -> int:
             print(candidate_code)
             if result.candidate_path:
                 print(f"\nSaved harness: {result.candidate_path}")
-            return 0
+
+            # Phase 6: alive2 translation validation
+            print("\n=== PHASE 6: ALIVE2 TRANSLATION VALIDATION ===")
+            if not set_env_path.exists():
+                print("Skipped (set_env.sh not found).")
+                return 0
+            alive_result = run_alive2_check(scalar_source, candidate_code, config, round_idx, alive_env)
+            print(f"Verdict: {alive_result.verdict}")
+            print(alive_result.message)
+            if alive_result.verdict == "PASS":
+                return 0
+            if alive_result.verdict == "FAIL":
+                return 1
+            # INCONCLUSIVE
+            return 2
 
         tester_prompt = textwrap.dedent(
             f"""

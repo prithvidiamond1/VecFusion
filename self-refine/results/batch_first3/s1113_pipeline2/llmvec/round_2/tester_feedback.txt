@@ -1,0 +1,4 @@
+The compile errors are in the test harness portion of the file (lines 108+), not in the candidate function itself. The issues are:
+
+- **Undeclared `s1113`**: The test harness calls `s1113(...)` but no such function is declared/defined in the file. Add a forward declaration or definition of `s1113` before the test harness, or include the header that declares it.
+- **Type mismatch `int[128]` vs `float*`**: The test harness declares `a` and `b` as `int[128]` arrays but passes them to `vectorized_s1113` which expects `float*`. Change the test array declarations to `float a[128]`, `float b[128]`, and `float out_vector[128]`.

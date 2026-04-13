@@ -1,0 +1,7 @@
+The errors are in the test harness file (not the candidate itself), but the key issue visible is:
+
+- The test harness declares `out_vector` as `int[128]` but passes it to `bool out_vector[]` — change the `out_vector` parameter type to `int[]` (or use `_Bool`) to match the harness, **or** change the function signature to accept `int out_vector[]` and store `0`/`1` integers instead of `bool`.
+- The harness also lacks `#include <stdbool.h>` in its own scope (the `bool` unknown type error at line 6 is in the harness's `AllPointsEq_opt` function). Ensure `#include <stdbool.h>` appears before any use of `bool` in the combined/harness file.
+- The harness calls `AllPointsEq(a, b, out_scalar, n)` which is undeclared — add a forward declaration or definition of `AllPointsEq` before its call site.
+- Change `bool out_vector[]` to `int out_vector[]` in `vectorized_AllPointsEq` to match the `int[128]` array the harness passes, and store `(int)(a[i] == b[i])` instead of `(bool)`.
+- Update the `mask` extraction accordingly: `out_vector[i+k] = mask[k] ? 1 : 0;`

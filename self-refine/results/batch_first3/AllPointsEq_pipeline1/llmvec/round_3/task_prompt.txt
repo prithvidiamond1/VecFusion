@@ -1,0 +1,79 @@
+Revise your candidate for `AllPointsEq` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        bool AllPointsEq(const int pts[], int count) {
+    for (int i = 1; i < count; ++i) {
+        if (pts[0] != pts[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
+void vectorized_AllPointsEq(const int pts[], int count, bool *out_vector, int n) {
+    (void)n;
+
+    if (count <= 1) {
+        out_vector[0] = true;
+        return;
+    }
+
+    int val = pts[0];
+
+    typedef int v8si __attribute__((vector_size(32)));
+
+    v8si vval = {val, val, val, val, val, val, val, val};
+
+    int i = 1;
+    int simd_count = (count - 1) / 8;
+    int simd_end = 1 + simd_count * 8;
+
+    for (; i < simd_end; i += 8) {
+        v8si chunk;
+        memcpy(&chunk, &pts[i], sizeof(v8si));
+        v8si cmp = (chunk != vval);
+        int r = cmp[0] | cmp[1] | cmp[2] | cmp[3] |
+                cmp[4] | cmp[5] | cmp[6] | cmp[7];
+        if (r) {
+            out_vector[0] = false;
+            return;
+        }
+    }
+
+    /* Scalar tail */
+    for (; i < count; ++i) {
+        if (pts[i] != val) {
+            out_vector[0] = false;
+            return;
+        }
+    }
+
+    out_vector[0] = true;
+}
+        ```
+
+        Tester feedback:
+        The errors come from a **mismatch between the candidate's function signature and the test harness's call site**. The test harness calls:
+
+```c
+vectorized_AllPointsEq(a, b, out_vector, n);
+```
+where `b` is `int[128]` (the second array of points) and `out_vector` is `int[128]`. The harness expects the function to compare two arrays element-wise, not check if all points in one array are equal.
+
+- **Fix the signature** to match what the harness passes: `void vectorized_AllPointsEq(const int a[], const int b[], int *out_vector, int n)` — `b` is `int[]`, `out_vector` is `int*`, and `n` is the count.
+- **Fix the semantics**: the function should compare `a[i] == b[i]` for each `i` in `[0, n)` and write the boolean result into `out_vector[i]`, not reduce to a single scalar.
+- **Remove the `bool *out_vector` parameter** (and the `#include <stdbool.h>`) since the harness uses `int[]` for output; use `int *out_vector` instead.
+- **Rewrite the SIMD loop** to store per-element comparison results (`a[i] == b[i] ? 1 : 0`) into `out_vector[i]` for each lane, rather than early-returning on mismatch.
+- **Remove the `(void)n;` suppression** — `n` is the actual loop bound and must be used.
+- **Remove the `count <= 1` early-exit block** — it no longer applies to the element-wise output semantics.
+- **Keep `#include <stdbool.h>`** only if `bool` is actually used internally; otherwise drop it to avoid the `unknown type name 'bool'` error on the harness's compilation unit.
+
+        Return a corrected candidate function named `vectorized_AllPointsEq`.

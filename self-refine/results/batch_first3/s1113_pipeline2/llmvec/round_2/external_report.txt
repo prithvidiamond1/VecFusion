@@ -1,0 +1,25 @@
+Compile failed.
+            Command: clang results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2
+            stderr:
+            results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:108:17: error: call to undeclared function 's1113'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  108 |                 s1113(a, b, out_scalar, n);
+      |                 ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:109:34: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+  109 |                 vectorized_s1113(a, b, out_vector, n);
+      |                                  ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:24:30: note: passing argument to parameter 'a' here
+   24 | void vectorized_s1113(float* a, float* b, float* out, int n)
+      |                              ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:109:37: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+  109 |                 vectorized_s1113(a, b, out_vector, n);
+      |                                     ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:24:40: note: passing argument to parameter 'b' here
+   24 | void vectorized_s1113(float* a, float* b, float* out, int n)
+      |                                        ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:109:40: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+  109 |                 vectorized_s1113(a, b, out_vector, n);
+      |                                        ^~~~~~~~~~
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:24:50: note: passing argument to parameter 'out' here
+   24 | void vectorized_s1113(float* a, float* b, float* out, int n)
+      |                                                  ^
+3 warnings and 1 error generated.

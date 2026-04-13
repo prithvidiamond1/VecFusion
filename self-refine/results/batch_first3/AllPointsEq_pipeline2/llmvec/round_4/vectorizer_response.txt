@@ -1,0 +1,43 @@
+```c
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
+typedef int v8si __attribute__((vector_size(32)));
+
+bool vectorized_AllPointsEq(const int pts[], int count) {
+    if (count <= 0) return true;
+    if (count == 1) return true;
+
+    int val = pts[0];
+    int i = 1;
+
+    /* Broadcast val into a vector */
+    v8si vval = {val, val, val, val, val, val, val, val};
+    int result = 1;
+
+    for (; i + 7 < count; i += 8) {
+        v8si vpts;
+        __builtin_memcpy(&vpts, &pts[i], sizeof(v8si));
+        v8si cmp = (vpts == vval);
+        /* cmp elements are -1 (true) or 0 (false) for GCC/Clang vector ext */
+        /* We need all elements to be non-zero */
+        result &= (cmp[0] != 0);
+        result &= (cmp[1] != 0);
+        result &= (cmp[2] != 0);
+        result &= (cmp[3] != 0);
+        result &= (cmp[4] != 0);
+        result &= (cmp[5] != 0);
+        result &= (cmp[6] != 0);
+        result &= (cmp[7] != 0);
+        if (!result) return false;
+    }
+
+    /* Scalar tail */
+    for (; i < count; ++i) {
+        result &= (pts[0] == pts[i]);
+    }
+
+    return (bool)result;
+}
+```

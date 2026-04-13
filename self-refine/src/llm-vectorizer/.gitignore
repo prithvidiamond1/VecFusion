@@ -1,2 +1,15 @@
 .env
 __pycache__/
+.claude/
+
+.venv/
+tsvc2/
+tsvc_sub/
+
+*.pdf
+*.csv
+
+benchmark.sh
+tsvc_bench.py
+tsvc_sub_alive2.py
+tsvc_results_v2_summary.txt

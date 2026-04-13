@@ -1,0 +1,31 @@
+Compile failed.
+            Command: clang results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3.c -O3 -std=c11 -Wall -Wextra -o results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3
+            stderr:
+            results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3.c:99:17: error: call to undeclared function 's1113'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+   99 |                 s1113(a, b, out_scalar, n);
+      |                 ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3.c:100:34: error: incompatible pointer to integer conversion passing 'int[128]' to parameter of type 'int' [-Wint-conversion]
+  100 |                 vectorized_s1113(a, b, out_vector, n);
+      |                                  ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3.c:24:27: note: passing argument to parameter 'iterations' here
+   24 | void vectorized_s1113(int iterations, int LEN_1D, float* a, float* b)
+      |                           ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3.c:100:37: error: incompatible pointer to integer conversion passing 'int[128]' to parameter of type 'int' [-Wint-conversion]
+  100 |                 vectorized_s1113(a, b, out_vector, n);
+      |                                     ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3.c:24:43: note: passing argument to parameter 'LEN_1D' here
+   24 | void vectorized_s1113(int iterations, int LEN_1D, float* a, float* b)
+      |                                           ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3.c:100:40: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+  100 |                 vectorized_s1113(a, b, out_vector, n);
+      |                                        ^~~~~~~~~~
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3.c:24:58: note: passing argument to parameter 'a' here
+   24 | void vectorized_s1113(int iterations, int LEN_1D, float* a, float* b)
+      |                                                          ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3.c:100:52: error: incompatible integer to pointer conversion passing 'const int' to parameter of type 'float *' [-Wint-conversion]
+  100 |                 vectorized_s1113(a, b, out_vector, n);
+      |                                                    ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_3.c:24:68: note: passing argument to parameter 'b' here
+   24 | void vectorized_s1113(int iterations, int LEN_1D, float* a, float* b)
+      |                                                                    ^
+1 warning and 4 errors generated.

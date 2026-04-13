@@ -1,0 +1,48 @@
+Revise your candidate for `s1113` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s1113(int iterations, int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = a[LEN_1D/2] + b[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+void vectorized_s1113(float* a, float* b, float* out, int LEN_1D)
+{
+    float scalar_val = a[LEN_1D/2];
+    int i = 0;
+    int limit = LEN_1D - (LEN_1D % 8);
+    for (; i < limit; i += 8) {
+        out[i+0] = scalar_val + b[i+0];
+        out[i+1] = scalar_val + b[i+1];
+        out[i+2] = scalar_val + b[i+2];
+        out[i+3] = scalar_val + b[i+3];
+        out[i+4] = scalar_val + b[i+4];
+        out[i+5] = scalar_val + b[i+5];
+        out[i+6] = scalar_val + b[i+6];
+        out[i+7] = scalar_val + b[i+7];
+    }
+    for (; i < LEN_1D; i++) {
+        out[i] = scalar_val + b[i];
+    }
+}
+        ```
+
+        Tester feedback:
+        The errors are in the test harness (lines 71-72), not in the candidate's `vectorized_s1113` function itself. The harness is passing `int[128]` arrays `a` and `b` where `float*` is expected, and passing them in the wrong argument order. The candidate function signature is correct. The fixes needed:
+
+- The test harness at line 71 calls `s1113(a, b, out_scalar, n)` but `s1113` expects `(int iterations, int LEN_1D, float* a, float* b)` — the arguments are in the wrong order and wrong types; fix the call to match the reference signature.
+- The test harness at line 72 calls `vectorized_s1113(a, b, out_vector, n)` but `a` and `b` are declared as `int[128]` instead of `float[]`; declare `a` and `b` as `float` arrays in the harness.
+- Ensure the harness declares `float a[LEN_1D]`, `float b[LEN_1D]` (or equivalent) before calling both functions, not `int a[128]`, `int b[128]`.
+- The call to `vectorized_s1113` should be `vectorized_s1113(a, b, out_vector, n)` with properly typed `float*` arguments — this is already correct in the candidate signature, so only the harness array declarations need fixing.
+
+        Return a corrected candidate function named `vectorized_s1113`.

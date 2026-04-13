@@ -1,0 +1,17 @@
+The errors show that the call site passes arguments in a different order than the function signature expects. The test harness calls:
+
+```c
+vectorized_s1113(a, b, out_vector, n);
+```
+
+where `a` and `b` are `float*`, `out_vector` is `int[128]`, and `n` is `const int`. This means the harness expects the signature:
+
+```c
+void vectorized_s1113(float* a, float* b, float* out, int n)
+```
+
+- **Fix the function signature** to match the call site: `void vectorized_s1113(float* a, float* b, float* out, int n)` — put `float* a, float* b` first, then the output array, then `n`.
+- **Reorder parameters** so `iterations` and `LEN_1D` (integers) come last, matching how `n` is passed as the last argument.
+- **The output array** (`out_vector`) appears to be a separate `float*` buffer — the function should write results there rather than (or in addition to) modifying `a` in-place, or the signature must match exactly what the harness provides.
+- **Add a declaration/include for `s1113`** or ensure it is defined before use in the same translation unit, since the harness calls it and it is undeclared.
+- **Do not change the vectorization logic**, only fix the signature and parameter order to match `vectorized_s1113(float* a, float* b, float* out, int n)`.

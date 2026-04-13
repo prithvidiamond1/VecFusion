@@ -1,0 +1,66 @@
+Candidate code:
+```c
+#include <stdbool.h>
+#include <stdint.h>
+
+bool vectorized_AllPointsEq(const int pts[], int count) {
+    if (count <= 1) return true;
+
+    int val = pts[0];
+
+    // Use GCC/Clang vector extensions for SIMD-style processing
+    typedef int v8si __attribute__((vector_size(32)));
+
+    int i = 1;
+    int result = 1;
+
+    // Process 8 ints at a time using 256-bit vectors
+    if (count - 1 >= 8) {
+        v8si splat = {val, val, val, val, val, val, val, val};
+        v8si ones  = {1, 1, 1, 1, 1, 1, 1, 1};
+        v8si acc   = {1, 1, 1, 1, 1, 1, 1, 1};
+
+        for (; i + 7 < count; i += 8) {
+            v8si chunk;
+            __builtin_memcpy(&chunk, &pts[i], sizeof(v8si));
+            // element-wise comparison: produces -1 (all bits set) if equal, 0 otherwise
+            v8si cmp = (chunk == splat);
+            // convert -1/0 to 1/0 by ANDing with ones
+            v8si mask = cmp & ones;
+            acc = acc & mask;
+        }
+
+        // Reduce acc: AND all 8 lanes together
+        result = acc[0] & acc[1] & acc[2] & acc[3] &
+                 acc[4] & acc[5] & acc[6] & acc[7];
+    }
+
+    // Scalar tail
+    for (; i < count; ++i) {
+        result &= (pts[0] == pts[i]);
+    }
+
+    return (bool)result;
+}
+```
+
+External compile/test report:
+Compile failed.
+            Command: clang results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1
+            stderr:
+            results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:6:9: error: unknown type name 'bool'
+    6 |         bool AllPointsEq_opt(const int pts[], int count) {
+      |         ^
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:11:13: error: use of undeclared identifier 'bool'
+   11 |     return (bool)result;
+      |             ^
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:91:17: error: call to undeclared function 'AllPointsEq'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+   91 |                 AllPointsEq(a, b, out_scalar, n);
+      |                 ^
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:92:46: error: too many arguments to function call, expected 2, have 4
+   92 |                 vectorized_AllPointsEq(a, b, out_vector, n);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~       ^~~~~~~~~~~~~
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:17:6: note: 'vectorized_AllPointsEq' declared here
+   17 | bool vectorized_AllPointsEq(const int pts[], int count) {
+      |      ^                      ~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 errors generated.

@@ -1,0 +1,1 @@
+- The compile error is in the test harness calling `s112(a, b, out_scalar, n)` where `out_scalar` is `int[128]` but `iterations` is declared as `int` — the reference `s112` signature uses `int iterations` (not a pointer), so fix `vectorized_s112` to match: change `int *iterations` to `int iterations` and update the dereference `*iterations` to just `iterations`.

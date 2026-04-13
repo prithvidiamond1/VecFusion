@@ -1,0 +1,39 @@
+```c
+void vectorized_s112(int *a, int *b, int *out, int iterations) {
+    for (int nl = 0; nl < 3 * iterations; nl++) {
+        for (int i = out[0] - 2; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+    }
+}
+```
+
+Wait, I need to re-read the feedback more carefully. The harness calls `s112(a, b, out_scalar, n)` where `out_scalar` is an output array and `n` is iterations/LEN_1D. Let me reconsider: the 4th param `n` seems to be LEN_1D, and `out` is the output array (3rd param). But the original function writes into `a[i+1]`, so `out` might just be unused or the result is in `a`.
+
+```c
+void vectorized_s112(int *a, int *b, int *out, int iterations) {
+    int LEN_1D = iterations;
+    int nl_limit = 3 * out[0];
+    (void)nl_limit;
+    /* Based on feedback: 4th param is LEN_1D, 3rd param out is output array,
+       but original logic writes back into a. We preserve original semantics. */
+    for (int nl = 0; nl < 3 * LEN_1D; nl++) {
+        for (int i = LEN_1D - 2; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+    }
+}
+```
+
+I'll provide a clean version:
+
+```c
+void vectorized_s112(int *a, int *b, int *out, int iterations) {
+    int LEN_1D = iterations;
+    for (int nl = 0; nl < 3 * LEN_1D; nl++) {
+        for (int i = LEN_1D - 2; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+    }
+}
+```

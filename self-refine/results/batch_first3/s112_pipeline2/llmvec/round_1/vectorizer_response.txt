@@ -1,0 +1,32 @@
+```c
+#include <stdlib.h>
+#include <string.h>
+
+void vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {
+    float *tmp = (float *)malloc(LEN_1D * sizeof(float));
+    for (int nl = 0; nl < 3 * iterations; nl++) {
+        memcpy(tmp, a, LEN_1D * sizeof(float));
+
+        int i = 0;
+        int limit = LEN_1D - 2;
+
+        /* Vectorized portion: process 8 elements at a time */
+        for (; i <= limit - 7; i += 8) {
+            a[i + 1] = tmp[i]     + b[i];
+            a[i + 2] = tmp[i + 1] + b[i + 1];
+            a[i + 3] = tmp[i + 2] + b[i + 2];
+            a[i + 4] = tmp[i + 3] + b[i + 3];
+            a[i + 5] = tmp[i + 4] + b[i + 4];
+            a[i + 6] = tmp[i + 5] + b[i + 5];
+            a[i + 7] = tmp[i + 6] + b[i + 6];
+            a[i + 8] = tmp[i + 7] + b[i + 7];
+        }
+
+        /* Scalar cleanup tail */
+        for (; i <= limit; i++) {
+            a[i + 1] = tmp[i] + b[i];
+        }
+    }
+    free(tmp);
+}
+```

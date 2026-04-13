@@ -1,7 +1,0 @@
-The errors are in the test harness (lines 68–69), not in the candidate function itself. The harness is passing `out_scalar` and `out_vector` (both `int[128]`) as the `iterations` argument. This means the function signature expected by the harness differs from what the candidate declares.
-
-- The harness calls `s112(a, b, out_scalar, n)` and `vectorized_s112(a, b, out_vector, n)`, passing the output array as the 3rd argument and `n` (an int) as the 4th — so the expected signature is `(float *a, float *b, float *out, int LEN_1D)` (or similar with an output array), not `(float *a, float *b, int iterations, int LEN_1D)`.
-- Change the signature of `vectorized_s112` (and `s112`) to accept a `float *` (or `int *`) output array as the 3rd parameter and `int LEN_1D` (or `int n`) as the 4th, matching what the harness passes.
-- Remove the `iterations` outer loop (`for (int nl = 0; nl < 3 * iterations; nl++)`) since there is no `iterations` parameter in the corrected signature; the harness controls repetition externally.
-- The arrays `a` and `b` in the harness are `int[128]`, so either the harness uses `int` arrays or the candidate should accept `int *` — align the pointer types with what the harness actually declares (`int *a`, `int *b`, `int *out`, `int n`).
-- Ensure the inner loop logic is updated accordingly if element type changes from `float` to `int`.

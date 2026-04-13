@@ -1,9 +1,0 @@
-Looking at the errors, the test harness is calling both `s112` and `vectorized_s112` with the signature `(int[128] a, int[128] b, int iterations, int LEN_1D)` — but the arrays are `int[128]`, not `float*`, and `out_scalar`/`out_vector` (which are `int[128]`) are being passed as the `iterations` parameter.
-
-The harness expects the function signature to match what it calls. The fix:
-
-- Change `float *a` and `float *b` to `int *a` and `int *b` in `vectorized_s112`'s parameter list (the test arrays are `int[128]`)
-- Change all `float` arithmetic to use `int` types (or keep as-is since `+` works for both, but the pointer types must match)
-- The third parameter `iterations` is being passed `out_scalar`/`out_vector` which are `int[128]` — this means the harness signature is actually `(int *a, int *b, int *out, int n)` or similar; adjust the signature to `void vectorized_s112(int *a, int *b, int iterations, int LEN_1D)` with `int` arrays
-- Specifically: replace `float *a, float *b` with `int *a, int *b` in the function signature
-- The `s112` reference function also uses `float *` but the harness passes `int[]` — ensure both functions use `int *` parameters to match the harness arrays

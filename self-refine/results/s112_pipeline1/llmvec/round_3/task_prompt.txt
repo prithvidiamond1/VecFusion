@@ -1,0 +1,32 @@
+Revise your candidate for `s112` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s112(float *a, float *b, int iterations, int LEN_1D) {
+    for (int nl = 0; nl < 3 * iterations; nl++) {
+        for (int i = LEN_1D - 2; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        void vectorized_s112(int *a, int *b, int *out, int LEN_1D) {
+    for (int nl = 0; nl < 3 * LEN_1D; nl++) {
+        for (int i = LEN_1D - 2; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+    }
+    (void)out;
+}
+        ```
+
+        Tester feedback:
+        The compile error is in the test harness's reference `s112` function signature, not in the candidate itself. However, the candidate's function signature uses `int *a, int *b` while the reference uses `float *a, float *b`. The fix needed:
+
+- Change `int *a`, `int *b`, and `int *out` to `float *a`, `float *b`, and `float *out` in `vectorized_s112` to match the expected data types used by the test harness.
+- The inner loop body should then use `float` arithmetic: `a[i + 1] = a[i] + b[i];` remains the same expression but operates on `float` arrays.
+
+        Return a corrected candidate function named `vectorized_s112`.

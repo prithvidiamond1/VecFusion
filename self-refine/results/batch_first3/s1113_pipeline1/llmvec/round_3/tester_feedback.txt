@@ -1,0 +1,6 @@
+The errors show that the test harness calls both `s1113` and `vectorized_s1113` with the signature `(float* a, float* b, float* out, int n)` — i.e., the array pointers come first, then the output array, then the scalar `n`. The candidate's function signature has the parameters in the wrong order.
+
+- **Fix the signature of `vectorized_s1113`** to match what the harness expects: `void vectorized_s1113(float* a, float* b, float* out, int n)` (or whatever the reference `s1113` signature is in the harness).
+- **Reorder the parameter usage inside the function body** to match: `n` is the iteration count or `LEN_1D`, `out` is the output array, etc. — align with how the reference `s1113` uses its parameters.
+- The harness passes `(a, b, out_vector, n)` where `a` and `b` are `int[128]` arrays and `n` is a `const int`, so the signature should accept `float* a, float* b, float* out, int n` (matching the reference function exactly).
+- Do **not** change the internal loop logic — only fix the function signature and parameter names to match the harness's calling convention.

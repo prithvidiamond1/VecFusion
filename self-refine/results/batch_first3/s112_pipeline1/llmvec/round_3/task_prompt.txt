@@ -1,0 +1,47 @@
+Revise your candidate for `s112` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s112(float *a, float *b, int iterations, int LEN_1D) {
+    for (int nl = 0; nl < 3 * iterations; nl++) {
+        for (int i = LEN_1D - 2; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        void vectorized_s112(float *a, float *b, int *c, int LEN_1D) {
+    for (int i = LEN_1D - 2; i >= 0; i--) {
+        a[i + 1] = a[i] + b[i];
+    }
+}
+        ```
+
+        Tester feedback:
+        The compile error is in the test harness calling `s112(a, b, out_scalar, n)` where `out_scalar` (an `int[128]`) is being passed as the `int iterations` parameter. This is a harness mismatch issue, but the vectorized function signature is also mismatched with how it's being called.
+
+Looking at the errors:
+
+- The test harness passes `(a, b, out_vector, n)` to `vectorized_s112`, where `a` and `b` are `int[128]` arrays — meaning the harness expects `vectorized_s112` to take `int *a, int *b` (or similar), not `float *a, float *b`.
+- The function signature `void vectorized_s112(float *a, float *b, int *c, int LEN_1D)` doesn't match what the harness expects.
+- The reference `s112` signature is `void s112(float *a, float *b, int iterations, int LEN_1D)` — the third parameter is `int iterations`, not a pointer, so the harness call is broken there too.
+
+**Fixes needed:**
+
+- Change `vectorized_s112` signature to match the original `s112` signature exactly: `void vectorized_s112(float *a, float *b, int iterations, int LEN_1D)` — remove the `int *c` parameter and replace with `int iterations`.
+- The loop body should not use `c` at all; keep the loop logic as-is since it correctly implements the recurrence.
+- Remove the unused `int *c` parameter entirely from the function signature.
+
+Corrected candidate:
+```c
+void vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {
+    for (int i = LEN_1D - 2; i >= 0; i--) {
+        a[i + 1] = a[i] + b[i];
+    }
+}
+```
+
+        Return a corrected candidate function named `vectorized_s112`.

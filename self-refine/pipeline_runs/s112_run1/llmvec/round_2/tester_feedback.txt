@@ -1,3 +1,0 @@
-- The test harness calls `s112(float *a, float *b, ...)` but `vectorized_s112` uses `int *a, int *b` — change the parameter types to `float *a, float *b` to match the reference function signature.
-- The third argument passed is `out_scalar`/`out_vector` (an `int[]` array) but the parameter is `int iterations` — the harness expects the signature `(float *a, float *b, float *out, int n)` or similar; align the parameter list to match exactly what the harness passes (likely `(float *a, float *b, int iterations, int LEN_1D)`).
-- Since `a` and `b` must be `float *`, update all array element operations from integer arithmetic to float arithmetic (the computation `a[i+1] = a[i] + b[i]` is fine, just the types need to change).

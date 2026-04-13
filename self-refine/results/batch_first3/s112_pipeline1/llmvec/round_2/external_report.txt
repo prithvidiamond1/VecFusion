@@ -1,0 +1,37 @@
+Compile failed.
+            Command: clang results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/batch_first3/s112_pipeline1/llmvec/candidate_round_2
+            stderr:
+            results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:14:55: warning: unused parameter 'c' [-Wunused-parameter]
+   14 |         void vectorized_s112(float *a, float *b, int *c, int LEN_1D) {
+      |                                                       ^
+results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:54:22: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+   54 |                 s112(a, b, out_scalar, n);
+      |                      ^
+results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:6:26: note: passing argument to parameter 'a' here
+    6 |         void s112(float *a, float *b, int iterations, int LEN_1D) {
+      |                          ^
+results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:54:25: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+   54 |                 s112(a, b, out_scalar, n);
+      |                         ^
+results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:6:36: note: passing argument to parameter 'b' here
+    6 |         void s112(float *a, float *b, int iterations, int LEN_1D) {
+      |                                    ^
+results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:54:28: error: incompatible pointer to integer conversion passing 'int[128]' to parameter of type 'int' [-Wint-conversion]
+   54 |                 s112(a, b, out_scalar, n);
+      |                            ^~~~~~~~~~
+results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:6:43: note: passing argument to parameter 'iterations' here
+    6 |         void s112(float *a, float *b, int iterations, int LEN_1D) {
+      |                                           ^
+results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:55:33: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+   55 |                 vectorized_s112(a, b, out_vector, n);
+      |                                 ^
+results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:14:37: note: passing argument to parameter 'a' here
+   14 |         void vectorized_s112(float *a, float *b, int *c, int LEN_1D) {
+      |                                     ^
+results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:55:36: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+   55 |                 vectorized_s112(a, b, out_vector, n);
+      |                                    ^
+results/batch_first3/s112_pipeline1/llmvec/candidate_round_2.c:14:47: note: passing argument to parameter 'b' here
+   14 |         void vectorized_s112(float *a, float *b, int *c, int LEN_1D) {
+      |                                               ^
+5 warnings and 1 error generated.

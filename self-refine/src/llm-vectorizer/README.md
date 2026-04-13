@@ -24,6 +24,7 @@ This is intentionally much simpler than the full paper system. It is meant to be
 - `clang`
 - Python package `requests`
 - A valid Anthropic API key
+- `alive-tv` (optional, for translation validation — see below)
 
 The script was tested on macOS with Apple clang.
 
@@ -92,7 +93,9 @@ For each round:
 4. The harness is compiled with `clang`.
 5. If the outputs differ, the failure report is sent back to Claude for another attempt.
 
-If a candidate passes all tests, the script prints the successful generated code.
+If a candidate passes all tests, the script prints the successful generated code and then
+runs alive-tv translation validation, reporting a PASS, FAIL, or INCONCLUSIVE
+verdict. The exit code reflects the alive2 result: 0 = PASS, 1 = FAIL, 2 = INCONCLUSIVE.
 
 ## Checking That It Works
 
@@ -129,13 +132,40 @@ PASS trials=64 checksum=...
 ...
 ```
 
+## Alive2 Translation Validation
+
+After a candidate passes the runtime correctness check, `llmVectorizer.py` automatically runs
+[alive-tv](https://github.com/AliveToolkit/alive2) to formally verify that the vectorized
+function is a correct refinement of the scalar original.
+
+The verdict is one of:
+- **PASS** — alive-tv confirmed the transformation is correct
+- **FAIL** — alive-tv found a concrete counterexample (real bug)
+- **INCONCLUSIVE** — SMT solver timeout or IR the solver could not reason about
+
+### Installing alive-tv
+
+The installation process for alive2 is similar to VecTrans. Refer to that project's build instructions as a guide.
+
+### set_env.sh
+
+alive-tv requires several environment variables to be set (e.g. the path to your alive2
+installation). These are configured in a `set_env.sh` file in the project root. Example:
+
+```bash
+export PATH="/path/to/alive2/build/tools:$PATH"
+export CLANG_PATH="/path/to/llvm/bin/clang"
+```
+
+**You do not need to source `set_env.sh` manually.** `llmVectorizer.py` sources it
+automatically in a subprocess when it starts up. If the file is missing, alive-tv is silently skipped and everything else continues to work normally.
+If you would like to run the script manually, change `llmVectorizer.py` to not run `set_env.sh` on every run.
+
 ## Limitations
 
 - Only supports a narrow kernel signature right now
 - Only tests integer array kernels
-- Uses randomized testing, not formal verification
 - Not a full reproduction of the paper pipeline
-- No Alive2 integration
 - No generalized benchmark ingestion
 
 ## Notes

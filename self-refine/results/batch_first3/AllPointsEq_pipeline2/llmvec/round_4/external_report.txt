@@ -1,0 +1,19 @@
+Compile failed.
+            Command: clang results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4
+            stderr:
+            results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:6:9: error: unknown type name 'bool'
+    6 |         bool AllPointsEq_opt(const int pts[], int count) {
+      |         ^
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:11:13: error: use of undeclared identifier 'bool'
+   11 |     return (bool)result;
+      |             ^
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:90:17: error: call to undeclared function 'AllPointsEq'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+   90 |                 AllPointsEq(a, b, out_scalar, n);
+      |                 ^
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:91:46: error: too many arguments to function call, expected 2, have 4
+   91 |                 vectorized_AllPointsEq(a, b, out_vector, n);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~       ^~~~~~~~~~~~~
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:20:6: note: 'vectorized_AllPointsEq' declared here
+   20 | bool vectorized_AllPointsEq(const int pts[], int count) {
+      |      ^                      ~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 errors generated.

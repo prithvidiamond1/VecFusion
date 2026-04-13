@@ -1,0 +1,68 @@
+Candidate code:
+```c
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
+bool vectorized_AllPointsEq(const int pts[], int count) {
+    if (count <= 1) return true;
+
+    typedef int v8si __attribute__((vector_size(32)));
+
+    int val = pts[0];
+
+    /* Build a vector filled with pts[0] */
+    v8si splat = {val, val, val, val, val, val, val, val};
+
+    int i = 1;
+    int simd_end = 1 + ((count - 1) / 8) * 8;
+
+    for (; i < simd_end; i += 8) {
+        v8si vpts;
+        memcpy(&vpts, &pts[i], sizeof(v8si));
+        v8si cmp = (vpts != splat);
+        /* cmp lane is -1 (nonzero) when NOT equal */
+        if (cmp[0] || cmp[1] || cmp[2] || cmp[3] ||
+            cmp[4] || cmp[5] || cmp[6] || cmp[7]) {
+            return false;
+        }
+    }
+
+    /* Scalar tail */
+    for (; i < count; ++i) {
+        if (pts[0] != pts[i]) return false;
+    }
+
+    return true;
+}
+```
+
+External compile/test report:
+Compile failed.
+            Command: clang results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_4
+            stderr:
+            results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_4.c:6:9: error: unknown type name 'bool'
+    6 |         bool AllPointsEq(const int pts[], int count) {
+      |         ^
+results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_4.c:9:20: error: use of undeclared identifier 'false'; did you mean 'else'?
+    9 |             return false;
+      |                    ^~~~~
+      |                    else
+results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_4.c:9:20: error: expected expression
+results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_4.c:12:12: error: use of undeclared identifier 'true'; did you mean 'free'?
+   12 |     return true;
+      |            ^~~~
+      |            free
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/malloc/_malloc.h:56:7: note: 'free' declared here
+   56 | void  free(void * __unsafe_indexable);
+      |       ^
+results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_4.c:12:12: error: incompatible pointer to integer conversion returning 'void (void *)' from a function with result type 'int' [-Wint-conversion]
+   12 |     return true;
+      |            ^~~~
+results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_4.c:86:46: error: too many arguments to function call, expected 2, have 4
+   86 |                 vectorized_AllPointsEq(a, b, out_vector, n);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~       ^~~~~~~~~~~~~
+results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_4.c:19:6: note: 'vectorized_AllPointsEq' declared here
+   19 | bool vectorized_AllPointsEq(const int pts[], int count) {
+      |      ^                      ~~~~~~~~~~~~~~~~~~~~~~~~~~
+6 errors generated.

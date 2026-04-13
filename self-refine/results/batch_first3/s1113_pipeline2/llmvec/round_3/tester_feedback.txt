@@ -1,0 +1,7 @@
+The errors show that the test harness calls `vectorized_s1113(a, b, out_vector, n)` with signature `(float*, float*, float*, int)`, but the candidate declares `vectorized_s1113(int iterations, int LEN_1D, float* a, float* b)` — the parameter order and types don't match.
+
+- **Fix the function signature** to match the call site: `void vectorized_s1113(float* a, float* b, float* out, int n)` (or whatever the harness expects — based on the call it's `(float* a, float* b, float* out_vector, int n)`).
+- **The harness also calls `s1113(a, b, out_scalar, n)`** which is undeclared — you need to either include the reference implementation or declare/define `s1113` with the matching signature.
+- **Reorder parameters** so `a`, `b` come first (as `float*`), then the output array, then `n` (the integer), matching the call `vectorized_s1113(a, b, out_vector, n)`.
+- **Use `n` (the last int argument) as `LEN_1D`** and derive `iterations` from context or remove it if the harness doesn't pass it separately.
+- **Do not add extra parameters** beyond what the harness passes — the call has exactly 4 arguments: two `float*` arrays, one output array, and one `int`.

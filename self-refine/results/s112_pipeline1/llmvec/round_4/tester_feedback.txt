@@ -1,0 +1,6 @@
+- The test harness calls `s112(a, b, out_scalar, n)` where `a` and `b` are `int[128]` arrays and `out_scalar` is an `int[128]` array passed as the third argument (iterations), but the reference signature is `void s112(float *a, float *b, int iterations, int LEN_1D)`.
+- Your candidate signature `void vectorized_s112(int *a, int *b, int *out, int iterations)` doesn't match the expected function name `s112` — rename it to `s112`.
+- Change `float *a` and `float *b` to `int *a` and `int *b` to match the actual array types used in the test harness.
+- The third parameter should be `int *out` (or equivalent array) not a plain `int iterations`, since `out_scalar` (an `int[128]`) is passed there — adjust the signature to accept it correctly.
+- The fourth parameter `int LEN_1D` corresponds to `n` (the iteration count); rename/reorder parameters so `iterations` maps to `LEN_1D`/`n`.
+- Concretely, the corrected signature should be: `void s112(int *a, int *b, int *out, int iterations)` matching what the harness passes.

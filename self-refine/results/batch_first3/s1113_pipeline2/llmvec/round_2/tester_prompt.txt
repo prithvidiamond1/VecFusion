@@ -1,0 +1,81 @@
+Candidate code:
+```c
+#include <stdint.h>
+
+void vectorized_s1113(float* a, float* b, float* out, int n)
+{
+    int iterations = n;
+    int LEN_1D = n;
+    int mid = LEN_1D / 2;
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        float tmp = a[mid];
+
+        // Vectorize first loop: a[i] = tmp + b[i] for i in [0, mid)
+        int i = 0;
+        int mid4 = mid - (mid % 4);
+        for (; i < mid4; i += 4) {
+            a[i + 0] = tmp + b[i + 0];
+            a[i + 1] = tmp + b[i + 1];
+            a[i + 2] = tmp + b[i + 2];
+            a[i + 3] = tmp + b[i + 3];
+        }
+        for (; i < mid; i++) {
+            a[i] = tmp + b[i];
+        }
+
+        // Middle element
+        a[mid] = tmp + b[mid];
+        float tmp2 = a[mid];
+
+        // Vectorize second loop: a[i] = tmp2 + b[i] for i in [mid+1, LEN_1D)
+        int start = mid + 1;
+        int len2 = LEN_1D - start;
+        int len2_4 = len2 - (len2 % 4);
+        i = start;
+        int end4 = start + len2_4;
+        for (; i < end4; i += 4) {
+            a[i + 0] = tmp2 + b[i + 0];
+            a[i + 1] = tmp2 + b[i + 1];
+            a[i + 2] = tmp2 + b[i + 2];
+            a[i + 3] = tmp2 + b[i + 3];
+        }
+        for (; i < LEN_1D; i++) {
+            a[i] = tmp2 + b[i];
+        }
+    }
+
+    // Copy result to out if provided
+    if (out != (void*)0 && out != a) {
+        for (int i = 0; i < LEN_1D; i++) {
+            out[i] = a[i];
+        }
+    }
+}
+```
+
+External compile/test report:
+Compile failed.
+            Command: clang results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2
+            stderr:
+            results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:108:17: error: call to undeclared function 's1113'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  108 |                 s1113(a, b, out_scalar, n);
+      |                 ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:109:34: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+  109 |                 vectorized_s1113(a, b, out_vector, n);
+      |                                  ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:24:30: note: passing argument to parameter 'a' here
+   24 | void vectorized_s1113(float* a, float* b, float* out, int n)
+      |                              ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:109:37: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+  109 |                 vectorized_s1113(a, b, out_vector, n);
+      |                                     ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:24:40: note: passing argument to parameter 'b' here
+   24 | void vectorized_s1113(float* a, float* b, float* out, int n)
+      |                                        ^
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:109:40: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
+  109 |                 vectorized_s1113(a, b, out_vector, n);
+      |                                        ^~~~~~~~~~
+results/batch_first3/s1113_pipeline2/llmvec/candidate_round_2.c:24:50: note: passing argument to parameter 'out' here
+   24 | void vectorized_s1113(float* a, float* b, float* out, int n)
+      |                                                  ^
+3 warnings and 1 error generated.

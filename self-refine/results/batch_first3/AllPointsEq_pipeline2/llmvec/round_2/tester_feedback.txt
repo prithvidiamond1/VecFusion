@@ -1,0 +1,7 @@
+- The test harness calls `vectorized_AllPointsEq(a, b, out_vector, n)` with 4 arguments, but the candidate only declares 2 parameters `(const int pts[], int count)`. Match the harness signature — likely `vectorized_AllPointsEq(const int a[], const int b[], bool out_vector[], int n)` or similar.
+- The harness also calls `AllPointsEq(a, b, out_scalar, n)` — you need to provide (or forward-declare) that reference function too, or the test file already contains it and your candidate must not redefine it.
+- `bool` is unknown: the `#include <stdbool.h>` is present in the candidate but the error says line 6 uses `bool` — ensure the include appears **before** any use and is not accidentally stripped when the harness concatenates files.
+- The function return type and cast `(bool)result` must use `_Bool` or keep `#include <stdbool.h>` reliably at the top of the final compiled unit.
+- The loop starts at `i = 1` (skipping `pts[0]`), but if the harness passes two separate arrays `a` and `b`, the semantics are different — re-examine what `AllPointsEq` is supposed to do with two arrays and adjust accordingly.
+- Fix the scalar fallback loop: `result &= (pts[0] == pts[i])` compares within one array; if the function is meant to compare two arrays element-wise, change to `result &= (a[i] == b[i])`.
+- Keep `typedef int v8si __attribute__((vector_size(32)));` at file scope (outside the function) to avoid any scoping issues with some clang versions.

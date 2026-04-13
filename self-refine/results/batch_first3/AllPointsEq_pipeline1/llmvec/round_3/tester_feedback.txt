@@ -1,0 +1,7 @@
+The compile errors reference lines 6, 9, 12 with `bool`, `false`, `true` — these are in a **different function** (`AllPointsEq`) that appears to be embedded in the actual file on disk but is **not shown in the candidate code above**. The file being compiled contains extra content beyond what was submitted.
+
+Specific fixes needed:
+
+- Add `#include <stdbool.h>` at the top (or replace `bool`/`true`/`false` with `int`/`1`/`0`) in the scalar reference function that exists in the compiled file.
+- The file on disk apparently contains a second function `bool AllPointsEq(const int pts[], int count)` — either add `#include <stdbool.h>` to make `bool`, `true`, `false` valid in C11, or change its signature to `int AllPointsEq(const int pts[], int count)` and replace `true`→`1`, `false`→`0`.
+- Ensure the submitted candidate file contains **only** the intended `vectorized_AllPointsEq` function (no stray scalar reference function appended), or include the necessary headers for any extra functions present.
