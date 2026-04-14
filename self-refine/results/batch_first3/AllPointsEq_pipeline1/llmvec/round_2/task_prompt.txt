@@ -49,12 +49,11 @@ bool vectorized_AllPointsEq(const int pts[], int count) {
         ```
 
         Tester feedback:
-        - The compile errors about `bool`, `true`, `false` are coming from a **different file** (line 6 shows `bool AllPointsEq(...)` without the `vectorized_` prefix) — the test harness is concatenating or including another source. The candidate itself includes `<stdbool.h>` correctly, but the harness file apparently does not. Add `#ifndef bool` guard or ensure the harness also gets `<stdbool.h>`, but since you control only the candidate, add `#include <stdbool.h>` at the very top (already present — verify it's truly the first line with no BOM/whitespace issues).
-- The real issue: the test harness calls `vectorized_AllPointsEq(a, b, out_vector, n)` with **4 arguments**, but the function only accepts 2. Change the signature to accept 4 parameters: `void vectorized_AllPointsEq(const int pts[], int count, bool *out_vector, int n)` (or match whatever the harness expects — likely it writes results into `out_vector`).
-- The return type should likely be `void` (writing into `out_vector`) rather than `bool`, since the harness passes an output array and a count `n`.
-- Inside the function, write the single result `out_vector[0] = <computed bool>` (or loop over `n` calls if the harness batches multiple inputs).
-- Remove the `#include <stdbool.h>` / `#include <stdint.h>` guards if the harness already provides them, or keep them — but make sure they appear before any type usage.
-- The `simd_end` calculation is correct but only processes `count-1` elements starting at index 1; verify the loop bound doesn't read past the array when `count-1` is not a multiple of 8 (it won't because the scalar tail handles the remainder — this is fine).
-- Fix the function signature to match the 4-argument harness call: `void vectorized_AllPointsEq(const int pts[], int count, bool *out_vector, int n)` and store the boolean result into `out_vector[0]`.
+        - The compile errors about `bool`, `true`, `false` are coming from a **different file** (line 6 shows `bool AllPointsEq(...)` without the `vectorized_` prefix) — the test harness is concatenating or including another source. However, the candidate itself uses `#include <stdbool.h>` which should be sufficient; the issue is the harness file doesn't have it. Ensure the candidate file does **not** redefine or conflict, but this looks like a harness issue.
+- The real actionable error: line 83 calls `vectorized_AllPointsEq(a, b, out_vector, n)` with **4 arguments**, but the function only takes **2**. Change the signature to accept the extra parameters the harness expects, e.g. `void vectorized_AllPointsEq(const int pts[], int count, bool *out, int n_calls)` or match whatever the harness signature is.
+- Most likely the harness expects the function to write results to an output array. Change the function signature to `void vectorized_AllPointsEq(const int pts[], int count, bool *out_vector, int n)` and loop `n` times (or adjust to match the harness calling convention).
+- Remove `#include <stdbool.h>` and `#include <stdint.h>` from the candidate if the harness already provides them (to avoid duplicate-include conflicts), or keep them — but ensure the candidate compiles standalone with `-std=c11`.
+- The `typedef int v8si __attribute__((vector_size(32)));` inside the function body is valid in GCC but may warn/error on some Clang versions; move it to file scope.
+- Fix the `simd_end` boundary: when `count - 1 < 8`, `simd_end = 1` and the SIMD loop is skipped correctly, but verify `simd_end` doesn't exceed `count` (it won't, but add a `min(simd_end, count)` guard for safety).
 
         Return a corrected candidate function named `vectorized_AllPointsEq`.

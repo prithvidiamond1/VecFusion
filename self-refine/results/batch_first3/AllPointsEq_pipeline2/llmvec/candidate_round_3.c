@@ -4,51 +4,53 @@
         #include <string.h>
 
         bool AllPointsEq_opt(const int pts[], int count) {
+    int first = pts[0];
     int result = 1;
     for (int i = 1; i < count; ++i) {
-        result &= (pts[0] == pts[i]);
+        result &= (first == pts[i]);
     }
     return (bool)result;
 }
 
-        #include <stdbool.h>
-#include <stdint.h>
+        #include <stdint.h>
 #include <string.h>
 
-typedef int v8si __attribute__((vector_size(32)));
+int vectorized_AllPointsEq(const int* a, const int* b, int* out, int n) {
+    (void)b;
+    if (n <= 0) { if (out) *out = 1; return 1; }
 
-bool vectorized_AllPointsEq(const int a[], const int b[], bool out_vector[], int n) {
-    int i = 0;
+    int first = a[0];
 
-    if (n >= 8) {
-        v8si ones = {1, 1, 1, 1, 1, 1, 1, 1};
+    typedef int v8si __attribute__((vector_size(32)));
+
+    int i = 1;
+    int result = 1;
+
+    if ((n - 1) >= 8) {
+        v8si vfirst = {first, first, first, first, first, first, first, first};
+        v8si vresult = {1, 1, 1, 1, 1, 1, 1, 1};
 
         for (; i + 7 < n; i += 8) {
-            v8si va, vb;
-            __builtin_memcpy(&va, &a[i], sizeof(v8si));
-            __builtin_memcpy(&vb, &b[i], sizeof(v8si));
-            v8si cmp = (va == vb);
-            v8si mask = cmp & ones;
-            out_vector[i+0] = (bool)mask[0];
-            out_vector[i+1] = (bool)mask[1];
-            out_vector[i+2] = (bool)mask[2];
-            out_vector[i+3] = (bool)mask[3];
-            out_vector[i+4] = (bool)mask[4];
-            out_vector[i+5] = (bool)mask[5];
-            out_vector[i+6] = (bool)mask[6];
-            out_vector[i+7] = (bool)mask[7];
+            v8si vdata;
+            memcpy(&vdata, &a[i], sizeof(v8si));
+            v8si vcmp = (vdata == vfirst);
+            vresult &= vcmp;
+        }
+
+        int tmp[8];
+        memcpy(tmp, &vresult, sizeof(tmp));
+        for (int j = 0; j < 8; j++) {
+            result &= (tmp[j] != 0);
         }
     }
 
-    for (; i < n; ++i) {
-        out_vector[i] = (bool)(a[i] == b[i]);
+    for (; i < n; i++) {
+        result &= (first == a[i]);
     }
 
-    bool result = true;
-    for (int j = 0; j < n; ++j) {
-        result &= out_vector[j];
-    }
-    return result;
+    int r = result ? 1 : 0;
+    if (out) *out = r;
+    return r;
 }
 
         static uint32_t next_u32(uint32_t *state) {

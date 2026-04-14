@@ -3,9 +3,10 @@ Revise your candidate for `AllPointsEq` based on tester feedback.
         Original scalar source:
         ```c
         bool AllPointsEq_opt(const int pts[], int count) {
+    int first = pts[0];
     int result = 1;
     for (int i = 1; i < count; ++i) {
-        result &= (pts[0] == pts[i]);
+        result &= (first == pts[i]);
     }
     return (bool)result;
 }
@@ -17,40 +18,40 @@ Revise your candidate for `AllPointsEq` based on tester feedback.
 #include <stdint.h>
 
 bool vectorized_AllPointsEq(const int pts[], int count) {
-    if (count <= 1) return true;
+    if (count <= 0) return true;
 
-    int val = pts[0];
+    int first = pts[0];
 
     // Use GCC/Clang vector extensions for SIMD-style processing
-    typedef int v8si __attribute__((vector_size(32)));
+    typedef int v8si __attribute__((vector_size(32)));  // 8 x int32 = 256-bit
 
     int i = 1;
     int result = 1;
 
-    // Process 8 ints at a time using 256-bit vectors
+    // Vectorized portion: process 8 ints at a time
     if (count - 1 >= 8) {
-        v8si splat = {val, val, val, val, val, val, val, val};
-        v8si ones  = {1, 1, 1, 1, 1, 1, 1, 1};
-        v8si acc   = {1, 1, 1, 1, 1, 1, 1, 1};
+        v8si vfirst = {first, first, first, first, first, first, first, first};
+        v8si vresult = {1, 1, 1, 1, 1, 1, 1, 1};
 
         for (; i + 7 < count; i += 8) {
-            v8si chunk;
-            __builtin_memcpy(&chunk, &pts[i], sizeof(v8si));
-            // element-wise comparison: produces -1 (all bits set) if equal, 0 otherwise
-            v8si cmp = (chunk == splat);
-            // convert -1/0 to 1/0 by ANDing with ones
-            v8si mask = cmp & ones;
-            acc = acc & mask;
+            v8si vdata;
+            __builtin_memcpy(&vdata, &pts[i], sizeof(v8si));
+            // Compare: produces -1 (all bits set) where equal, 0 where not
+            v8si vcmp = (vdata == vfirst);
+            vresult &= vcmp;
         }
 
-        // Reduce acc: AND all 8 lanes together
-        result = acc[0] & acc[1] & acc[2] & acc[3] &
-                 acc[4] & acc[5] & acc[6] & acc[7];
+        // Reduce vresult: check all lanes are non-zero (i.e., -1)
+        int tmp[8];
+        __builtin_memcpy(tmp, &vresult, sizeof(tmp));
+        for (int j = 0; j < 8; j++) {
+            result &= (tmp[j] != 0);
+        }
     }
 
-    // Scalar tail
-    for (; i < count; ++i) {
-        result &= (pts[0] == pts[i]);
+    // Scalar cleanup tail
+    for (; i < count; i++) {
+        result &= (first == pts[i]);
     }
 
     return (bool)result;
@@ -58,10 +59,10 @@ bool vectorized_AllPointsEq(const int pts[], int count) {
         ```
 
         Tester feedback:
-        - The `#include <stdbool.h>` is present in the candidate but the error shows `bool` is unknown at line 6 — this means the test harness wraps/concatenates files and the harness's own `AllPointsEq_opt` function (line 6) appears before the include. Move `#include <stdbool.h>` and `#include <stdint.h>` to the very top, or ensure they precede any function definitions.
-- The harness calls `vectorized_AllPointsEq(a, b, out_vector, n)` with 4 arguments but the function only takes 2 (`pts`, `count`). Change the signature to match what the harness expects: `bool vectorized_AllPointsEq(const int* a, const int* b, bool* out, int count)` — or more likely the harness expects the same signature as `AllPointsEq(const int pts[], int count)`, so rename the function to exactly `AllPointsEq` (replacing/overriding the scalar version) rather than `vectorized_AllPointsEq`.
-- The harness calls `AllPointsEq(a, b, out_scalar, n)` with 4 args too, suggesting the actual expected signature is `void AllPointsEq(const int* a, const int* b, bool* out, int count)` or similar — align the vectorized function's name and signature exactly with what the harness expects.
-- Remove the `vectorized_` prefix from the function name so it matches the harness's call site.
-- Ensure `#include <stdbool.h>` appears before any use of `bool` in the translation unit (place it at the absolute top of the file).
+        - The compile errors show the test harness is calling `vectorized_AllPointsEq(a, b, out_vector, n)` with 4 arguments, but the function only accepts 2 (`pts`, `count`). The harness expects a different signature — likely `void vectorized_AllPointsEq(const int pts[], int count, bool* out, int n)` or similar. Match the signature to what the harness expects (4 parameters).
+- The harness also calls `AllPointsEq(a, b, out_scalar, n)` — the scalar reference function is missing or not declared. Add a matching scalar reference implementation or forward declaration.
+- `bool` is unknown at line 6/12 in the harness context, suggesting `#include <stdbool.h>` is not being seen by the harness file. Ensure the candidate file includes `<stdbool.h>` at the very top (it does, but the harness file at line 6 is a different context — the harness may be a wrapper that includes this file; make sure the include is present and not inside a function).
+- The function signature must match exactly what the test harness expects: based on the 4-argument call `vectorized_AllPointsEq(a, b, out_vector, n)`, change the signature to `void vectorized_AllPointsEq(const int* a, const int* b, bool* out, int n)` (or whatever the harness pattern is — likely processing pairs of point arrays).
+- Add the scalar `AllPointsEq` function with the same 4-argument signature so the harness reference call compiles.
 
         Return a corrected candidate function named `vectorized_AllPointsEq`.

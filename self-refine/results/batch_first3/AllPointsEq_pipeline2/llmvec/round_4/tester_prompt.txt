@@ -4,39 +4,36 @@ Candidate code:
 #include <stdint.h>
 #include <string.h>
 
-typedef int v8si __attribute__((vector_size(32)));
-
 bool vectorized_AllPointsEq(const int pts[], int count) {
     if (count <= 0) return true;
-    if (count == 1) return true;
 
-    int val = pts[0];
-    int i = 1;
-
-    /* Broadcast val into a vector */
-    v8si vval = {val, val, val, val, val, val, val, val};
+    int first = pts[0];
     int result = 1;
 
-    for (; i + 7 < count; i += 8) {
-        v8si vpts;
-        __builtin_memcpy(&vpts, &pts[i], sizeof(v8si));
-        v8si cmp = (vpts == vval);
-        /* cmp elements are -1 (true) or 0 (false) for GCC/Clang vector ext */
-        /* We need all elements to be non-zero */
-        result &= (cmp[0] != 0);
-        result &= (cmp[1] != 0);
-        result &= (cmp[2] != 0);
-        result &= (cmp[3] != 0);
-        result &= (cmp[4] != 0);
-        result &= (cmp[5] != 0);
-        result &= (cmp[6] != 0);
-        result &= (cmp[7] != 0);
-        if (!result) return false;
+    typedef int v8si __attribute__((vector_size(32)));
+
+    int i = 1;
+
+    if ((count - 1) >= 8) {
+        v8si vfirst = {first, first, first, first, first, first, first, first};
+        v8si vresult = {1, 1, 1, 1, 1, 1, 1, 1};
+
+        for (; i + 7 < count; i += 8) {
+            v8si vdata;
+            memcpy(&vdata, &pts[i], sizeof(v8si));
+            v8si vcmp = (vdata == vfirst);
+            vresult &= vcmp;
+        }
+
+        int tmp[8];
+        memcpy(tmp, &vresult, sizeof(tmp));
+        for (int j = 0; j < 8; j++) {
+            result &= (tmp[j] != 0);
+        }
     }
 
-    /* Scalar tail */
-    for (; i < count; ++i) {
-        result &= (pts[0] == pts[i]);
+    for (; i < count; i++) {
+        result &= (first == pts[i]);
     }
 
     return (bool)result;
@@ -50,16 +47,16 @@ Compile failed.
             results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:6:9: error: unknown type name 'bool'
     6 |         bool AllPointsEq_opt(const int pts[], int count) {
       |         ^
-results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:11:13: error: use of undeclared identifier 'bool'
-   11 |     return (bool)result;
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:12:13: error: use of undeclared identifier 'bool'
+   12 |     return (bool)result;
       |             ^
-results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:90:17: error: call to undeclared function 'AllPointsEq'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
-   90 |                 AllPointsEq(a, b, out_scalar, n);
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:88:17: error: call to undeclared function 'AllPointsEq'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+   88 |                 AllPointsEq(a, b, out_scalar, n);
       |                 ^
-results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:91:46: error: too many arguments to function call, expected 2, have 4
-   91 |                 vectorized_AllPointsEq(a, b, out_vector, n);
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:89:46: error: too many arguments to function call, expected 2, have 4
+   89 |                 vectorized_AllPointsEq(a, b, out_vector, n);
       |                 ~~~~~~~~~~~~~~~~~~~~~~       ^~~~~~~~~~~~~
-results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:20:6: note: 'vectorized_AllPointsEq' declared here
-   20 | bool vectorized_AllPointsEq(const int pts[], int count) {
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_4.c:19:6: note: 'vectorized_AllPointsEq' declared here
+   19 | bool vectorized_AllPointsEq(const int pts[], int count) {
       |      ^                      ~~~~~~~~~~~~~~~~~~~~~~~~~~
 4 errors generated.

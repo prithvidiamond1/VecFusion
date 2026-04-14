@@ -29,18 +29,18 @@ results/batch_first3/s1113_pipeline1/llmvec/candidate_round_2.c:72:34: warning: 
    72 |                 vectorized_s1113(a, b, out_vector, n);
       |                                  ^
 results/batch_first3/s1113_pipeline1/llmvec/candidate_round_2.c:17:30: note: passing argument to parameter 'a' here
-   17 | void vectorized_s1113(float* a, float* b, float* out, int LEN_1D)
+   17 | void vectorized_s1113(float* a, float* b, float* out, int n)
       |                              ^
 results/batch_first3/s1113_pipeline1/llmvec/candidate_round_2.c:72:37: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
    72 |                 vectorized_s1113(a, b, out_vector, n);
       |                                     ^
 results/batch_first3/s1113_pipeline1/llmvec/candidate_round_2.c:17:40: note: passing argument to parameter 'b' here
-   17 | void vectorized_s1113(float* a, float* b, float* out, int LEN_1D)
+   17 | void vectorized_s1113(float* a, float* b, float* out, int n)
       |                                        ^
 results/batch_first3/s1113_pipeline1/llmvec/candidate_round_2.c:72:40: warning: incompatible pointer types passing 'int[128]' to parameter of type 'float *' [-Wincompatible-pointer-types]
    72 |                 vectorized_s1113(a, b, out_vector, n);
       |                                        ^~~~~~~~~~
 results/batch_first3/s1113_pipeline1/llmvec/candidate_round_2.c:17:50: note: passing argument to parameter 'out' here
-   17 | void vectorized_s1113(float* a, float* b, float* out, int LEN_1D)
+   17 | void vectorized_s1113(float* a, float* b, float* out, int n)
       |                                                  ^
 4 warnings and 3 errors generated.

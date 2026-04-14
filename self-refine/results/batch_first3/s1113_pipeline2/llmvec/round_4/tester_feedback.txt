@@ -1,6 +1,9 @@
-The compile errors are in the test harness portion of the file (lines 101–102), not in the candidate function itself. The issues are:
-
-- **Undeclared `s1113`**: The test harness calls `s1113(...)` but no such function is declared/defined before line 101. Add a forward declaration or definition of `s1113` (the scalar reference) before the test harness code.
-- **Array type mismatch (`int[128]` vs `float*`)**: The test harness declares `a` and `b` as `int[128]` but passes them to `vectorized_s1113` which expects `float*`. Change the test array declarations to `float a[128]`, `float b[128]`.
-- **Same type mismatch for `s1113`**: Ensure the scalar `s1113` reference function also accepts `float*` (or match whatever type the test arrays are changed to).
-- **Root cause**: The candidate file apparently contains both the vectorized function and a test harness; the harness was not updated to match the `float*` signature and is missing the scalar reference function. Add a `static void s1113(float* a, float* b, float* out, int n)` scalar implementation before the harness, and fix array declarations to `float`.
+- The compile error is `call to undeclared function 's1113'` at line 107 of the full file — the test harness calls `s1113(...)` as the scalar reference, but no such function is defined in the candidate file. Add a scalar reference implementation before the test harness code:
+  ```c
+  void s1113(float* a, float* b, float* out, int LEN_1D) {
+      int mid = LEN_1D / 2;
+      for (int i = 0; i < LEN_1D; i++)
+          out[i] = a[mid] + b[i];
+  }
+  ```
+- The warnings show `a` and `b` are declared as `int[128]` in the test harness but passed as `float*`. Change the test harness array declarations from `int a[128], b[128]` to `float a[128], b[128]` (or ensure the candidate file's harness uses `float` arrays).

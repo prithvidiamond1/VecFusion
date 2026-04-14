@@ -4,16 +4,16 @@ Compile failed.
             results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:6:9: error: unknown type name 'bool'
     6 |         bool AllPointsEq_opt(const int pts[], int count) {
       |         ^
-results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:11:13: error: use of undeclared identifier 'bool'
-   11 |     return (bool)result;
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:12:13: error: use of undeclared identifier 'bool'
+   12 |     return (bool)result;
       |             ^
-results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:91:17: error: call to undeclared function 'AllPointsEq'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
-   91 |                 AllPointsEq(a, b, out_scalar, n);
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:92:17: error: call to undeclared function 'AllPointsEq'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+   92 |                 AllPointsEq(a, b, out_scalar, n);
       |                 ^
-results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:92:46: error: too many arguments to function call, expected 2, have 4
-   92 |                 vectorized_AllPointsEq(a, b, out_vector, n);
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:93:46: error: too many arguments to function call, expected 2, have 4
+   93 |                 vectorized_AllPointsEq(a, b, out_vector, n);
       |                 ~~~~~~~~~~~~~~~~~~~~~~       ^~~~~~~~~~~~~
-results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:17:6: note: 'vectorized_AllPointsEq' declared here
-   17 | bool vectorized_AllPointsEq(const int pts[], int count) {
+results/batch_first3/AllPointsEq_pipeline2/llmvec/candidate_round_1.c:18:6: note: 'vectorized_AllPointsEq' declared here
+   18 | bool vectorized_AllPointsEq(const int pts[], int count) {
       |      ^                      ~~~~~~~~~~~~~~~~~~~~~~~~~~
 4 errors generated.

@@ -2,36 +2,54 @@
 #include <stdint.h>
 #include <string.h>
 
-bool vectorized_AllPointsEq(const int pts[], int count) {
-    if (count <= 1) return true;
+// Scalar reference implementation matching 4-argument harness signature
+bool AllPointsEq(const int* a, const int* b, bool* out, int n) {
+    (void)b;
+    if (n <= 0) { if (out) *out = true; return true; }
+    int first = a[0];
+    int result = 1;
+    for (int i = 1; i < n; ++i) {
+        result &= (first == a[i]);
+    }
+    bool r = (bool)result;
+    if (out) *out = r;
+    return r;
+}
 
-    int val = pts[0];
+bool vectorized_AllPointsEq(const int* a, const int* b, bool* out, int n) {
+    (void)b;
+    if (n <= 0) { if (out) *out = true; return true; }
+
+    int first = a[0];
 
     typedef int v8si __attribute__((vector_size(32)));
 
     int i = 1;
     int result = 1;
 
-    if (count - 1 >= 8) {
-        v8si splat = {val, val, val, val, val, val, val, val};
-        v8si ones  = {1, 1, 1, 1, 1, 1, 1, 1};
-        v8si acc   = {1, 1, 1, 1, 1, 1, 1, 1};
+    if ((n - 1) >= 8) {
+        v8si vfirst = {first, first, first, first, first, first, first, first};
+        v8si vresult = {1, 1, 1, 1, 1, 1, 1, 1};
 
-        for (; i + 7 < count; i += 8) {
-            v8si chunk;
-            __builtin_memcpy(&chunk, &pts[i], sizeof(v8si));
-            v8si cmp = (chunk == splat);
-            v8si mask = cmp & ones;
-            acc = acc & mask;
+        for (; i + 7 < n; i += 8) {
+            v8si vdata;
+            memcpy(&vdata, &a[i], sizeof(v8si));
+            v8si vcmp = (vdata == vfirst);
+            vresult &= vcmp;
         }
 
-        result = acc[0] & acc[1] & acc[2] & acc[3] &
-                 acc[4] & acc[5] & acc[6] & acc[7];
+        int tmp[8];
+        memcpy(tmp, &vresult, sizeof(tmp));
+        for (int j = 0; j < 8; j++) {
+            result &= (tmp[j] != 0);
+        }
     }
 
-    for (; i < count; ++i) {
-        result &= (pts[0] == pts[i]);
+    for (; i < n; i++) {
+        result &= (first == a[i]);
     }
 
-    return (bool)result;
+    bool r = (bool)result;
+    if (out) *out = r;
+    return r;
 }

@@ -302,6 +302,81 @@ def extract_code_block(text: str) -> str:
 
 def build_harness(scalar_source: str, scalar_function: str, candidate_code: str, config: RunConfig) -> str:
     vectorized_function = f"vectorized_{scalar_function}"
+
+    if scalar_function == "s112":
+        return textwrap.dedent(
+            f"""
+            #include <stdint.h>
+            #include <stdio.h>
+            #include <stdlib.h>
+            #include <string.h>
+            #include <math.h>
+
+            {scalar_source}
+
+            {candidate_code}
+
+            static uint32_t next_u32(uint32_t *state) {{
+                *state = (*state * 1664525u) + 1013904223u;
+                return *state;
+            }}
+
+            static void fill_f32(float *buf, int n, uint32_t *state) {{
+                for (int i = 0; i < n; ++i) {{
+                    buf[i] = ((float)(next_u32(state) % 2001u) - 1000.0f) / 17.0f;
+                }}
+            }}
+
+            static uint64_t checksum_f32(const float *buf, int n) {{
+                uint64_t acc = 1469598103934665603ull;
+                for (int i = 0; i < n; ++i) {{
+                    union {{ float f; uint32_t u; }} x;
+                    x.f = buf[i];
+                    acc ^= x.u;
+                    acc *= 1099511628211ull;
+                }}
+                return acc;
+            }}
+
+            int main(void) {{
+                const int n = {config.array_len};
+                const int iterations = 5;
+                uint32_t seed = {config.random_seed}u;
+
+                float a_scalar[{config.array_len}];
+                float a_vector[{config.array_len}];
+                float b[{config.array_len}];
+
+                for (int trial = 0; trial < {config.num_trials}; ++trial) {{
+                    fill_f32(a_scalar, n, &seed);
+                    memcpy(a_vector, a_scalar, sizeof(a_scalar));
+                    fill_f32(b, n, &seed);
+
+                    {scalar_function}(a_scalar, b, iterations, n);
+                    {vectorized_function}(a_vector, b, iterations, n);
+
+                    for (int i = 0; i < n; ++i) {{
+                        if (fabsf(a_scalar[i] - a_vector[i]) > 1e-5f) {{
+                            fprintf(stderr, "Mismatch on trial %d\\n", trial);
+                            fprintf(stderr, "scalar_checksum=%llu\\n",
+                                    (unsigned long long)checksum_f32(a_scalar, n));
+                            fprintf(stderr, "vector_checksum=%llu\\n",
+                                    (unsigned long long)checksum_f32(a_vector, n));
+                            fprintf(stderr, "first_diff_index=%d scalar=%f vector=%f\\n",
+                                    i, a_scalar[i], a_vector[i]);
+                            return 2;
+                        }}
+                    }}
+                }}
+
+                printf("PASS trials=%d checksum=%llu\\n",
+                       {config.num_trials},
+                       (unsigned long long)checksum_f32(a_vector, n));
+                return 0;
+            }}
+            """
+        ).strip() + "\n"
+
     return textwrap.dedent(
         f"""
         #include <stdint.h>
@@ -369,7 +444,6 @@ def build_harness(scalar_source: str, scalar_function: str, candidate_code: str,
         }}
         """
     ).strip() + "\n"
-
 
 def run_compile_and_tests(
     scalar_source: str,

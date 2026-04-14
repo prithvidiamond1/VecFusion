@@ -19,16 +19,16 @@ results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_2.c:12:12: err
 results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_2.c:12:12: error: incompatible pointer to integer conversion returning 'void (void *)' from a function with result type 'int' [-Wint-conversion]
    12 |     return true;
       |            ^~~~
-results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_2.c:95:43: error: incompatible pointer to integer conversion passing 'int[128]' to parameter of type 'int' [-Wint-conversion]
-   95 |                 vectorized_AllPointsEq(a, b, out_vector, n);
+results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_2.c:99:43: error: incompatible pointer to integer conversion passing 'int[128]' to parameter of type 'int' [-Wint-conversion]
+   99 |                 vectorized_AllPointsEq(a, b, out_vector, n);
       |                                           ^
-results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_2.c:19:50: note: passing argument to parameter 'count' here
-   19 | void vectorized_AllPointsEq(const int pts[], int count, bool *out_vector, int n) {
+results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_2.c:21:50: note: passing argument to parameter 'count' here
+   21 | void vectorized_AllPointsEq(const int pts[], int count, bool *out_vector, int n) {
       |                                                  ^
-results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_2.c:95:46: warning: incompatible pointer types passing 'int[128]' to parameter of type 'bool *' [-Wincompatible-pointer-types]
-   95 |                 vectorized_AllPointsEq(a, b, out_vector, n);
+results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_2.c:99:46: warning: incompatible pointer types passing 'int[128]' to parameter of type 'bool *' [-Wincompatible-pointer-types]
+   99 |                 vectorized_AllPointsEq(a, b, out_vector, n);
       |                                              ^~~~~~~~~~
-results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_2.c:19:63: note: passing argument to parameter 'out_vector' here
-   19 | void vectorized_AllPointsEq(const int pts[], int count, bool *out_vector, int n) {
+results/batch_first3/AllPointsEq_pipeline1/llmvec/candidate_round_2.c:21:63: note: passing argument to parameter 'out_vector' here
+   21 | void vectorized_AllPointsEq(const int pts[], int count, bool *out_vector, int n) {
       |                                                               ^
 1 warning and 6 errors generated.

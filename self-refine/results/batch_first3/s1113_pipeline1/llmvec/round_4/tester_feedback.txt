@@ -1,7 +1,7 @@
-The errors are in the test harness (lines 71-72), not in the `vectorized_s1113` function itself. The harness is calling both `s1113` and `vectorized_s1113` with wrong argument types — passing `int[128]` arrays as `float*` parameters and mismatching argument order/types.
+The errors are in the test harness (lines 71-72), not in the `vectorized_s1113` function itself. The harness is calling both `s1113` and `vectorized_s1113` with wrong argument types — passing `int[128]` arrays where `float*` is expected, and passing `float*` where `int` is expected.
 
-- The test harness at line 71 calls `s1113(a, b, out_scalar, n)` but the reference signature is `s1113(int iterations, int LEN_1D, float* a, float* b)` — fix the call to match: `s1113(iterations, LEN_1D, a, b)` with correct typed variables.
-- The test harness at line 72 calls `vectorized_s1113(a, b, out_vector, n)` where `a` and `b` are `int[128]` but the function expects `float*` — declare `a` and `b` as `float[]` arrays in the harness, not `int[]`.
-- Ensure `out_scalar` and `out_vector` are declared as `float[]` arrays of appropriate size in the harness.
-- The `n` passed to `vectorized_s1113` should be the integer length (e.g., `LEN_1D`), not an array — verify `n` is declared as `int` in the harness.
-- The `vectorized_s1113` function code itself looks correct; no changes needed there.
+- The test harness declares `a` and `b` as `int[128]` but the functions expect `float*` — change the harness arrays `a` and `b` to `float[128]` (or `float a[128], b[128]`).
+- The call `s1113(a, b, out_scalar, n)` passes arguments in wrong order; the reference signature is `s1113(int iterations, int LEN_1D, float* a, float* b)` — fix the call to match: `s1113(iterations, LEN_1D, a, b)` and write results separately.
+- `vectorized_s1113(a, b, out_vector, n)` passes `int[128]` for `a` and `b` — fix by ensuring `a` and `b` are declared as `float[]` in the harness.
+- The `n` variable passed to `vectorized_s1113` should be the integer length (e.g., `LEN_1D` or `128`), not a pointer or array.
+- The `vectorized_s1113` function signature and implementation look correct — no changes needed there.

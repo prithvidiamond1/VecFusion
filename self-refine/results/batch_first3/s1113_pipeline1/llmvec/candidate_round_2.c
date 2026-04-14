@@ -14,11 +14,11 @@
 
         #include <stdint.h>
 
-void vectorized_s1113(float* a, float* b, float* out, int LEN_1D)
+void vectorized_s1113(float* a, float* b, float* out, int n)
 {
-    float scalar_val = a[LEN_1D/2];
+    float scalar_val = a[n/2];
     int i = 0;
-    int limit = LEN_1D - (LEN_1D % 8);
+    int limit = n - (n % 8);
     for (; i < limit; i += 8) {
         out[i+0] = scalar_val + b[i+0];
         out[i+1] = scalar_val + b[i+1];
@@ -29,7 +29,7 @@ void vectorized_s1113(float* a, float* b, float* out, int LEN_1D)
         out[i+6] = scalar_val + b[i+6];
         out[i+7] = scalar_val + b[i+7];
     }
-    for (; i < LEN_1D; i++) {
+    for (; i < n; i++) {
         out[i] = scalar_val + b[i];
     }
 }

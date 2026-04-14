@@ -2,40 +2,40 @@
 #include <stdint.h>
 
 bool vectorized_AllPointsEq(const int pts[], int count) {
-    if (count <= 1) return true;
+    if (count <= 0) return true;
 
-    int val = pts[0];
+    int first = pts[0];
 
     // Use GCC/Clang vector extensions for SIMD-style processing
-    typedef int v8si __attribute__((vector_size(32)));
+    typedef int v8si __attribute__((vector_size(32)));  // 8 x int32 = 256-bit
 
     int i = 1;
     int result = 1;
 
-    // Process 8 ints at a time using 256-bit vectors
+    // Vectorized portion: process 8 ints at a time
     if (count - 1 >= 8) {
-        v8si splat = {val, val, val, val, val, val, val, val};
-        v8si ones  = {1, 1, 1, 1, 1, 1, 1, 1};
-        v8si acc   = {1, 1, 1, 1, 1, 1, 1, 1};
+        v8si vfirst = {first, first, first, first, first, first, first, first};
+        v8si vresult = {1, 1, 1, 1, 1, 1, 1, 1};
 
         for (; i + 7 < count; i += 8) {
-            v8si chunk;
-            __builtin_memcpy(&chunk, &pts[i], sizeof(v8si));
-            // element-wise comparison: produces -1 (all bits set) if equal, 0 otherwise
-            v8si cmp = (chunk == splat);
-            // convert -1/0 to 1/0 by ANDing with ones
-            v8si mask = cmp & ones;
-            acc = acc & mask;
+            v8si vdata;
+            __builtin_memcpy(&vdata, &pts[i], sizeof(v8si));
+            // Compare: produces -1 (all bits set) where equal, 0 where not
+            v8si vcmp = (vdata == vfirst);
+            vresult &= vcmp;
         }
 
-        // Reduce acc: AND all 8 lanes together
-        result = acc[0] & acc[1] & acc[2] & acc[3] &
-                 acc[4] & acc[5] & acc[6] & acc[7];
+        // Reduce vresult: check all lanes are non-zero (i.e., -1)
+        int tmp[8];
+        __builtin_memcpy(tmp, &vresult, sizeof(tmp));
+        for (int j = 0; j < 8; j++) {
+            result &= (tmp[j] != 0);
+        }
     }
 
-    // Scalar tail
-    for (; i < count; ++i) {
-        result &= (pts[0] == pts[i]);
+    // Scalar cleanup tail
+    for (; i < count; i++) {
+        result &= (first == pts[i]);
     }
 
     return (bool)result;

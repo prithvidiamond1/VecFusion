@@ -1,7 +1,8 @@
-- The test harness calls `vectorized_AllPointsEq(a, b, out_vector, n)` with 4 arguments, but the candidate only declares 2 parameters `(const int pts[], int count)`. Match the harness signature — likely `vectorized_AllPointsEq(const int a[], const int b[], bool out_vector[], int n)` or similar.
-- The harness also calls `AllPointsEq(a, b, out_scalar, n)` — you need to provide (or forward-declare) that reference function too, or the test file already contains it and your candidate must not redefine it.
-- `bool` is unknown: the `#include <stdbool.h>` is present in the candidate but the error says line 6 uses `bool` — ensure the include appears **before** any use and is not accidentally stripped when the harness concatenates files.
-- The function return type and cast `(bool)result` must use `_Bool` or keep `#include <stdbool.h>` reliably at the top of the final compiled unit.
-- The loop starts at `i = 1` (skipping `pts[0]`), but if the harness passes two separate arrays `a` and `b`, the semantics are different — re-examine what `AllPointsEq` is supposed to do with two arrays and adjust accordingly.
-- Fix the scalar fallback loop: `result &= (pts[0] == pts[i])` compares within one array; if the function is meant to compare two arrays element-wise, change to `result &= (a[i] == b[i])`.
-- Keep `typedef int v8si __attribute__((vector_size(32)));` at file scope (outside the function) to avoid any scoping issues with some clang versions.
+The errors indicate the compile/test harness has its own `main`/test scaffolding that declares `out_scalar` and `out_vector` as `int[128]` arrays, not `bool*`. The two real errors come from a stale snippet at lines 6/12 in the harness file. Looking at the warnings, the harness passes `int[]` arrays as the `out` parameter, so the function signature must use `int*` (not `bool*`) for `out`.
+
+- Change `bool* out` to `int* out` in both `AllPointsEq` and `vectorized_AllPointsEq` signatures.
+- Update all `if (out) *out = ...` assignments to store an `int` value (0 or 1) instead of a `bool`.
+- Keep the return type as `bool` (or change to `int` if `bool` causes issues without the harness including `<stdbool.h>` before the candidate).
+- The errors at lines 6/12 reference `AllPointsEq_opt` with no `bool` — ensure no stale/extra function definition using `bool` without `<stdbool.h>` is present in the file; the `#include <stdbool.h>` at the top of the candidate should cover it, but if the harness prepends its own code before the include, move the include or remove the dependency on `bool` in the return type.
+- Simplest fix: change both function signatures to `int AllPointsEq(...)` and `int vectorized_AllPointsEq(...)` with `int* out`, returning `int` (0 or 1), eliminating all `bool` usage.
+- Remove or do not emit any extra function (like `AllPointsEq_opt`) that uses `bool` without a visible `#include <stdbool.h>`.

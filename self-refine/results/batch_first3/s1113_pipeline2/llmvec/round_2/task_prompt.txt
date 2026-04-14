@@ -5,15 +5,19 @@ Revise your candidate for `s1113` based on tester feedback.
         void s1113_opt(int iterations, int LEN_1D, float* a, float* b)
 {
     int mid = LEN_1D / 2;
-    for (int nl = 0; nl < 2 * iterations; nl++) {
-        float tmp = a[mid];
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        // Hoist a[mid] into scalar before any writes to a[i]
+        float amid = a[mid];
+        // Phase 1: i = 0 to mid-1, use hoisted scalar, fully vectorizable
         for (int i = 0; i < mid; i++) {
-            a[i] = tmp + b[i];
+            a[i] = amid + b[i];
         }
-        a[mid] = tmp + b[mid];
-        float tmp2 = a[mid];
+        // Mid-point update
+        a[mid] = amid + b[mid];
+        float tmp = a[mid];
+        // Phase 2: i = mid+1 to LEN_1D-1, use updated scalar, fully vectorizable
         for (int i = mid + 1; i < LEN_1D; i++) {
-            a[i] = tmp2 + b[i];
+            a[i] = tmp + b[i];
         }
     }
 }
@@ -23,65 +27,60 @@ Revise your candidate for `s1113` based on tester feedback.
         ```c
         #include <stdint.h>
 
+typedef float v4sf __attribute__((vector_size(16)));
+
 void vectorized_s1113(int iterations, int LEN_1D, float* a, float* b)
 {
     int mid = LEN_1D / 2;
     for (int nl = 0; nl < 2 * iterations; nl++) {
+        float amid = a[mid];
+
+        // Phase 1: i = 0 to mid-1
+        {
+            v4sf vamid = {amid, amid, amid, amid};
+            int i = 0;
+            int limit = mid - (mid % 4);
+            for (; i < limit; i += 4) {
+                v4sf vb = *((v4sf*)(b + i));
+                v4sf res = vamid + vb;
+                *((v4sf*)(a + i)) = res;
+            }
+            for (; i < mid; i++) {
+                a[i] = amid + b[i];
+            }
+        }
+
+        // Mid-point update
+        a[mid] = amid + b[mid];
         float tmp = a[mid];
 
-        // Vectorize first loop: a[i] = tmp + b[i] for i in [0, mid)
-        int i = 0;
-        int mid4 = mid - (mid % 4);
-        for (; i < mid4; i += 4) {
-            a[i + 0] = tmp + b[i + 0];
-            a[i + 1] = tmp + b[i + 1];
-            a[i + 2] = tmp + b[i + 2];
-            a[i + 3] = tmp + b[i + 3];
-        }
-        for (; i < mid; i++) {
-            a[i] = tmp + b[i];
-        }
-
-        // Middle element
-        a[mid] = tmp + b[mid];
-        float tmp2 = a[mid];
-
-        // Vectorize second loop: a[i] = tmp2 + b[i] for i in [mid+1, LEN_1D)
-        int start = mid + 1;
-        int len2 = LEN_1D - start;
-        int len2_4 = len2 - (len2 % 4);
-        i = start;
-        int end4 = start + len2_4;
-        for (; i < end4; i += 4) {
-            a[i + 0] = tmp2 + b[i + 0];
-            a[i + 1] = tmp2 + b[i + 1];
-            a[i + 2] = tmp2 + b[i + 2];
-            a[i + 3] = tmp2 + b[i + 3];
-        }
-        for (; i < LEN_1D; i++) {
-            a[i] = tmp2 + b[i];
+        // Phase 2: i = mid+1 to LEN_1D-1
+        {
+            v4sf vtmp = {tmp, tmp, tmp, tmp};
+            int start = mid + 1;
+            int len = LEN_1D - start;
+            int i = start;
+            int limit = start + (len - (len % 4));
+            for (; i < limit; i += 4) {
+                v4sf vb = *((v4sf*)(b + i));
+                v4sf res = vtmp + vb;
+                *((v4sf*)(a + i)) = res;
+            }
+            for (; i < LEN_1D; i++) {
+                a[i] = tmp + b[i];
+            }
         }
     }
 }
         ```
 
         Tester feedback:
-        The errors show that the call site passes arguments in a different order than the function signature expects. The test harness calls:
+        Looking at the errors, the test harness calls `vectorized_s1113(a, b, out_vector, n)` with signature `(float* a, float* b, float* out, int n)`, but the candidate has the signature `(int iterations, int LEN_1D, float* a, float* b)` — the parameter order and types are wrong.
 
-```c
-vectorized_s1113(a, b, out_vector, n);
-```
-
-where `a` and `b` are `float*`, `out_vector` is `int[128]`, and `n` is `const int`. This means the harness expects the signature:
-
-```c
-void vectorized_s1113(float* a, float* b, float* out, int n)
-```
-
-- **Fix the function signature** to match the call site: `void vectorized_s1113(float* a, float* b, float* out, int n)` — put `float* a, float* b` first, then the output array, then `n`.
-- **Reorder parameters** so `iterations` and `LEN_1D` (integers) come last, matching how `n` is passed as the last argument.
-- **The output array** (`out_vector`) appears to be a separate `float*` buffer — the function should write results there rather than (or in addition to) modifying `a` in-place, or the signature must match exactly what the harness provides.
-- **Add a declaration/include for `s1113`** or ensure it is defined before use in the same translation unit, since the harness calls it and it is undeclared.
-- **Do not change the vectorization logic**, only fix the signature and parameter order to match `vectorized_s1113(float* a, float* b, float* out, int n)`.
+- **Fix the function signature** to match what the harness expects: `void vectorized_s1113(float* a, float* b, float* out_vector, int n)` (or whatever the harness passes — `a`, `b`, `out_vector`, `n` in that order).
+- **Add a declaration/definition of `s1113`** or remove the call to it — the harness references `s1113(a, b, out_scalar, n)` which is undeclared; provide a scalar reference implementation with that name.
+- **Reorder parameters**: `iterations` and `LEN_1D` should come from the harness's `n` argument, and `a`/`b` are the first two pointer arguments.
+- **Map the harness's `out_vector` parameter**: the vectorized result should be written to `out_vector`, not back into `a` directly, if the harness expects a separate output buffer.
+- **Use `n` as both `LEN_1D` and `iterations`** (or clarify which is which) based on how the harness calls the function — currently the harness passes `a, b, out_vector, n` so `n` is the 4th argument (an `int`), not the first.
 
         Return a corrected candidate function named `vectorized_s1113`.
