@@ -1,8 +1,0 @@
-The compile error is in the test harness (line 108), not in the vectorized function itself. The issues are:
-
-- **`s1113` is undeclared**: The test harness calls `s1113(a, b, out_scalar, n)` but no such function is defined or declared in the file. You need to add the original scalar `s1113` function (or a forward declaration) before the test harness.
-- **Arrays `a`, `b`, `out_vector` are `int[128]` but passed as `float*`**: The test harness declares these arrays as `int` instead of `float`. Change their declarations to `float a[128], b[128], out_scalar[128], out_vector[128]` (or whatever size is used).
-
-Specifically:
-- Add the scalar reference implementation `void s1113(float* a, float* b, float* c, int n)` before the test harness.
-- Fix array declarations in the test harness from `int a[128], b[128]` (etc.) to `float a[128], b[128], out_scalar[128], out_vector[128]`.

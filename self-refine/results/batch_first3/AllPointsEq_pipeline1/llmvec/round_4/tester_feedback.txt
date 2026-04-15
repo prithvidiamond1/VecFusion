@@ -1,5 +1,0 @@
-The compile errors are in the **test harness** portion of the file (lines 6, 9, 12, 98), not in the vectorized function itself. The candidate code shown is correct, but the actual file on disk contains additional code with issues:
-
-- The test harness has a function using `bool`, `true`, `false` without `#include <stdbool.h>` — add `#include <stdbool.h>` at the top, or change `bool` to `int` and `true`/`false` to `1`/`0`.
-- Line 98 passes an `int[128]` array where `int count` is expected — the test harness is calling `vectorized_AllPointsEq(a, b, out_vector, n)` where `b` is an array, but `count` is an `int`. Fix the call to pass the array length (e.g., `128`) as `count`, not the array `b` itself.
-- Ensure the test harness includes `#include <stdbool.h>` or replaces all `bool`/`true`/`false` with `int`/`1`/`0` to be valid C11 without the header.

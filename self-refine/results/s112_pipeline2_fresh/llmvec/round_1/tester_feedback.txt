@@ -1,9 +1,0 @@
-The compile error is in the test harness file, not in the candidate code itself — the harness calls `s112(...)` but only `vectorized_s112(...)` is defined.
-
-- Add a function named `s112` (or alias `vectorized_s112` as `s112`) so the test harness can find it. The simplest fix is to add a wrapper or rename the function to `s112`.
-
-```c
-void s112(float *a, float *b, int iterations, int LEN_1D) {
-    vectorized_s112(a, b, iterations, LEN_1D);
-}
-```

@@ -66,6 +66,53 @@ class AliveResult:
     message: str
 
 
+@dataclass
+class ParamSpec:
+    raw: str
+    name: str
+    base_type: str
+    is_const: bool
+    is_pointer: bool
+    is_array: bool
+
+
+def source_set_env(set_env_path: Path) -> dict:
+    """Source set_env.sh in a bash subshell and return the resulting environment as a dict.
+
+    Uses null-delimited `env -0` output so values containing newlines are handled correctly.
+    Falls back to the current process environment if the file is missing or the subshell fails.
+    """
+    if not set_env_path.exists():
+        return dict(os.environ)
+
+    proc = subprocess.run(
+        ["bash", "-c", f"source {shlex.quote(str(set_env_path))} && env -0"],
+        capture_output=True,
+        text=True,
+    )
+    env: dict[str, str] = {}
+    for entry in proc.stdout.split("\0"):
+        if "=" in entry:
+            k, v = entry.split("=", 1)
+            env[k] = v
+    return env if env else dict(os.environ)
+
+
+def load_dotenv(dotenv_path: Path) -> None:
+    if not dotenv_path.exists():
+        return
+
+    for raw_line in dotenv_path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip("'").strip('"')
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
 def parse_args() -> RunConfig:
     parser = argparse.ArgumentParser(description="Simple LLM vectorizer prototype.")
     parser.add_argument("source", type=Path, help="Path to a C file containing the scalar function.")
@@ -108,7 +155,11 @@ def parse_args() -> RunConfig:
     )
     parser.add_argument(
         "--api-base-url",
-        default=os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
+        default=(
+            os.environ.get("LLM_BASE_URL")
+            or os.environ.get("ANTHROPIC_BASE_URL")
+            or "https://api.anthropic.com"
+        ),
         help="Anthropic API base URL.",
     )
     parser.add_argument(
@@ -131,7 +182,7 @@ def parse_args() -> RunConfig:
         work_dir=args.work_dir.resolve() if args.work_dir else None,
         target_hint=args.target_hint,
         dry_run=args.dry_run,
-        api_base_url=args.api_base_url.rstrip("/"),
+        api_base_url=args.api_base_url,
         api_timeout=args.api_timeout,
     )
 
@@ -143,25 +194,14 @@ def read_source(path: Path) -> str:
         raise SystemExit(f"Source file not found: {path}") from exc
 
 
-def load_dotenv(dotenv_path: Path) -> None:
-    if not dotenv_path.exists():
-        return
-
-    for raw_line in dotenv_path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip("'").strip('"')
-        if key and key not in os.environ:
-            os.environ[key] = value
-
-
 def get_api_key() -> str:
-    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY")
+    api_key = (
+        os.environ.get("ANTHROPIC_API_KEY")
+        or os.environ.get("CLAUDE_API_KEY")
+        or os.environ.get("API_KEY")
+    )
     if not api_key:
-        raise SystemExit("ANTHROPIC_API_KEY or CLAUDE_API_KEY is required unless --dry-run is used.")
+        raise SystemExit("ANTHROPIC_API_KEY, CLAUDE_API_KEY, or API_KEY is required unless --dry-run is used.")
     return api_key
 
 
@@ -172,10 +212,16 @@ class ClaudeAgent:
         self.config = config
         self.api_key = api_key
 
+    def _messages_url(self) -> str:
+        base = self.config.api_base_url.rstrip("/")
+        if base.endswith("/v1"):
+            return f"{base}/messages"
+        return f"{base}/v1/messages"
+
     def generate_reply(self, prompt: str) -> str:
         try:
             response = requests.post(
-                f"{self.config.api_base_url}/v1/messages",
+                self._messages_url(),
                 headers={
                     "content-type": "application/json",
                     "x-api-key": self.api_key,
@@ -300,89 +346,229 @@ def extract_code_block(text: str) -> str:
     return text.strip()
 
 
+def split_params(param_text: str) -> list[str]:
+    parts: list[str] = []
+    cur: list[str] = []
+    depth = 0
+    for ch in param_text:
+        if ch == "," and depth == 0:
+            piece = "".join(cur).strip()
+            if piece:
+                parts.append(piece)
+            cur = []
+            continue
+        if ch in "([<":
+            depth += 1
+        elif ch in ")]>":
+            depth -= 1
+        cur.append(ch)
+    piece = "".join(cur).strip()
+    if piece:
+        parts.append(piece)
+    return parts
+
+
+def parse_param(raw: str) -> ParamSpec:
+    text = raw.strip()
+    is_array = "[" in text and "]" in text
+    no_arrays = re.sub(r"\[[^\]]*\]", " ", text)
+    toks = no_arrays.replace("*", " * ").split()
+    if len(toks) < 2:
+        raise ValueError(f"Could not parse parameter: {raw}")
+
+    name = toks[-1]
+    left = toks[:-1]
+    is_pointer = ("*" in left) or is_array
+    is_const = "const" in left
+    base_tokens = [t for t in left if t not in {"*", "const", "restrict", "volatile"}]
+    base_type = " ".join(base_tokens).strip()
+    if not base_type:
+        raise ValueError(f"Could not determine base type for parameter: {raw}")
+
+    return ParamSpec(
+        raw=raw,
+        name=name,
+        base_type=base_type,
+        is_const=is_const,
+        is_pointer=is_pointer,
+        is_array=is_array,
+    )
+
+
+def extract_function_signature(scalar_source: str, scalar_function: str) -> tuple[str, list[ParamSpec]]:
+    pattern = re.compile(
+        rf"\b(?P<ret>[A-Za-z_][\w\s\*]*?)\s+{re.escape(scalar_function)}\s*\((?P<params>.*?)\)\s*\{{",
+        re.DOTALL,
+    )
+    m = pattern.search(scalar_source)
+    if not m:
+        raise ValueError(f"Could not locate signature for {scalar_function}")
+
+    ret_type = " ".join(m.group("ret").split())
+    params_raw = m.group("params").strip()
+    if params_raw == "void" or not params_raw:
+        return ret_type, []
+
+    params = [parse_param(p) for p in split_params(params_raw)]
+    return ret_type, params
+
+
+def normalize_storage_type(type_text: str) -> str:
+    toks = type_text.split()
+    toks = [t for t in toks if t not in {"static", "inline", "extern"}]
+    return " ".join(toks)
+
+
+def is_float_type(t: str) -> bool:
+    t = t.strip()
+    return "float" in t and "double" not in t
+
+
+def is_double_type(t: str) -> bool:
+    return "double" in t.strip()
+
+
+def is_bool_type(t: str) -> bool:
+    return t.strip() == "bool"
+
+
+def fill_fn_for(base_type: str) -> str:
+    if is_float_type(base_type):
+        return "fill_f32"
+    if is_double_type(base_type):
+        return "fill_f64"
+    return "fill_i32"
+
+
+def cmp_expr(base_type: str, lhs: str, rhs: str) -> str:
+    if is_float_type(base_type):
+        return f"fabsf(({lhs}) - ({rhs})) > 1e-5f"
+    if is_double_type(base_type):
+        return f"fabs(({lhs}) - ({rhs})) > 1e-9"
+    return f"({lhs}) != ({rhs})"
+
+
+def scalar_value_for(name: str) -> str:
+    lower = name.lower()
+    if "iter" in lower:
+        return "5"
+    if "len" in lower or lower == "n" or "count" in lower:
+        return "n"
+    return "7"
+
+
 def build_harness(scalar_source: str, scalar_function: str, candidate_code: str, config: RunConfig) -> str:
     vectorized_function = f"vectorized_{scalar_function}"
+    ret_type, params = extract_function_signature(scalar_source, scalar_function)
+    ret_storage_type = normalize_storage_type(ret_type)
 
-    if scalar_function == "s112":
-        return textwrap.dedent(
-            f"""
-            #include <stdint.h>
-            #include <stdio.h>
-            #include <stdlib.h>
-            #include <string.h>
-            #include <math.h>
+    decls: list[str] = []
+    setup: list[str] = []
+    scalar_args: list[str] = []
+    vector_args: list[str] = []
+    compare_lines: list[str] = []
+    ret_check: list[str] = []
 
-            {scalar_source}
+    for p in params:
+        if p.is_pointer:
+            fill_fn = fill_fn_for(p.base_type)
+            c_type = p.base_type
 
-            {candidate_code}
+            if p.is_const:
+                decls.append(f"{c_type} {p.name}[{config.array_len}];")
+                setup.append(f"{fill_fn}({p.name}, n, &seed);")
+                scalar_args.append(p.name)
+                vector_args.append(p.name)
+            else:
+                decls.append(f"{c_type} {p.name}_scalar[{config.array_len}];")
+                decls.append(f"{c_type} {p.name}_vector[{config.array_len}];")
+                setup.append(f"{fill_fn}({p.name}_scalar, n, &seed);")
+                setup.append(f"memcpy({p.name}_vector, {p.name}_scalar, sizeof({p.name}_scalar));")
+                scalar_args.append(f"{p.name}_scalar")
+                vector_args.append(f"{p.name}_vector")
 
-            static uint32_t next_u32(uint32_t *state) {{
-                *state = (*state * 1664525u) + 1013904223u;
-                return *state;
-            }}
-
-            static void fill_f32(float *buf, int n, uint32_t *state) {{
-                for (int i = 0; i < n; ++i) {{
-                    buf[i] = ((float)(next_u32(state) % 2001u) - 1000.0f) / 17.0f;
-                }}
-            }}
-
-            static uint64_t checksum_f32(const float *buf, int n) {{
-                uint64_t acc = 1469598103934665603ull;
-                for (int i = 0; i < n; ++i) {{
-                    union {{ float f; uint32_t u; }} x;
-                    x.f = buf[i];
-                    acc ^= x.u;
-                    acc *= 1099511628211ull;
-                }}
-                return acc;
-            }}
-
-            int main(void) {{
-                const int n = {config.array_len};
-                const int iterations = 5;
-                uint32_t seed = {config.random_seed}u;
-
-                float a_scalar[{config.array_len}];
-                float a_vector[{config.array_len}];
-                float b[{config.array_len}];
-
-                for (int trial = 0; trial < {config.num_trials}; ++trial) {{
-                    fill_f32(a_scalar, n, &seed);
-                    memcpy(a_vector, a_scalar, sizeof(a_scalar));
-                    fill_f32(b, n, &seed);
-
-                    {scalar_function}(a_scalar, b, iterations, n);
-                    {vectorized_function}(a_vector, b, iterations, n);
-
-                    for (int i = 0; i < n; ++i) {{
-                        if (fabsf(a_scalar[i] - a_vector[i]) > 1e-5f) {{
-                            fprintf(stderr, "Mismatch on trial %d\\n", trial);
-                            fprintf(stderr, "scalar_checksum=%llu\\n",
-                                    (unsigned long long)checksum_f32(a_scalar, n));
-                            fprintf(stderr, "vector_checksum=%llu\\n",
-                                    (unsigned long long)checksum_f32(a_vector, n));
-                            fprintf(stderr, "first_diff_index=%d scalar=%f vector=%f\\n",
-                                    i, a_scalar[i], a_vector[i]);
-                            return 2;
+                compare_lines.append(
+                    textwrap.dedent(
+                        f"""
+                        for (int i = 0; i < n; ++i) {{
+                            if ({cmp_expr(p.base_type, f"{p.name}_scalar[i]", f"{p.name}_vector[i]")}) {{
+                                fprintf(stderr, "Mismatch in parameter {p.name} on trial %d at index %d\\n", trial, i);
+                                return 2;
+                            }}
                         }}
-                    }}
-                }}
+                        """
+                    ).strip()
+                )
+        else:
+            decls.append(f"{p.base_type} {p.name} = {scalar_value_for(p.name)};")
+            scalar_args.append(p.name)
+            vector_args.append(p.name)
 
-                printf("PASS trials=%d checksum=%llu\\n",
-                       {config.num_trials},
-                       (unsigned long long)checksum_f32(a_vector, n));
-                return 0;
-            }}
-            """
-        ).strip() + "\n"
+    scalar_call = f"{scalar_function}({', '.join(scalar_args)})"
+    vector_call = f"{vectorized_function}({', '.join(vector_args)})"
+
+    if ret_storage_type != "void":
+        decls.append(f"{ret_storage_type} ret_scalar;")
+        decls.append(f"{ret_storage_type} ret_vector;")
+        ret_check.append(f"ret_scalar = {scalar_call};")
+        ret_check.append(f"ret_vector = {vector_call};")
+
+        if is_bool_type(ret_storage_type):
+            ret_check.append(
+                textwrap.dedent(
+                    """
+                    if (ret_scalar != ret_vector) {
+                        fprintf(stderr, "Return mismatch on trial %d\\n", trial);
+                        return 2;
+                    }
+                    """
+                ).strip()
+            )
+        elif is_float_type(ret_storage_type):
+            ret_check.append(
+                textwrap.dedent(
+                    """
+                    if (fabsf(ret_scalar - ret_vector) > 1e-5f) {
+                        fprintf(stderr, "Return mismatch on trial %d\\n", trial);
+                        return 2;
+                    }
+                    """
+                ).strip()
+            )
+        elif is_double_type(ret_storage_type):
+            ret_check.append(
+                textwrap.dedent(
+                    """
+                    if (fabs(ret_scalar - ret_vector) > 1e-9) {
+                        fprintf(stderr, "Return mismatch on trial %d\\n", trial);
+                        return 2;
+                    }
+                    """
+                ).strip()
+            )
+        else:
+            ret_check.append(
+                textwrap.dedent(
+                    """
+                    if (ret_scalar != ret_vector) {
+                        fprintf(stderr, "Return mismatch on trial %d\\n", trial);
+                        return 2;
+                    }
+                    """
+                ).strip()
+            )
+    else:
+        ret_check.append(f"{scalar_call};")
+        ret_check.append(f"{vector_call};")
 
     return textwrap.dedent(
         f"""
+        #include <stdbool.h>
         #include <stdint.h>
         #include <stdio.h>
         #include <stdlib.h>
         #include <string.h>
+        #include <math.h>
 
         {scalar_source}
 
@@ -399,51 +585,35 @@ def build_harness(scalar_source: str, scalar_function: str, candidate_code: str,
             }}
         }}
 
-        static uint64_t checksum_i32(const int *buf, int n) {{
-            uint64_t acc = 1469598103934665603ull;
+        static void fill_f32(float *buf, int n, uint32_t *state) {{
             for (int i = 0; i < n; ++i) {{
-                acc ^= (uint32_t)buf[i];
-                acc *= 1099511628211ull;
+                buf[i] = ((float)(next_u32(state) % 2001u) - 1000.0f) / 17.0f;
             }}
-            return acc;
+        }}
+
+        static void fill_f64(double *buf, int n, uint32_t *state) {{
+            for (int i = 0; i < n; ++i) {{
+                buf[i] = ((double)(next_u32(state) % 2001u) - 1000.0) / 17.0;
+            }}
         }}
 
         int main(void) {{
             const int n = {config.array_len};
             uint32_t seed = {config.random_seed}u;
-            int a[{config.array_len}];
-            int b[{config.array_len}];
-            int out_scalar[{config.array_len}];
-            int out_vector[{config.array_len}];
+            {" ".join(decls)}
 
             for (int trial = 0; trial < {config.num_trials}; ++trial) {{
-                fill_i32(a, n, &seed);
-                fill_i32(b, n, &seed);
-                memset(out_scalar, 0, sizeof(out_scalar));
-                memset(out_vector, 0, sizeof(out_vector));
-
-                {scalar_function}(a, b, out_scalar, n);
-                {vectorized_function}(a, b, out_vector, n);
-
-                if (memcmp(out_scalar, out_vector, sizeof(out_scalar)) != 0) {{
-                    fprintf(stderr, "Mismatch on trial %d\\n", trial);
-                    fprintf(stderr, "scalar_checksum=%llu\\n", (unsigned long long)checksum_i32(out_scalar, n));
-                    fprintf(stderr, "vector_checksum=%llu\\n", (unsigned long long)checksum_i32(out_vector, n));
-                    for (int i = 0; i < n; ++i) {{
-                        if (out_scalar[i] != out_vector[i]) {{
-                            fprintf(stderr, "first_diff_index=%d scalar=%d vector=%d\\n", i, out_scalar[i], out_vector[i]);
-                            break;
-                        }}
-                    }}
-                    return 2;
-                }}
+                {" ".join(setup)}
+                {" ".join(ret_check)}
+                {" ".join(compare_lines)}
             }}
 
-            printf("PASS trials=%d checksum=%llu\\n", {config.num_trials}, (unsigned long long)checksum_i32(out_vector, n));
+            printf("PASS trials=%d\\n", {config.num_trials});
             return 0;
         }}
         """
     ).strip() + "\n"
+
 
 def run_compile_and_tests(
     scalar_source: str,
@@ -513,27 +683,6 @@ def run_compile_and_tests(
     )
 
 
-def source_set_env(set_env_path: Path) -> dict:
-    """Source set_env.sh in a bash subshell and return the resulting environment as a dict.
-
-    Uses null-delimited `env -0` output so values containing newlines are handled correctly.
-    Falls back to the current process environment if the file is missing or the subshell fails.
-    """
-    if not set_env_path.exists():
-        return dict(os.environ)
-    proc = subprocess.run(
-        ["bash", "-c", f"source {shlex.quote(str(set_env_path))} && env -0"],
-        capture_output=True,
-        text=True,
-    )
-    env: dict = {}
-    for entry in proc.stdout.split("\0"):
-        if "=" in entry:
-            k, v = entry.split("=", 1)
-            env[k] = v
-    return env if env else dict(os.environ)
-
-
 def run_alive2_check(
     scalar_source: str,
     candidate_code: str,
@@ -548,10 +697,10 @@ def run_alive2_check(
     - Target IR  : rename `vectorized_<fn>` → `<fn>` in the candidate, then compile with -O0.
       This lets alive-tv match the two functions by name without any extra flags.
     - alive-tv verdict parsing:
-        "Transformation seems to be correct!" → PASS
-        "Transformation doesn't verify!"      → FAIL
-        SMT timeout / Python timeout           → INCONCLUSIVE
-        IR compile error / unknown output      → INCONCLUSIVE
+        "Transformation seems to be correct!" -> PASS
+        "Transformation doesn't verify!"      -> FAIL
+        SMT timeout / Python timeout           -> INCONCLUSIVE
+        IR compile error / unknown output      -> INCONCLUSIVE
     """
     work_parent = config.work_dir if config.work_dir else Path(tempfile.mkdtemp(prefix="llm_vectorizer_"))
     work_parent.mkdir(parents=True, exist_ok=True)
@@ -566,14 +715,14 @@ def run_alive2_check(
 
     r = subprocess.run(
         [clang, str(scalar_c), *base_ir_flags, "-o", str(scalar_ll)],
-        capture_output=True, text=True, env=alive_env,
+        capture_output=True,
+        text=True,
+        env=alive_env,
     )
     if r.returncode != 0:
         return AliveResult("INCONCLUSIVE", f"Scalar IR compilation failed:\n{r.stderr.strip()}")
 
     # --- compile vectorized to IR (rename so alive-tv can match by name) ---
-    # Simple text replace is safe: the vectorizer is instructed to emit only the
-    # candidate function, so `vectorized_<fn>` appears only as the function name.
     vec_source = candidate_code.replace(
         f"vectorized_{config.scalar_function}", config.scalar_function
     )
@@ -583,7 +732,9 @@ def run_alive2_check(
 
     r = subprocess.run(
         [clang, str(vec_c), *base_ir_flags, "-o", str(vec_ll)],
-        capture_output=True, text=True, env=alive_env,
+        capture_output=True,
+        text=True,
+        env=alive_env,
     )
     if r.returncode != 0:
         return AliveResult("INCONCLUSIVE", f"Vectorized IR compilation failed:\n{r.stderr.strip()}")
@@ -598,7 +749,10 @@ def run_alive2_check(
     try:
         r = subprocess.run(
             alive_cmd,
-            capture_output=True, text=True, env=alive_env, timeout=180,
+            capture_output=True,
+            text=True,
+            env=alive_env,
+            timeout=180,
         )
     except subprocess.TimeoutExpired:
         return AliveResult("INCONCLUSIVE", "alive-tv exceeded the 180 s Python-level timeout.")
@@ -631,12 +785,16 @@ def candidate_digest(text: str) -> str:
 
 def main() -> int:
     load_dotenv(Path(".env"))
+
+    set_env_path = Path("set_env.sh")
+    sourced_env = source_set_env(set_env_path)
+    if set_env_path.exists():
+        os.environ.update(sourced_env)
+
     config = parse_args()
     scalar_source = read_source(config.source_path).strip()
 
-    # Phase 6 environment — load once so it's available after a successful test.
-    set_env_path = Path("set_env.sh")
-    alive_env = source_set_env(set_env_path)
+    alive_env = sourced_env if sourced_env else dict(os.environ)
     if set_env_path.exists():
         print(f"[alive2] Loaded environment from {set_env_path}")
     else:
@@ -693,7 +851,6 @@ def main() -> int:
                 return 0
             if alive_result.verdict == "FAIL":
                 return 1
-            # INCONCLUSIVE
             return 2
 
         tester_prompt = textwrap.dedent(

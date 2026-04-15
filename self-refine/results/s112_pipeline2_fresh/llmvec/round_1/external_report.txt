@@ -1,7 +1,0 @@
-Compile failed.
-            Command: clang results/s112_pipeline2_fresh/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/s112_pipeline2_fresh/llmvec/candidate_round_1
-            stderr:
-            results/s112_pipeline2_fresh/llmvec/candidate_round_1.c:85:21: error: call to undeclared function 's112'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
-   85 |                     s112(a_scalar, b, iterations, n);
-      |                     ^
-1 error generated.

@@ -1,9 +1,0 @@
-- The compile error is `call to undeclared function 's1113'` at line 107 of the full file — the test harness calls `s1113(...)` as the scalar reference, but no such function is defined in the candidate file. Add a scalar reference implementation before the test harness code:
-  ```c
-  void s1113(float* a, float* b, float* out, int LEN_1D) {
-      int mid = LEN_1D / 2;
-      for (int i = 0; i < LEN_1D; i++)
-          out[i] = a[mid] + b[i];
-  }
-  ```
-- The warnings show `a` and `b` are declared as `int[128]` in the test harness but passed as `float*`. Change the test harness array declarations from `int a[128], b[128]` to `float a[128], b[128]` (or ensure the candidate file's harness uses `float` arrays).

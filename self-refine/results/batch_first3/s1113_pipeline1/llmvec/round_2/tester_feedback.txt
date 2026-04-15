@@ -1,6 +1,0 @@
-The errors are in the test harness (lines 71-72), not in the `vectorized_s1113` function itself. The harness is calling `s1113(a, b, out_scalar, n)` but the reference function signature is `s1113(int iterations, int LEN_1D, float* a, float* b)` — the arguments are passed in the wrong order.
-
-- Fix the call to `s1113` on line 71: pass `iterations` and `LEN_1D` as the first two integer arguments, then `a` and `b` as float pointers (no `out_scalar` or `n` in those positions).
-- Fix the call to `vectorized_s1113` on line 72: `a` and `b` are declared as `int[128]` in the harness but the function expects `float*` — declare `a` and `b` as `float[]` arrays in the test harness, not `int[]`.
-- Ensure `out_scalar` and `out_vector` are declared as `float[]` arrays of appropriate size in the harness.
-- The `vectorized_s1113` function itself looks correct; no changes needed there.

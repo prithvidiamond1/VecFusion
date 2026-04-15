@@ -1,6 +1,0 @@
-The errors are in the test harness (lines 93–94), not in the candidate functions themselves. The harness is passing array variables (`int[128]`) where `float *` and `int` are expected. Since the candidate file apparently includes a test harness, here are the fixes needed:
-
-- **`a` and `b` arrays in the harness must be declared as `float[]`, not `int[]`** — change `int a[128]` / `int b[128]` to `float a[128]` / `float b[128]`.
-- **`out_scalar` and `out_vector` are being passed as the `iterations` argument** — they appear to be arrays (`int[128]`) passed where a scalar `int` is expected; declare them as plain `int` scalars (e.g., `int out_scalar = 1, out_vector = 1;`).
-- **The 4th argument `n` is being passed as `LEN_1D`** — ensure `n` is declared as a plain `int` (e.g., `int n = 128;`) and not as an array.
-- **Fix call sites** at lines 93–94 to match the signatures `s112(float*, float*, int, int)` and `vectorized_s112(float*, float*, int, int)` exactly, using scalar integers for `iterations` and `LEN_1D`.
