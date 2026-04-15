@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/batch_first3_rerun_20260414_234138/s1113_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s1113(int iterations, int LEN_1D, float* a, float* b)\n{\n    typedef float float8 __attribute__((vector_size(32)));\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        int mid = LEN_1D / 2;\n\n        /* Phase 1: indices [0, mid) using original a[mid] */\n        float scalar_val = a[mid];\n        float8 vscalar = {scalar_val, scalar_val, scalar_val, scalar_val,\n                          scalar_val, scalar_val, scalar_val, scalar_val};\n        int i = 0;\n        for (; i <= mid - 8; i += 8) {\n            float8 vb;\n            __builtin_memcpy(&vb, b + i, 32);\n            float8 va = vscalar + vb;\n            __builtin_memcpy(a + i, &va, 32);\n        }\n        for (; i < mid; i++) {\n            a[i] = scalar_val + b[i];\n        }\n\n        /* Phase 2: index == mid, overwrites a[mid] */\n        a[mid] = scalar_val + b[mid];\n\n        /* Re-capture scalar after a[mid] is updated */\n        scalar_val = a[mid];\n        float8 vscalar2 = {scalar_val, scalar_val, scalar_val, scalar_val,\n                           scalar_val, scalar_val, scalar_val, scalar_val};\n\n        /* Phase 3: indices [mid+1, LEN_1D) using new a[mid] */\n        i = mid + 1;\n        for (; i <= LEN_1D - 8; i += 8) {\n            float8 vb;\n            __builtin_memcpy(&vb, b + i, 32);\n            float8 va = vscalar2 + vb;\n            __builtin_memcpy(a + i, &va, 32);\n        }\n        for (; i < LEN_1D; i++) {\n            a[i] = scalar_val + b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 3.",
+      "compile_feedback": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 3,
+      "artifact_path": "results/batch_first3_rerun_20260414_234138/s1113_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s1113",
+        "input_snapshot": "results/batch_first3_rerun_20260414_234138/s1113_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/batch_first3_rerun_20260414_234138/s1113_pipeline1/llmvec/candidate_round_3.c",
+        "binary_path": "results/batch_first3_rerun_20260414_234138/s1113_pipeline1/llmvec/candidate_round_3"
+      }
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/batch_first3_rerun_20260414_234138/s1113_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s1113_opt(int iterations, int LEN_1D, float* a, float* b)\n{\n    int mid = LEN_1D / 2;\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        float mid_val = a[mid];\n        for (int i = 0; i < mid; i++) {\n            a[i] = mid_val + b[i];\n        }\n        a[mid] = mid_val + b[mid];\n        float new_mid_val = a[mid];\n        for (int i = mid + 1; i < LEN_1D; i++) {\n            a[i] = new_mid_val + b[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/batch_first3_rerun_20260414_234138/s1113_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/batch_first3_rerun_20260414_234138/s1113_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/batch_first3_rerun_20260414_234138/s1113_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: Could not locate signature for s1113",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/batch_first3_rerun_20260414_234138/s1113_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "s1113",
+        "input_snapshot": "results/batch_first3_rerun_20260414_234138/s1113_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s1113(int iterations, int LEN_1D, float* a, float* b)\n{\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = a[LEN_1D/2] + b[i];\n        }\n    }\n}  ",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/batch_first3_rerun_20260414_234138/s1113_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

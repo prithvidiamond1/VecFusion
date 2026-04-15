@@ -1,0 +1,15 @@
+Vectorize the scalar C function `AllPointsEq` below.
+
+        Scalar source:
+        ```c
+        bool AllPointsEq_opt(const int pts[], int count) {
+    int val = pts[0];
+    int all_eq = 1;
+    for (int i = 1; i < count; ++i) {
+        all_eq &= (val == pts[i]);
+    }
+    return (bool)all_eq;
+}
+        ```
+
+        Produce a candidate function named `vectorized_AllPointsEq`.

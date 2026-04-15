@@ -1,0 +1,15 @@
+- The bug is a **read-after-write hazard**: `scalar_val` is loaded from `a[LEN_1D/2]` before the loop, but then the vectorized loop overwrites `a[0..LEN_1D-1]`, including `a[LEN_1D/2]`. This matches the original scalar semantics where `a[LEN_1D/2]` is read once before any writes — which the code already does correctly by caching in `scalar_val`. So the scalar value capture is fine.
+
+- The actual problem: index 65 mismatches, and `LEN_1D/2` is likely 512 (if `LEN_1D=1024`). Wait — index 65 is within the first 8-element chunk boundary. The issue is **alignment**: `b + i` may not be 32-byte aligned, but `__builtin_memcpy` should handle that. More likely the issue is that the **vector store to `a + i` corrupts `a[LEN_1D/2]`** before `scalar_val` is used in later iterations — but `scalar_val` is re-read each `nl` iteration, so on `nl=1`, `a[LEN_1D/2]` has been overwritten by `nl=0` with `scalar_val_0 + b[LEN_1D/2]`, which is correct expected behavior.
+
+- Re-examining: index 65 is in the scalar tail only if `LEN_1D` is not a multiple of 8. If `LEN_1D=120` for example, index 65 is in the vector portion. The most likely root cause is that **`a[LEN_1D/2]` is being read after the vector loop has already written to indices including `LEN_1D/2`** — but `scalar_val` is captured before the loop, so this should be fine.
+
+- The real issue: the original function signature likely uses `a` and `b` where **`a` is both read (as `scalar_val = a[LEN_1D/2]`) and written**, but the reference implementation reads `a[LEN_1D/2]` fresh each outer iteration. This is already handled. The problem is likely that `LEN_1D/2` falls within `[0, LEN_1D-8]`, so the vector loop writes `a[LEN_1D/2]` — **this is correct and intentional**.
+
+- **Most likely fix**: The mismatch at index 65 suggests `LEN_1D` might be around 130 or the test uses a specific size. Check if the **scalar tail loop condition should be `i < LEN_1D`** (it is) — this looks correct.
+
+- **Actual fix needed**: Change the outer loop bound from `2*iterations` to `iterations` to match the reference, OR verify the reference uses `2*iterations`. If the reference scalar loop uses `iterations` (not `2*iterations`), the extra iterations cause `a` to diverge. **Change `2*iterations` to `iterations`** in the outer loop.
+
+```c
+for (int nl = 0; nl < iterations; nl++) {
+```

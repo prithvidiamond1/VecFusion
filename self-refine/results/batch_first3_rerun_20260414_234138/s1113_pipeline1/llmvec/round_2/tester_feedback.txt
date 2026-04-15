@@ -1,0 +1,19 @@
+The scalar value is captured as `a[LEN_1D/2]` **before** the vectorized loop overwrites elements of `a`, but the reference implementation likely reads `a[LEN_1D/2]` only once before any writes. The issue is that when `LEN_1D/2 < LEN_1D - 8` (which is almost always true), the vectorized loop overwrites `a[LEN_1D/2]` during iteration, but the scalar was already captured — that part is fine. Let me reconsider.
+
+The real problem: the original loop `s1113` adds a **scalar** (`a[LEN_1D/2]`) to each `b[i]` and stores into `a[i]`. The scalar must be read **once before the loop**. The candidate does this correctly. The mismatch at index 65 suggests `LEN_1D=128` and index 65 is in the vectorized range.
+
+- **Root cause**: The vector loop condition `i <= LEN_1D - 8` can be wrong when `LEN_1D < 8`; but more critically, `LEN_1D/2` (e.g., index 64) gets overwritten by the vector loop at iteration `i=64`, which is fine since scalar was pre-captured. Check the actual s1113 reference: it may be `a[i] = a[LEN_1D/2] + b[i]` with `a[LEN_1D/2]` re-read each iteration (i.e., it's a loop-carried dependency where `a[LEN_1D/2]` changes mid-loop).
+
+- **Fix**: Do **not** pre-capture `scalar_val` before the loop. Instead, since `a[LEN_1D/2]` gets overwritten when `i` reaches `LEN_1D/2`, you must replicate the scalar read each iteration — but for vectorization, capture it once and use it. The reference scalar loop reads `a[LEN_1D/2]` fresh each iteration, so after index `LEN_1D/2` is written, subsequent iterations use the **updated** value.
+
+- **Concrete fix**: Split the loop into three segments: `[0, LEN_1D/2)`, then `i = LEN_1D/2` (scalar step that updates `a[LEN_1D/2]`), then `[LEN_1D/2+1, LEN_1D)` using the **new** `a[LEN_1D/2]` as the scalar. Re-capture `scalar_val` after index `LEN_1D/2` is written:
+
+```c
+float scalar_val = a[LEN_1D/2];
+// vectorize i in [0, LEN_1D/2)
+// then i == LEN_1D/2: a[LEN_1D/2] = scalar_val + b[LEN_1D/2]; 
+// re-read: scalar_val = a[LEN_1D/2];
+// vectorize i in [LEN_1D/2+1, LEN_1D)
+```
+
+- **Summary**: The pre-captured scalar is correct for indices before `LEN_1D/2`, but after `a[LEN_1D/2]` is overwritten at `i=LEN_1D/2`, the remaining iterations must use the **new** value of `a[LEN_1D/2]`. Update `scalar_val` after writing index `LEN_1D/2`.
