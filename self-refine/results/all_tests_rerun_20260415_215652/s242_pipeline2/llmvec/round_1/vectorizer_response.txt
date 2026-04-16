@@ -1,0 +1,32 @@
+```c
+void vectorized_s242(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d)
+{
+    for (int nl = 0; nl < iterations/5; nl++) {
+        float prev = a[0];
+        float s12 = s1 + s2;
+        // This loop has a loop-carried dependency through prev,
+        // so we cannot fully vectorize the inner loop in the traditional sense.
+        // However, we can unroll it to help the compiler and improve ILP.
+        int i = 1;
+        // Unroll by 4 - note: each iteration depends on previous, so we compute sequentially
+        // but unrolling helps with instruction scheduling
+        for (; i <= LEN_1D - 4; i += 4) {
+            float c0 = prev   + s12 + b[i]   + c[i]   + d[i];
+            float c1 = c0     + s12 + b[i+1] + c[i+1] + d[i+1];
+            float c2 = c1     + s12 + b[i+2] + c[i+2] + d[i+2];
+            float c3 = c2     + s12 + b[i+3] + c[i+3] + d[i+3];
+            a[i]   = c0;
+            a[i+1] = c1;
+            a[i+2] = c2;
+            a[i+3] = c3;
+            prev = c3;
+        }
+        // Scalar cleanup
+        for (; i < LEN_1D; i++) {
+            float curr = prev + s12 + b[i] + c[i] + d[i];
+            a[i] = curr;
+            prev = curr;
+        }
+    }
+}
+```

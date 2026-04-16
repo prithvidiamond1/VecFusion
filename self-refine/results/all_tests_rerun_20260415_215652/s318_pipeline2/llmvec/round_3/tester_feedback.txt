@@ -1,0 +1,6 @@
+The issue is that the original function uses `inc` as a stride but the reference implementation likely uses `a[i]` (stride of 1), not `a[i * inc]`. The first element is also accessed as `a[0]` instead of `a[0 * inc]` (though that's the same). More critically, the reference `s318` typically finds the index of the maximum of `fabsf(a[i])` with unit stride.
+
+- **Fix the array indexing**: Change `a[i * inc]` to `a[i]` (and `a[(i+1) * inc]`, etc.) — the standard `s318` kernel uses unit stride (`a[i]`), not `a[i * inc]`. The `inc` parameter is not used in the reference scalar version.
+- **Remove `inc` from all index calculations**: Replace every `a[i * inc]`, `a[(i+1) * inc]`, `a[(i+2) * inc]`, `a[(i+3) * inc]` with `a[i]`, `a[i+1]`, `a[i+2]`, `a[i+3]`.
+- **Fix the first element access**: `a[0]` is already correct for unit stride, so no change needed there.
+- **Verify `chksum` formula**: Confirm the reference returns `max + (float)index` — if the reference uses `index + 1` (1-based indexing) adjust accordingly; most TSVC `s318` variants use 1-based index, so change `index = i` to `index = i` but initialize with `index = 1` and loop from `i = 2`, or keep 0-based but match the reference exactly.

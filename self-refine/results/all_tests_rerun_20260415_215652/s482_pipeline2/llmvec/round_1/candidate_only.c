@@ -1,0 +1,41 @@
+#include <stdint.h>
+
+void vectorized_s482(int iterations, int LEN_1D, float* a, float* b, float* c)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        // Find the break point first (scalar, data-dependent)
+        int break_point = LEN_1D;
+        for (int i = 0; i < LEN_1D; i++) {
+            if (c[i] > b[i]) {
+                break_point = i + 1;
+                break;
+            }
+        }
+
+        // Vectorized update loop using compiler vector types
+        typedef float float4 __attribute__((vector_size(16)));
+
+        int i = 0;
+        int vec_len = break_point & ~3; // round down to multiple of 4
+
+        for (; i < vec_len; i += 4) {
+            float4 va, vb, vc;
+            // Load 4 floats manually
+            va[0] = a[i];   va[1] = a[i+1];   va[2] = a[i+2];   va[3] = a[i+3];
+            vb[0] = b[i];   vb[1] = b[i+1];   vb[2] = b[i+2];   vb[3] = b[i+3];
+            vc[0] = c[i];   vc[1] = c[i+1];   vc[2] = c[i+2];   vc[3] = c[i+3];
+
+            va = va + vb * vc;
+
+            a[i]   = va[0];
+            a[i+1] = va[1];
+            a[i+2] = va[2];
+            a[i+3] = va[3];
+        }
+
+        // Scalar tail
+        for (; i < break_point; i++) {
+            a[i] += b[i] * c[i];
+        }
+    }
+}

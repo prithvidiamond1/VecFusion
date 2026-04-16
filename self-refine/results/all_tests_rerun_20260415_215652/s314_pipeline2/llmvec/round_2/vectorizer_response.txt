@@ -1,0 +1,55 @@
+```c
+#include <stddef.h>
+
+typedef float float4 __attribute__((vector_size(16)));
+
+float vectorized_s314(int iterations, int LEN_1D, float* a)
+{
+    float x = a[0];
+
+    int i = 1;
+
+    float4 vmax0 = {x, x, x, x};
+    float4 vmax1 = {x, x, x, x};
+    float4 vmax2 = {x, x, x, x};
+    float4 vmax3 = {x, x, x, x};
+
+    int limit = LEN_1D - 16 + 1;
+    for (; i < limit; i += 16) {
+        float4 v0, v1, v2, v3;
+        __builtin_memcpy(&v0, &a[i],    sizeof(float4));
+        __builtin_memcpy(&v1, &a[i+4],  sizeof(float4));
+        __builtin_memcpy(&v2, &a[i+8],  sizeof(float4));
+        __builtin_memcpy(&v3, &a[i+12], sizeof(float4));
+
+        vmax0 = __builtin_elementwise_max(v0, vmax0);
+        vmax1 = __builtin_elementwise_max(v1, vmax1);
+        vmax2 = __builtin_elementwise_max(v2, vmax2);
+        vmax3 = __builtin_elementwise_max(v3, vmax3);
+    }
+
+    vmax0 = __builtin_elementwise_max(vmax0, vmax1);
+    vmax2 = __builtin_elementwise_max(vmax2, vmax3);
+    vmax0 = __builtin_elementwise_max(vmax0, vmax2);
+
+    limit = LEN_1D - 4 + 1;
+    for (; i < limit; i += 4) {
+        float4 v0;
+        __builtin_memcpy(&v0, &a[i], sizeof(float4));
+        vmax0 = __builtin_elementwise_max(v0, vmax0);
+    }
+
+    float tmp[4];
+    __builtin_memcpy(tmp, &vmax0, sizeof(float4));
+    for (int j = 0; j < 4; j++) {
+        if (tmp[j] > x) x = tmp[j];
+    }
+
+    for (; i < LEN_1D; i++) {
+        float ai = a[i];
+        x = ai > x ? ai : x;
+    }
+
+    return x;
+}
+```

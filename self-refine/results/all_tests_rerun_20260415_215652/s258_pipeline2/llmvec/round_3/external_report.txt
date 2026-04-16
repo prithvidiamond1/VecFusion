@@ -1,0 +1,16 @@
+Compile failed.
+            Command: clang results/all_tests_rerun_20260415_215652/s258_pipeline2/llmvec/candidate_round_3.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s258_pipeline2/llmvec/candidate_round_3
+            stderr:
+            results/all_tests_rerun_20260415_215652/s258_pipeline2/llmvec/candidate_round_3.c:32:9: error: expected identifier or '('
+   32 |         for (int i = 0; i < 256; ++i) {
+      |         ^
+results/all_tests_rerun_20260415_215652/s258_pipeline2/llmvec/candidate_round_3.c:69:84: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+   69 |                 s258(iterations, a_scalar, b_scalar, c_scalar, d_scalar, e_scalar, aa_scalar); vectorized_s258(iterations, a_vector, b_vector, c_vector, d_vector, e_vector, aa_vector);
+      |                                                                                    ^~~~~~~~~
+results/all_tests_rerun_20260415_215652/s258_pipeline2/llmvec/candidate_round_3.c:8:91: note: passing argument to parameter 'aa' here
+    8 |         void s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+      |                                                                                           ^
+results/all_tests_rerun_20260415_215652/s258_pipeline2/llmvec/candidate_round_3.c:69:96: error: call to undeclared function 'vectorized_s258'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+   69 |                 s258(iterations, a_scalar, b_scalar, c_scalar, d_scalar, e_scalar, aa_scalar); vectorized_s258(iterations, a_vector, b_vector, c_vector, d_vector, e_vector, aa_vector);
+      |                                                                                                ^
+1 warning and 2 errors generated.

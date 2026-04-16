@@ -1,0 +1,27 @@
+float vectorized_s317(int iterations, int LEN_1D)
+{
+    float q;
+    for (int nl = 0; nl < 5 * iterations; nl++) {
+        q = (float)1.;
+        int half = LEN_1D / 2;
+
+        // Use 4-wide unrolling: maintain 4 accumulators
+        float q0 = 1.0f, q1 = 1.0f, q2 = 1.0f, q3 = 1.0f;
+        int i = 0;
+        int limit = half - (half % 4);
+        for (; i < limit; i += 4) {
+            q0 *= 0.99f;
+            q1 *= 0.99f;
+            q2 *= 0.99f;
+            q3 *= 0.99f;
+        }
+        // Combine accumulators
+        float combined = q0 * q1 * q2 * q3;
+        // Scalar tail
+        for (; i < half; i++) {
+            combined *= 0.99f;
+        }
+        q = combined;
+    }
+    return q;
+}

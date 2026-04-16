@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s161_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s161_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    // The loop-carried dependency: c[i+1] written in iteration i is read as c[i] in iteration i+1\n    // when b[i] < 0. We need to preserve original c values before updating.\n    // Use a temporary array to store original c values to break the dependency.\n    \n    float* c_orig = (float*)__builtin_alloca(LEN_1D * sizeof(float));\n    \n    for (int nl = 0; nl < iterations/2; nl++) {\n        // Save original c values before the loop modifies them\n        memcpy(c_orig, c, LEN_1D * sizeof(float));\n        \n        // Branchless version:\n        // If b[i] >= 0: a[i] = c[i] + d[i]*e[i], c[i+1] unchanged\n        // If b[i] < 0:  c[i+1] = a[i] + d[i]*d[i], a[i] unchanged\n        // Use c_orig[i] for the read of c[i] to avoid loop-carried dependency\n        \n        for (int i = 0; i < LEN_1D-1; ++i) {\n            int neg = (b[i] < (float)0.);\n            int pos = 1 - neg;\n            a[i]   = pos * (c_orig[i] + d[i] * e[i]) + neg * a[i];\n            c[i+1] = neg * (a[i] + d[i] * d[i])      + pos * c[i+1];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s161_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s161_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s161_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n#include <stdint.h>\n\nvoid vectorized_s161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    float* c_orig = (float*)__builtin_alloca(LEN_1D * sizeof(float));\n\n    for (int nl = 0; nl < iterations/2; nl++) {\n        memcpy(c_orig, c, LEN_1D * sizeof(float));\n\n        int i = 0;\n        int limit = LEN_1D - 1;\n\n#if defined(__clang__) || defined(__GNUC__)\n        typedef float float4 __attribute__((vector_size(16)));\n\n        int limit4 = limit - (limit % 4);\n        for (; i < limit4; i += 4) {\n            float4 b_vec  = { b[i], b[i+1], b[i+2], b[i+3] };\n            float4 zero   = { 0.f, 0.f, 0.f, 0.f };\n            float4 one    = { 1.f, 1.f, 1.f, 1.f };\n\n            // neg mask: b[i] < 0 => -1 (all bits set), else 0\n            // We'll compute neg as float 1.0 or 0.0 manually\n            float neg0 = (b[i]   < 0.f) ? 1.f : 0.f;\n            float neg1 = (b[i+1] < 0.f) ? 1.f : 0.f;\n            float neg2 = (b[i+2] < 0.f) ? 1.f : 0.f;\n            float neg3 = (b[i+3] < 0.f) ? 1.f : 0.f;\n\n            float pos0 = 1.f - neg0;\n            float pos1 = 1.f - neg1;\n            float pos2 = 1.f - neg2;\n            float pos3 = 1.f - neg3;\n\n            float4 neg_vec = { neg0, neg1, neg2, neg3 };\n            float4 pos_vec = { pos0, pos1, pos2, pos3 };\n\n            float4 c_orig_vec = { c_orig[i], c_orig[i+1], c_orig[i+2], c_orig[i+3] };\n            float4 d_vec      = { d[i], d[i+1], d[i+2], d[i+3] };\n            float4 e_vec      = { e[i], e[i+1], e[i+2], e[i+3] };\n            float4 a_vec      = { a[i], a[i+1], a[i+2], a[i+3] };\n            float4 c1_vec     = { c[i+1], c[i+2], c[i+3], c[i+4] };\n\n            // a[i] = pos * (c_orig[i] + d[i]*e[i]) + neg * a[i]\n            float4 new_a = pos_vec * (c_orig_vec + d_vec * e_vec) + neg_vec * a_vec;\n\n            // c[i+1] = neg * (a[i] + d[i]*d[i]) + pos * c[i+1]\n            // Note: use original a[i] (a_vec) here, not new_a\n            float4 new_c1 = neg_vec * (a_vec + d_vec * d_vec) + pos_vec * c1_vec;\n\n            a[i]   = new_a[0]; a[i+1] = new_a[1]; a[i+2] = new_a[2]; a[i+3] = new_a[3];\n            c[i+1] = new_c1[0]; c[i+2] = new_c1[1]; c[i+3] = new_c1[2]; c[i+4] = new_c1[3];\n        }\n#endif\n\n        // Scalar tail\n        for (; i < limit; i++) {\n            int neg = (b[i] < 0.f);\n            int pos = 1 - neg;\n            float a_old = a[i];\n            a[i]   = pos * (c_orig[i] + d[i] * e[i]) + neg * a_old;\n            c[i+1] = neg * (a_old + d[i] * d[i])     + pos * c[i+1];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s161_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s161",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s161_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s161_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s161_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

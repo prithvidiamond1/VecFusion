@@ -1,0 +1,9 @@
+Looking at the failure: `Mismatch in parameter src on trial 0 at index 0`
+
+The issue is that `src[0]` is being set to `srcStart`, but the original scalar loop doesn't write `src[0]` — it only writes `src[i+1]` for each div, and `src[divCount+1]` at the end. The reference implementation likely doesn't write `src[0]` at all (or the caller pre-populates it).
+
+- **Remove `src[0] = srcStart;`** — writing to `src[0]` is incorrect; the reference code only writes `src[i+1]` (1-indexed from divs) and the final `src[divCount+1]`.
+- **Remove `dst[0] = dstStart;`** — same reasoning; `dst[0]` should not be written by this function.
+- The unrolled loop's `s0/s1/s2/s3` pattern assumes `isScalableInt` starts at a fixed value and alternates, but the initial `isScalable` flag determines whether the *first* segment is scalable or not. The pattern `s0=isScalableInt, s1=s0^1, s2=s0, s3=s0^1` is correct only if `isScalableInt` hasn't been toggled — verify this is consistent with the scalar tail which does toggle `isScalableInt` each iteration.
+- After the unrolled block of 4, `isScalableInt` should be unchanged (4 flips = net 0), which is correct — no fix needed there.
+- The core fix: **delete lines `src[0] = srcStart;` and `dst[0] = dstStart;`** to stop clobbering index 0.

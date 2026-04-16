@@ -1,0 +1,85 @@
+#include <stdbool.h>
+#include <alloca.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed, int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd, bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    float scaleWhenScalable    = normalCase ? scale : 0.0f;
+    float scaleWhenNonScalable = normalCase ? 1.0f  : scale;
+
+    // Build local srcBuf (do NOT write back to caller's src)
+    int totalSegs = divCount + 1;
+    int* srcBuf = (int*)alloca((divCount + 2) * sizeof(int));
+    srcBuf[0] = srcStart;
+    {
+        int i = 0;
+        for (; i + 3 < divCount; i += 4) {
+            srcBuf[i + 1] = divs[i];
+            srcBuf[i + 2] = divs[i + 1];
+            srcBuf[i + 3] = divs[i + 2];
+            srcBuf[i + 4] = divs[i + 3];
+        }
+        for (; i < divCount; i++) {
+            srcBuf[i + 1] = divs[i];
+        }
+    }
+    srcBuf[divCount + 1] = srcEnd;
+
+    // Precompute srcDelta array: totalSegs elements
+    int* srcDelta = (int*)alloca(totalSegs * sizeof(int));
+    {
+        int i = 0;
+        for (; i + 3 < totalSegs; i += 4) {
+            srcDelta[i]     = srcBuf[i + 1] - srcBuf[i];
+            srcDelta[i + 1] = srcBuf[i + 2] - srcBuf[i + 1];
+            srcDelta[i + 2] = srcBuf[i + 3] - srcBuf[i + 2];
+            srcDelta[i + 3] = srcBuf[i + 4] - srcBuf[i + 3];
+        }
+        for (; i < totalSegs; i++) {
+            srcDelta[i] = srcBuf[i + 1] - srcBuf[i];
+        }
+    }
+
+    // Precompute dstDelta array: totalSegs elements
+    // Segment i is scalable if (i % 2 == 1) when isScalable==false (non-scalable start),
+    // or (i % 2 == 0) when isScalable==true.
+    // Equivalently: segment i is scalable if (i % 2) == (isScalable ? 0 : 1)
+    // scaleEven applies to even-indexed segments, scaleOdd to odd-indexed segments.
+    // Even segments: scalable when isScalable==true, non-scalable when isScalable==false
+    // Odd segments: non-scalable when isScalable==true, scalable when isScalable==false
+    // So: scaleEven = isScalable ? scaleWhenScalable : scaleWhenNonScalable
+    //     scaleOdd  = isScalable ? scaleWhenNonScalable : scaleWhenScalable
+    float* dstDelta = (float*)alloca(totalSegs * sizeof(float));
+    {
+        float scaleEven = isScalable ? scaleWhenScalable    : scaleWhenNonScalable;
+        float scaleOdd  = isScalable ? scaleWhenNonScalable : scaleWhenScalable;
+
+        int i = 0;
+        for (; i + 3 < totalSegs; i += 4) {
+            dstDelta[i]     = scaleEven * (float)srcDelta[i];
+            dstDelta[i + 1] = scaleOdd  * (float)srcDelta[i + 1];
+            dstDelta[i + 2] = scaleEven * (float)srcDelta[i + 2];
+            dstDelta[i + 3] = scaleOdd  * (float)srcDelta[i + 3];
+        }
+        // Scalar cleanup: parity of i determines scale
+        for (; i < totalSegs; i++) {
+            bool segIsScalable = (i % 2 == 1) ? !isScalable : isScalable;
+            float s = segIsScalable ? scaleWhenScalable : scaleWhenNonScalable;
+            dstDelta[i] = s * (float)srcDelta[i];
+        }
+    }
+
+    // Accumulate dst
+    dst[0] = dstStart;
+    for (int i = 0; i < totalSegs; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+    dst[divCount + 1] = dstEnd;
+}

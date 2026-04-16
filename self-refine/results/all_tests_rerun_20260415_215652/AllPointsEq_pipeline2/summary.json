@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/AllPointsEq_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "bool AllPointsEq_opt(const int pts[], int count) {\n    int ref = pts[0];\n    int eq = 1;\n    for (int i = 1; i < count; ++i) {\n        eq &= (pts[i] == ref);\n    }\n    return (bool)eq;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/AllPointsEq_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/AllPointsEq_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/AllPointsEq_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdbool.h>\n#include <stdint.h>\n\nbool vectorized_AllPointsEq(const int pts[], int count) {\n    if (count <= 1) return true;\n\n    int ref = pts[0];\n\n    // Use 4-wide int vector\n    typedef int v4si __attribute__((vector_size(16)));\n\n    v4si vref = {ref, ref, ref, ref};\n    v4si vall = {1, 1, 1, 1};\n\n    int i = 1;\n    int limit = count - 3; // process 4 at a time starting from index 1\n\n    // We need to be careful: we start at i=1, so we process pts[1..count-1]\n    // For simplicity, align to groups of 4 from index 1\n    for (; i + 3 < count; i += 4) {\n        v4si chunk;\n        chunk[0] = pts[i];\n        chunk[1] = pts[i + 1];\n        chunk[2] = pts[i + 2];\n        chunk[3] = pts[i + 3];\n\n        v4si cmp = (chunk == vref); // element-wise: -1 if equal, 0 if not\n        // cmp elements are -1 (true) or 0 (false)\n        // We want to AND all results: if any element is 0, result is false\n        vall &= cmp;\n    }\n\n    // Check the accumulated vector result\n    // All elements should be -1 (all bits set) if all were equal\n    int result = (vall[0] & vall[1] & vall[2] & vall[3]);\n    // result is -1 if all equal, 0 if any not equal\n    // Convert: nonzero means all equal so far\n    int eq = (result != 0) ? 1 : 0;\n\n    // Scalar cleanup tail\n    for (; i < count; ++i) {\n        eq &= (pts[i] == ref);\n    }\n\n    return (bool)eq;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/AllPointsEq_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "AllPointsEq",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/AllPointsEq_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/AllPointsEq_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/AllPointsEq_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

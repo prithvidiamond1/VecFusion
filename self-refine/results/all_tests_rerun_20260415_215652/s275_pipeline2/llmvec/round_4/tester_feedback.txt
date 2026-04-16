@@ -1,0 +1,18 @@
+- The file starts with a duplicate ` ```c ` fence inside the actual C code (line 37 area), causing a parse error. Remove the inner ` ```c ` marker — the file should contain only valid C, no markdown fences.
+- The code is also truncated at the end (the last `aa[j][i+6] = aa[j][i+` line is cut off). Complete the unrolled assignments for `i+6` and `i+7`, close the inner loops, close the outer `for (int j ...)` loop, close the `for (int nl ...)` loop, and close the function with `}`.
+- Specifically, add the missing lines:
+  ```c
+                aa[j][i+6] = aa[j][i+6] * (1.0f - m6) + p6 * m6;
+                aa[j][i+7] = aa[j][i+7] * (1.0f - m7) + p7 * m7;
+            }
+            for (; i < 256; i++) {
+                float p = prev[i] + tmp[j][i];
+                prev[i] = p;
+                float m = mask[i];
+                aa[j][i] = aa[j][i] * (1.0f - m) + p * m;
+            }
+        }
+    }
+}
+  ```
+- Ensure there is no ` ``` ` or ` ```c ` anywhere inside the C source file — only valid C tokens.

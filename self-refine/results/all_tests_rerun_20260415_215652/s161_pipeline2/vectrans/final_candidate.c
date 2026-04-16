@@ -1,0 +1,25 @@
+void s161_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    // The loop-carried dependency: c[i+1] written in iteration i is read as c[i] in iteration i+1
+    // when b[i] < 0. We need to preserve original c values before updating.
+    // Use a temporary array to store original c values to break the dependency.
+    
+    float* c_orig = (float*)__builtin_alloca(LEN_1D * sizeof(float));
+    
+    for (int nl = 0; nl < iterations/2; nl++) {
+        // Save original c values before the loop modifies them
+        memcpy(c_orig, c, LEN_1D * sizeof(float));
+        
+        // Branchless version:
+        // If b[i] >= 0: a[i] = c[i] + d[i]*e[i], c[i+1] unchanged
+        // If b[i] < 0:  c[i+1] = a[i] + d[i]*d[i], a[i] unchanged
+        // Use c_orig[i] for the read of c[i] to avoid loop-carried dependency
+        
+        for (int i = 0; i < LEN_1D-1; ++i) {
+            int neg = (b[i] < (float)0.);
+            int pos = 1 - neg;
+            a[i]   = pos * (c_orig[i] + d[i] * e[i]) + neg * a[i];
+            c[i+1] = neg * (a[i] + d[i] * d[i])      + pos * c[i+1];
+        }
+    }
+}

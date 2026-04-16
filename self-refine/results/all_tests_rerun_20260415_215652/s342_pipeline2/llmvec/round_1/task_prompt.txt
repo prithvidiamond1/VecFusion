@@ -1,0 +1,31 @@
+Vectorize the scalar C function `s342` below.
+
+        Scalar source:
+        ```c
+        void s342(int iterations, int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        int masks[LEN_1D];
+        int prefix[LEN_1D];
+
+        // First pass: compute masks (vectorizable)
+        for (int i = 0; i < LEN_1D; i++) {
+            masks[i] = (a[i] > (float)0.) ? 1 : 0;
+        }
+
+        // Second pass: prefix sum - sequential, isolated dependency
+        prefix[0] = masks[0] - 1;
+        for (int i = 1; i < LEN_1D; i++) {
+            prefix[i] = prefix[i-1] + masks[i];
+        }
+
+        // Third pass: conditional update using precomputed indices (vectorizable gather+mask)
+        for (int i = 0; i < LEN_1D; i++) {
+            float bval = b[prefix[i] < 0 ? 0 : prefix[i]];
+            a[i] = masks[i] * bval + (1 - masks[i]) * a[i];
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s342`.

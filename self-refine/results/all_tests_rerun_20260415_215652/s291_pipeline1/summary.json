@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s291_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s291(int iterations, int LEN_1D, float* a, float* b)\n{\n    for (int nl = 0; nl < 2 * iterations; nl++) {\n        // First element: im1 starts as LEN_1D-1, so a[0] = (b[0] + b[LEN_1D-1]) * 0.5f\n        // After i=0, im1=0, so a[1] = (b[1] + b[0]) * 0.5f, etc.\n        // The original loop does wrap: im1 = LEN_1D-1 before the loop starts.\n        a[0] = (b[0] + b[LEN_1D - 1]) * 0.5f;\n\n        // Remaining elements: a[i] = (b[i] + b[i-1]) * 0.5\n        int i = 1;\n        int limit = 1 + ((LEN_1D - 1) / 8) * 8;\n        for (; i < limit; i += 8) {\n            a[i + 0] = (b[i + 0] + b[i - 1]) * 0.5f;\n            a[i + 1] = (b[i + 1] + b[i + 0]) * 0.5f;\n            a[i + 2] = (b[i + 2] + b[i + 1]) * 0.5f;\n            a[i + 3] = (b[i + 3] + b[i + 2]) * 0.5f;\n            a[i + 4] = (b[i + 4] + b[i + 3]) * 0.5f;\n            a[i + 5] = (b[i + 5] + b[i + 4]) * 0.5f;\n            a[i + 6] = (b[i + 6] + b[i + 5]) * 0.5f;\n            a[i + 7] = (b[i + 7] + b[i + 6]) * 0.5f;\n        }\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            a[i] = (b[i] + b[i - 1]) * 0.5f;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 2.",
+      "compile_feedback": "Compile succeeded for round 2.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 2.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 2,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s291_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s291",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s291_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s291_pipeline1/llmvec/candidate_round_2.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s291_pipeline1/llmvec/candidate_round_2"
+      }
+    }
+  ]
+}

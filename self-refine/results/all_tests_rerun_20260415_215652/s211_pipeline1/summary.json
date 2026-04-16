@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s211_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s211(int iterations, int LEN_1D, float*a, float*b, float*c, float*d, float*e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Note: b[i] depends on b[i+1] and b[i-1] in the same iteration,\n        // but the original scalar loop reads b[i-1] (already updated) and b[i+1] (not yet updated).\n        // We must preserve this exact scalar semantics.\n        // b[i-1] is the UPDATED value from previous iteration step,\n        // b[i+1] is the ORIGINAL value (not yet processed).\n        // This means b has a loop-carried dependency through b[i-1] -> a[i] -> (no direct dep on b)\n        // and b[i] uses b[i+1] which hasn't been touched yet.\n        // a[i] = b[i-1] + c[i]*d[i]  -- b[i-1] is the updated b from previous i\n        // b[i] = b[i+1] - e[i]*d[i]  -- b[i+1] is original (future i)\n        //\n        // Since b[i] = b[i+1] - e[i]*d[i], and a[i] = b[i-1] + c[i]*d[i],\n        // a[i] uses b[i-1] which was set in the previous iteration step.\n        // b[i-1] (updated) = b[i] - e[i-1]*d[i-1] (original b[i])\n        // So a[i] = (original_b[i] - e[i-1]*d[i-1]) + c[i]*d[i]\n        // This means a[i] depends on the updated b[i-1], creating a serial dependency.\n        // We cannot vectorize the b->a dependency without breaking semantics.\n        // Fall back to scalar loop to preserve correctness.\n        \n        int i = 1;\n        int limit = LEN_1D - 1;\n        \n        // Unroll by 4 but must be careful: b[i-1] is updated, so serial dependency exists.\n        // We'll just unroll manually for ILP on the b[i] = b[i+1] - e[i]*d[i] part\n        // but keep serial order for correctness.\n        \n        for (; i < limit; i++) {\n            a[i] = b[i - 1] + c[i] * d[i];\n            b[i] = b[i + 1] - e[i] * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s211_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s211",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s211_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s211_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s211_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

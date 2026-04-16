@@ -1,0 +1,2 @@
+- The file starts with a duplicate ` ```c ` fence on line 1 (inside the C file itself), causing a parse error. Remove the opening ` ```c ` line at the very top of the file.
+- The code is also truncated at the end (the last line is cut off mid-statement: `a[i+1] = x1 - 1.`). Complete the Phase 2 loop body, the scalar remainder loop, and close all braces properly to finish the function.

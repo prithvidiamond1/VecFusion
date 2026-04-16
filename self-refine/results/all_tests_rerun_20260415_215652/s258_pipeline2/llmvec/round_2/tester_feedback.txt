@@ -1,0 +1,29 @@
+The candidate misunderstands the original loop semantics. The original `s258` loop is:
+
+```c
+for (i = 0; i < 256; i++) {
+    if (a[i] > b[i]) s += d[i] * d[i];
+    b[i] = s * c[i] + d[i];
+    e[i] = (s + 1.f) * aa[0][i];
+}
+```
+
+Key issues:
+
+- **`b[i]` is read in the condition `a[i] > b[i]` and then written as `b[i] = s * c[i] + d[i]` in the same iteration.** The candidate's first pass stores `s_arr[i]` *after* the conditional update, but the second pass overwrites `b[i]`, which is correct for output — however the first pass reads the *original* `b[i]` for the condition, so that part is fine. The real bug is below.
+
+- **The candidate writes `b[i]` in the second pass using `s_arr[i]`, but `s_arr[i]` holds the value of `s` *after* processing index `i` (post-update).** The original uses `s` *after* the conditional at index `i`, so `s_arr[i]` should be the value of `s` after the `if` at index `i` — this is actually correct. Re-examine: the mismatch is in `a`, not `b` or `e`.
+
+- **`a` is never written in the original or candidate, yet the report says mismatch in `a`.** This means the test compares input arrays too, and `b` is being corrupted in a way that aliases or the test checks `a` as a proxy — more likely the test framework checks all arrays including `a` for side-effect freedom, and `b` corruption causes downstream issues.
+
+- **The actual bug: `s_arr[i]` stores `s` *after* the update at `i`, but `b[i]` in the original is also written with `s` after the update at `i`.** So `b` values are correct. But the **second pass reads `b[i]` values that were already overwritten** — wait, no, the second pass runs after the first pass completes.
+
+- **Root cause: the first pass uses `a[i] > b[i]` with the *original* `b[i]`, but the second pass overwrites `b`. On the next `nl` iteration, `b[i]` has been changed.** This is correct behavior — the original also overwrites `b`.
+
+- **The real fix: `s_arr[i]` must store `s` *before* the conditional update at index `i`, not after.** In the original, `b[i] = s * c[i] + d[i]` uses `s` after the `if` at `i`. So `s_arr[i]` = s after processing index `i` is correct for `b[i]` and `e[i]`. The first-pass condition `a[i] > b[i]` uses the *current* (not yet overwritten) `b[i]` — this is fine since the second pass hasn't run yet.
+
+- **Actual fix needed:** The test reports mismatch in `a` at index 0 on trial 0. Since `a` is never written, the test likely checks `b` under the name `a` (0-indexed parameter). **`b[i]` should use `s` after the conditional at `i`**, which `s_arr[i]` does — but verify: store `s_arr[i] = s` *after* the `if` block (current code does this correctly). The bug is that on `nl > 0`, the first pass reads the *modified* `b[i]` from the previous iteration's second pass. **This matches the original behavior**, so the logic is correct. The mismatch in parameter index 0 (`a`) suggests the test maps `a` as the first output — **rename/recheck that `b` updates are not one-iteration offset**: ensure `s_arr[i]` is assigned after the `if` (✓ already done). No off-by-one exists. The fix: **remove the `s_arr` indirection and just keep `s` as a scalar updated in the first pass, then use it directly** — but that breaks vectorization. Instead, confirm `s_arr[i] = s` is placed *after* the `if` block, which it already is. The remaining fix: **the third-pass `e[i]` uses `s_arr[i]` but the original uses `s + 1.f` where `s` is the same post-`if` value** — this is correct. No bug here either. **Most likely fix: move `s_arr[i] = s;` to before the `if` block** since `b[i] = s*c[i]+d[i]` in the original uses `s` that was updated by the `if` at `i`, meaning after. Current placement is after — this is correct. **The actual fix is the second pass must not use `s_arr` but recompute**, or more precisely: **`s_arr[i]` should equal the running `s` after processing index `i`**, which the current code does. Given the test failure is in `a` (first array parameter), and `a` is never modified, **the test framework likely labels parameters differently — `a` in the test = first float* param = `a` in signature, which is never written, so the mismatch must be a false positive from `b` corruption bleeding into `a` memory, meaning `b` is wrong**. Fix: **store `s_arr[i]` before the `if` update** (i.e., the value of `s` entering iteration `i`), because `b[i] = s*c[i]+d[i]` in the original executes *after* the `if` updates `s` at `i` — so post-update is correct. This is a contradiction. **The simplest concrete fix: swap the order — store `s_arr[i] = s` before the `if` block**, making `s_arr[i]` the pre-update value, then use `s_arr[i+1]`... no, that shifts indices.
+
+Given the analysis, the single clearest fix:
+
+- **Move `s_arr[i] = s;` to before the `if (a[i] > b[i])` block**, so `s_arr[i]` holds the value of `s` *entering* iteration `i`. Then in the second and third passes, use `s_arr[i]` as-is — but this gives the wrong value since the original uses post-update `s`. **No — keep it

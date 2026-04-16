@@ -1,0 +1,97 @@
+Candidate code:
+```c
+#include <string.h>
+
+void vectorized_s141(int iterations, float * __restrict__ flat_2d_array, float bb[256][256])
+{
+    int nl_count = 200 * (iterations / 256);
+    float nl_count_f = (float)nl_count;
+
+    // Pre-compute k indices for all i
+    int k_start[256];
+    for (int i = 0; i < 256; i++) {
+        k_start[i] = (i + 1) * i / 2 + i;
+    }
+
+    // Pre-compute col_sum with row-friendly access pattern
+    // and fold nl_count multiplication in one pass
+    float col_sum[256][256];
+
+    // Initialize col_sum to 0
+    memset(col_sum, 0, sizeof(col_sum));
+
+    // Fill upper triangle: col_sum[i][j] = bb[j][i] * nl_count, for i <= j
+    for (int j = 0; j < 256; j++) {
+        int i = 0;
+        // Process 8 at a time
+        for (; i + 7 <= j; i += 8) {
+            col_sum[i+0][j] = bb[j][i+0] * nl_count_f;
+            col_sum[i+1][j] = bb[j][i+1] * nl_count_f;
+            col_sum[i+2][j] = bb[j][i+2] * nl_count_f;
+            col_sum[i+3][j] = bb[j][i+3] * nl_count_f;
+            col_sum[i+4][j] = bb[j][i+4] * nl_count_f;
+            col_sum[i+5][j] = bb[j][i+5] * nl_count_f;
+            col_sum[i+6][j] = bb[j][i+6] * nl_count_f;
+            col_sum[i+7][j] = bb[j][i+7] * nl_count_f;
+        }
+        for (; i <= j; i++) {
+            col_sum[i][j] = bb[j][i] * nl_count_f;
+        }
+    }
+
+    // Single scatter pass: for each row i, walk j from i to 255
+    // k advances by (j+1) each step
+    for (int i = 0; i < 256; i++) {
+        int k = k_start[i];
+        int j = i;
+
+        // Unroll by 8 where possible
+        for (; j + 7 < 256; j += 8) {
+            flat_2d_array[k] += col_sum[i][j];
+            k += j + 1;
+            flat_2d_array[k] += col_sum[i][j+1];
+            k += j + 2;
+            flat_2d_array[k] += col_sum[i][j+2];
+            k += j + 3;
+            flat_2d_array[k] += col_sum[i][j+3];
+            k += j + 4;
+            flat_2d_array[k] += col_sum[i][j+4];
+            k += j + 5;
+            flat_2d_array[k] += col_sum[i][j+5];
+            k += j + 6;
+            flat_2d_array[k] += col_sum[i][j+6];
+            k += j + 7;
+            flat_2d_array[k] += col_sum[i][j+7];
+            k += j + 8;
+        }
+        for (; j < 256; j++) {
+            flat_2d_array[k] += col_sum[i][j];
+            k += j + 1;
+        }
+    }
+}
+```
+
+External compile/test report:
+Compile failed.
+            Command: clang results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2
+            stderr:
+            results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:143:39: error: restrict requires a pointer or reference ('float' is invalid)
+  143 |             int iterations = 5; float __restrict__ flat_2d_array_scalar[128]; float __restrict__ flat_2d_array_vector[128]; float bb_scalar[128]; float bb_vector[128];
+      |                                       ^
+results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:143:85: error: restrict requires a pointer or reference ('float' is invalid)
+  143 |             int iterations = 5; float __restrict__ flat_2d_array_scalar[128]; float __restrict__ flat_2d_array_vector[128]; float bb_scalar[128]; float bb_vector[128];
+      |                                                                                     ^
+results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:147:56: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  147 |                 s141(iterations, flat_2d_array_scalar, bb_scalar); vectorized_s141(iterations, flat_2d_array_vector, bb_vector);
+      |                                                        ^~~~~~~~~
+results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:8:77: note: passing argument to parameter 'bb' here
+    8 |         void s141(int iterations, float * __restrict__ flat_2d_array, float bb[256][256])
+      |                                                                             ^
+results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:147:118: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  147 |                 s141(iterations, flat_2d_array_scalar, bb_scalar); vectorized_s141(iterations, flat_2d_array_vector, bb_vector);
+      |                                                                                                                      ^~~~~~~~~
+results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:48:80: note: passing argument to parameter 'bb' here
+   48 | void vectorized_s141(int iterations, float * __restrict__ flat_2d_array, float bb[256][256])
+      |                                                                                ^
+2 warnings and 2 errors generated.

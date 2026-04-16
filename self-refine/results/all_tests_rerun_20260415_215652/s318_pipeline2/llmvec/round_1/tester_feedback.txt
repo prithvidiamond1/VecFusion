@@ -1,0 +1,14 @@
+- The function returns `max + index + 1` but `max` and `index` are local variables that may be uninitialized if `iterations/2 == 0`. More critically, the return value uses the raw local `max` and `index` instead of `chksum`. The reference implementation returns `chksum`, so change the return statement to `return chksum;`.
+
+- The `index` search in the second pass starts at `i = 1` but skips checking `a[0]`. The fix at the end (`index = (fabsf(a[0]) == max) ? 0 : index`) is applied after the loop, but if `a[0]` equals `max` AND some later element also equals `max`, the fix correctly sets index to 0 — however the original s318 finds the **first** occurrence starting from index 1 (1-based isamax style). Verify the reference: the original loop runs `for (i=1; i<LEN_1D; i++)` and sets `index=i` when `fabsf(a[i*inc]) > max`, updating both `max` and `index` together. The two-pass approach breaks this because the first element achieving the max in the original is the one that first **exceeds** the running max, not just equals the final max. Rewrite as a single pass that updates `index` whenever a strictly greater value is found (matching the original isamax logic).
+
+- Specifically, replace both passes with a single loop:
+  ```c
+  for (i = 1; i < LEN_1D; i++) {
+      float val = fabsf(a[i * inc]);
+      if (val > max) { max = val; index = i; }
+  }
+  ```
+  This matches the reference behavior exactly.
+
+- After fixing the loop, set `chksum = max + (float)index;` and return `chksum`.

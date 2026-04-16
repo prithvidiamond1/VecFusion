@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s314_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s314_opt(int iterations, int LEN_1D, float* a)\n{\n    float x = a[0];\n    for (int i = 1; i < LEN_1D; i++) {\n        float ai = a[i];\n        x = ai > x ? ai : x;\n    }\n    return x;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s314_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s314_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s314_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\ntypedef float float4 __attribute__((vector_size(16)));\n\nfloat vectorized_s314(int iterations, int LEN_1D, float* a)\n{\n    float x = a[0];\n\n    int i = 1;\n\n    float4 vmax0 = {x, x, x, x};\n    float4 vmax1 = {x, x, x, x};\n    float4 vmax2 = {x, x, x, x};\n    float4 vmax3 = {x, x, x, x};\n\n    int limit = LEN_1D - 16 + 1;\n    for (; i < limit; i += 16) {\n        float4 v0, v1, v2, v3;\n        __builtin_memcpy(&v0, &a[i],    sizeof(float4));\n        __builtin_memcpy(&v1, &a[i+4],  sizeof(float4));\n        __builtin_memcpy(&v2, &a[i+8],  sizeof(float4));\n        __builtin_memcpy(&v3, &a[i+12], sizeof(float4));\n\n        vmax0 = __builtin_elementwise_max(v0, vmax0);\n        vmax1 = __builtin_elementwise_max(v1, vmax1);\n        vmax2 = __builtin_elementwise_max(v2, vmax2);\n        vmax3 = __builtin_elementwise_max(v3, vmax3);\n    }\n\n    vmax0 = __builtin_elementwise_max(vmax0, vmax1);\n    vmax2 = __builtin_elementwise_max(vmax2, vmax3);\n    vmax0 = __builtin_elementwise_max(vmax0, vmax2);\n\n    limit = LEN_1D - 4 + 1;\n    for (; i < limit; i += 4) {\n        float4 v0;\n        __builtin_memcpy(&v0, &a[i], sizeof(float4));\n        vmax0 = __builtin_elementwise_max(v0, vmax0);\n    }\n\n    float tmp[4];\n    __builtin_memcpy(tmp, &vmax0, sizeof(float4));\n    for (int j = 0; j < 4; j++) {\n        if (tmp[j] > x) x = tmp[j];\n    }\n\n    for (; i < LEN_1D; i++) {\n        float ai = a[i];\n        x = ai > x ? ai : x;\n    }\n\n    return x;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 2.",
+      "compile_feedback": "Compile succeeded for round 2.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 2.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 2,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s314_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s314",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s314_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s314_pipeline2/llmvec/candidate_round_2.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s314_pipeline2/llmvec/candidate_round_2"
+      }
+    }
+  ]
+}

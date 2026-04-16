@@ -1,0 +1,169 @@
+Revise your candidate for `set_points` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed,
+                       int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,
+                       bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    if (srcFixed <= dstLen) {
+        // This is the "normal" case, where we scale the "scalable" patches and leave
+        // the other patches fixed.
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        // In this case, we eliminate the "scalable" patches and scale the "fixed" patches.
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    src[0] = srcStart;
+    dst[0] = dstStart;
+    for (int i = 0; i < divCount; i++) {
+        src[i + 1] = divs[i];
+        int srcDelta = src[i + 1] - src[i];
+        float dstDelta;
+        if (srcFixed <= dstLen) {
+            dstDelta = isScalable ? scale * srcDelta : srcDelta;
+        } else {
+            dstDelta = isScalable ? 0.0f : scale * srcDelta;
+        }
+        dst[i + 1] = dst[i] + dstDelta;
+
+        // Alternate between "scalable" and "fixed" patches.
+        isScalable = !isScalable;
+    }
+
+    src[divCount + 1] = srcEnd;
+    dst[divCount + 1] = dstEnd;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdbool.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed,
+                           int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,
+                           bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    src[0] = srcStart;
+    dst[0] = dstStart;
+
+    // Precompute scale factors for scalable and non-scalable patches
+    // normalCase: scalable -> scale * srcDelta, non-scalable -> 1.0f * srcDelta
+    // !normalCase: scalable -> 0.0f * srcDelta, non-scalable -> scale * srcDelta
+    float scaleIfScalable    = normalCase ? scale : 0.0f;
+    float scaleIfNonScalable = normalCase ? 1.0f  : scale;
+
+    // Unroll by 4 for vector-friendly processing
+    int i = 0;
+    // We track isScalable as an integer (0 or 1) for easier manipulation
+    int isScalableInt = isScalable ? 1 : 0;
+
+    // For unrolled loop, we need to know the pattern of isScalable for 4 consecutive iterations
+    // isScalable alternates each iteration
+    for (; i + 3 < divCount; i += 4) {
+        // Determine scalable flags for i, i+1, i+2, i+3
+        int s0 = isScalableInt;
+        int s1 = s0 ^ 1;
+        int s2 = s0;
+        int s3 = s0 ^ 1;
+
+        // Load divs
+        int d0 = divs[i + 0];
+        int d1 = divs[i + 1];
+        int d2 = divs[i + 2];
+        int d3 = divs[i + 3];
+
+        src[i + 1] = d0;
+        src[i + 2] = d1;
+        src[i + 3] = d2;
+        src[i + 4] = d3;
+
+        // Compute srcDeltas
+        int srcDelta0 = src[i + 1] - src[i + 0];
+        int srcDelta1 = src[i + 2] - src[i + 1];
+        int srcDelta2 = src[i + 3] - src[i + 2];
+        int srcDelta3 = src[i + 4] - src[i + 3];
+
+        // Compute dstDeltas
+        float sc0 = s0 ? scaleIfScalable : scaleIfNonScalable;
+        float sc1 = s1 ? scaleIfScalable : scaleIfNonScalable;
+        float sc2 = s2 ? scaleIfScalable : scaleIfNonScalable;
+        float sc3 = s3 ? scaleIfScalable : scaleIfNonScalable;
+
+        float dstDelta0 = sc0 * (float)srcDelta0;
+        float dstDelta1 = sc1 * (float)srcDelta1;
+        float dstDelta2 = sc2 * (float)srcDelta2;
+        float dstDelta3 = sc3 * (float)srcDelta3;
+
+        dst[i + 1] = dst[i + 0] + dstDelta0;
+        dst[i + 2] = dst[i + 1] + dstDelta1;
+        dst[i + 3] = dst[i + 2] + dstDelta2;
+        dst[i + 4] = dst[i + 3] + dstDelta3;
+
+        // After 4 iterations, isScalable is back to original (flipped 4 times)
+        // isScalableInt unchanged
+    }
+
+    // Scalar tail
+    for (; i < divCount; i++) {
+        src[i + 1] = divs[i];
+        int srcDelta = src[i + 1] - src[i];
+        float sc = isScalableInt ? scaleIfScalable : scaleIfNonScalable;
+        float dstDelta = sc * (float)srcDelta;
+        dst[i + 1] = dst[i] + dstDelta;
+        isScalableInt ^= 1;
+    }
+
+    src[divCount + 1] = srcEnd;
+    dst[divCount + 1] = dstEnd;
+}
+        ```
+
+        Tester feedback:
+        Looking at the failure: "Mismatch in parameter src on trial 0 at index 0" — `src[0]` is being set to `srcStart`, but the original algorithm sets `src[0]` to `srcStart` only as initialization. The issue is that `src[0]` should be `srcStart`, but the test is checking `src` values and finding a mismatch at index 0.
+
+Wait — the real problem is the `srcDelta` computation. In the unrolled loop, `src[i+1]` is set to `divs[i]`, then `srcDelta0 = src[i+1] - src[i+0]`. But `src[i+0]` for `i=0` is `srcStart` (set before the loop), which is correct. However, the `srcDelta` should be `divs[i] - src[i]`, not `src[i+1] - src[i+0]` — these are the same thing, so that's fine.
+
+The real bug: `src[0] = srcStart` is correct, but the original code likely uses `src` as an output where `src[0]` should remain whatever it was, or the function signature implies `src` is the divs array being transformed. Let me re-examine: `src[i+1] = divs[i]` means `src[1..divCount] = divs[0..divCount-1]`, and `src[0] = srcStart`, `src[divCount+1] = srcEnd`. This looks correct.
+
+The actual bug: in the unrolled loop, `srcDelta0 = src[i+1] - src[i+0]` uses already-written `src[i+1]` but `src[i+0]` from the *previous* iteration's write — for `i=0`, `src[0]=srcStart` is fine, but the `isScalableInt` is **never updated** between the unrolled loop and the tail, so after the unrolled loop exits, `isScalableInt` is stale (should have been flipped `i` times total, but the unrolled loop doesn't flip it at all).
+
+- **Bug**: After the unrolled loop processes 4 iterations, `isScalableInt` is not updated. It should be flipped by `(i % 2)` — since 4 flips = no change, this is actually correct for the unrolled part. But the **initial** `isScalableInt` at loop start is based on the input `isScalable`, which alternates per iteration starting from the *current* `isScalable` state. The unrolled loop correctly doesn't change `isScalableInt` (4 flips = identity). This part is fine.
+
+- **Real bug**: `src[0] = srcStart` overwrites whatever was at `src[0]`. If the test expects `src[0]` to be untouched (i.e., the function should not write `src[0]`), this is wrong. But more likely: the original scalar loop does `src[i+1] = divs[i]` and `src[0] = srcStart` is correct initialization.
+
+- **Most likely root cause**: The `srcDelta` in the unrolled loop reads `src[i+0]` *after* writing `src[i+1]`, but `src[i+0]` for `i>0` was written as `divs[i-1]` in the previous iteration — this is correct sequential behavior. However, `src[i+1] - src[i+0]` should equal `divs[i] - divs[i-1]` for `i>0`, which is correct.
+
+- **Actual fix needed**: The `srcDelta` should be computed as `divs[i] - src[i]` directly (before writing `src[i+1]`), but since `src[i] = divs[i-1]` (set in prior iteration), using `src[i]` is equivalent. The real issue is `src[0] = srcStart` — if `srcStart != divs[-1]` conceptually, this is fine. 
+
+- **Fix**: Compute `srcDelta` using `divs[i] - src[i]` before assigning `src[i+1] = divs[i]`, to avoid any aliasing confusion, and verify `src[0]` assignment matches expected behavior. Also ensure `isScalableInt` is initialized from the *current* `isScalable` at each unrolled group start (it already is, since it's not modified in the unrolled loop — correct for 4-iteration groups).
+
+- **The actual mismatch at src index 0**: `src[0] = srcStart` — if the caller passes `srcStart` that doesn't match what the test expects at `src[0]`, this is the bug. The fix: **do not write `src[0] = srcStart`** if `srcStart` is already the value at `src[0]`, or confirm the API contract. Given the test fails at `src[0]`, remove the explicit `src[0] = srcStart` assignment and instead just use `src[0]`'s existing value, initializing a local `int curSrc = srcStart` and `float curDst = dstStart` for tracking without writing back to `src[0]`/`dst[0]`.
+
+```c
+// Replace:
+src[0] = srcStart;
+dst[0] = dstStart;
+// With: use local variables, don't write src[0]/dst[0]
+// And rewrite loop to not depend on src[i] array reads for srcDelta
+```
+
+Concrete fixes:
+
+- Remove `src[0] = srcStart;` and `dst[0] = dstStart;` — use local variables `int curSrc = srcStart; float curDst = dstStart;` instead
+- In the unrolled loop, compute `srcDelta` from `divs[i] - curSrc` (and update `curSrc` through the 4 steps using local vars), not from `src[i+1] - src[i+0]`
+- Write `src[i+1]` and `dst[i+1]` as outputs only, don't read back from `src[]`/`dst[]` for delta computation
+- Update `curSrc` and `curDst` at end of each unrolled group and each scalar iteration
+- Set `src[divCount+1] = srcEnd; dst[divCount+1] = dstEnd;` unchanged (these are correct)
+
+        Return a corrected candidate function named `vectorized_set_points`.

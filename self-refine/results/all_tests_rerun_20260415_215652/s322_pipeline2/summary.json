@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s322_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s322_opt(int iterations, int LEN_1D, float* a, float* b, float* c)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        float prev2 = a[0];\n        float prev1 = a[1];\n        for (int i = 2; i < LEN_1D; i++) {\n            float curr = a[i] + prev1 * b[i] + prev2 * c[i];\n            prev2 = prev1;\n            prev1 = curr;\n            a[i] = curr;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s322_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s322_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s322_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s322(int iterations, int LEN_1D, float* a, float* b, float* c)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        float prev2 = a[0];\n        float prev1 = a[1];\n        for (int i = 2; i < LEN_1D; i++) {\n            float curr = a[i] + prev1 * b[i] + prev2 * c[i];\n            prev2 = prev1;\n            prev1 = curr;\n            a[i] = curr;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s322_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s322",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s322_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s322_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s322_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

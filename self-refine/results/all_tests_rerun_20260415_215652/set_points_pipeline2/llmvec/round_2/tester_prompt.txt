@@ -1,0 +1,106 @@
+Candidate code:
+```c
+#include <stdbool.h>
+#include <alloca.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed, int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd, bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    float scaleWhenScalable    = normalCase ? scale : 0.0f;
+    float scaleWhenNonScalable = normalCase ? 1.0f  : scale;
+
+    // Use a local scratch buffer instead of writing to caller's src
+    int* srcBuf = (int*)alloca((divCount + 2) * sizeof(int));
+    srcBuf[0] = srcStart;
+    {
+        int i = 0;
+        for (; i + 3 < divCount; i += 4) {
+            srcBuf[i + 1] = divs[i];
+            srcBuf[i + 2] = divs[i + 1];
+            srcBuf[i + 3] = divs[i + 2];
+            srcBuf[i + 4] = divs[i + 3];
+        }
+        for (; i < divCount; i++) {
+            srcBuf[i + 1] = divs[i];
+        }
+    }
+    srcBuf[divCount + 1] = srcEnd;
+
+    // Copy srcBuf into caller's src array
+    {
+        int i = 0;
+        for (; i + 3 <= divCount + 1; i += 4) {
+            src[i]     = srcBuf[i];
+            src[i + 1] = srcBuf[i + 1];
+            src[i + 2] = srcBuf[i + 2];
+            src[i + 3] = srcBuf[i + 3];
+        }
+        for (; i <= divCount + 1; i++) {
+            src[i] = srcBuf[i];
+        }
+    }
+
+    // Precompute srcDelta array: divCount + 1 elements
+    int totalSegs = divCount + 1;
+    int* srcDelta = (int*)alloca(totalSegs * sizeof(int));
+    {
+        int i = 0;
+        for (; i + 3 < totalSegs; i += 4) {
+            srcDelta[i]     = srcBuf[i + 1] - srcBuf[i];
+            srcDelta[i + 1] = srcBuf[i + 2] - srcBuf[i + 1];
+            srcDelta[i + 2] = srcBuf[i + 3] - srcBuf[i + 2];
+            srcDelta[i + 3] = srcBuf[i + 4] - srcBuf[i + 3];
+        }
+        for (; i < totalSegs; i++) {
+            srcDelta[i] = srcBuf[i + 1] - srcBuf[i];
+        }
+    }
+
+    // Precompute dstDelta array: divCount + 1 elements
+    float* dstDelta = (float*)alloca(totalSegs * sizeof(float));
+    {
+        float scaleEven = (int)isScalable ? scaleWhenScalable : scaleWhenNonScalable;
+        float scaleOdd  = (int)isScalable ? scaleWhenNonScalable : scaleWhenScalable;
+
+        int i = 0;
+        for (; i + 3 < totalSegs; i += 4) {
+            dstDelta[i]     = scaleEven * (float)srcDelta[i];
+            dstDelta[i + 1] = scaleOdd  * (float)srcDelta[i + 1];
+            dstDelta[i + 2] = scaleEven * (float)srcDelta[i + 2];
+            dstDelta[i + 3] = scaleOdd  * (float)srcDelta[i + 3];
+        }
+        // Scalar cleanup with correct parity tracking
+        int curScalable = (int)isScalable;
+        // Adjust parity for where unrolled loop left off
+        // i steps were taken in pairs, so parity = i % 2
+        if (i % 2 == 1) curScalable = !curScalable;
+        // Reset parity properly
+        curScalable = ((i % 2) == 0) ? (int)isScalable : !(int)isScalable;
+        for (; i < totalSegs; i++) {
+            float s = curScalable ? scaleWhenScalable : scaleWhenNonScalable;
+            dstDelta[i] = s * (float)srcDelta[i];
+            curScalable = !curScalable;
+        }
+    }
+
+    // Accumulate dst: divCount + 2 output points
+    dst[0] = dstStart;
+    for (int i = 0; i < totalSegs; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+    dst[divCount + 1] = dstEnd;
+}
+```
+
+External compile/test report:
+Compile succeeded for round 2.
+Exit code: -6
+stderr:
+Mismatch in parameter src on trial 0 at index 0

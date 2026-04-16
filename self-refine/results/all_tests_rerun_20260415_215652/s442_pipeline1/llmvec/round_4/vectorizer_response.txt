@@ -1,0 +1,54 @@
+```c
+void vectorized_s442(int iterations, int LEN_1D, float* a, float *b, float* c, float *d, float* e, int* indx)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        int i = 0;
+        /* Process 4 elements at a time using unrolled scalar logic */
+        for (; i <= LEN_1D - 4; i += 4) {
+            /* Element i+0 */
+            {
+                int idx = indx[i];
+                if (idx == 1)      a[i] += b[idx] * b[idx];
+                else if (idx == 2) a[i] += c[idx] * c[idx];
+                else if (idx == 3) a[i] += d[idx] * d[idx];
+                else if (idx == 4) a[i] += e[idx] * e[idx];
+            }
+            /* Element i+1 */
+            {
+                int idx = indx[i+1];
+                if (idx == 1)      a[i+1] += b[idx] * b[idx];
+                else if (idx == 2) a[i+1] += c[idx] * c[idx];
+                else if (idx == 3) a[i+1] += d[idx] * d[idx];
+                else if (idx == 4) a[i+1] += e[idx] * e[idx];
+            }
+            /* Element i+2 */
+            {
+                int idx = indx[i+2];
+                if (idx == 1)      a[i+2] += b[idx] * b[idx];
+                else if (idx == 2) a[i+2] += c[idx] * c[idx];
+                else if (idx == 3) a[i+2] += d[idx] * d[idx];
+                else if (idx == 4) a[i+2] += e[idx] * e[idx];
+            }
+            /* Element i+3 */
+            {
+                int idx = indx[i+3];
+                if (idx == 1)      a[i+3] += b[idx] * b[idx];
+                else if (idx == 2) a[i+3] += c[idx] * c[idx];
+                else if (idx == 3) a[i+3] += d[idx] * d[idx];
+                else if (idx == 4) a[i+3] += e[idx] * e[idx];
+            }
+        }
+        /* Scalar cleanup tail */
+        for (; i < LEN_1D; i++) {
+            int idx = indx[i];
+            switch (idx) {
+                case 1: a[i] += b[idx] * b[idx]; break;
+                case 2: a[i] += c[idx] * c[idx]; break;
+                case 3: a[i] += d[idx] * d[idx]; break;
+                case 4: a[i] += e[idx] * e[idx]; break;
+                default: break;
+            }
+        }
+    }
+}
+```

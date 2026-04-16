@@ -1,0 +1,22 @@
+Compile failed.
+            Command: clang results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2
+            stderr:
+            results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:143:39: error: restrict requires a pointer or reference ('float' is invalid)
+  143 |             int iterations = 5; float __restrict__ flat_2d_array_scalar[128]; float __restrict__ flat_2d_array_vector[128]; float bb_scalar[128]; float bb_vector[128];
+      |                                       ^
+results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:143:85: error: restrict requires a pointer or reference ('float' is invalid)
+  143 |             int iterations = 5; float __restrict__ flat_2d_array_scalar[128]; float __restrict__ flat_2d_array_vector[128]; float bb_scalar[128]; float bb_vector[128];
+      |                                                                                     ^
+results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:147:56: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  147 |                 s141(iterations, flat_2d_array_scalar, bb_scalar); vectorized_s141(iterations, flat_2d_array_vector, bb_vector);
+      |                                                        ^~~~~~~~~
+results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:8:77: note: passing argument to parameter 'bb' here
+    8 |         void s141(int iterations, float * __restrict__ flat_2d_array, float bb[256][256])
+      |                                                                             ^
+results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:147:118: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  147 |                 s141(iterations, flat_2d_array_scalar, bb_scalar); vectorized_s141(iterations, flat_2d_array_vector, bb_vector);
+      |                                                                                                                      ^~~~~~~~~
+results/all_tests_rerun_20260415_215652/s141_pipeline2/llmvec/candidate_round_2.c:48:80: note: passing argument to parameter 'bb' here
+   48 | void vectorized_s141(int iterations, float * __restrict__ flat_2d_array, float bb[256][256])
+      |                                                                                ^
+2 warnings and 2 errors generated.

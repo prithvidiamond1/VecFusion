@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s141_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s141(int iterations, float * flat_2d_array, float bb[256][256])\n{\n    int k;\n    for (int nl = 0; nl < 200*(iterations/256); nl++) {\n        for (int i = 0; i < 256; i++) {\n            k = (i+1) * ((i+1) - 1) / 2 + (i+1)-1;\n            // The inner loop has a loop-carried dependency on k (k += j+1),\n            // so we precompute the k values for each j, then do the accumulation.\n            // k at iteration j = k_start + sum_{m=i}^{j-1} (m+1)\n            // = k_start + sum_{m=i+1}^{j} m\n            // = k_start + (j*(j+1)/2 - i*(i+1)/2)\n            // So k[j] = k_base + j*(j+1)/2 - i*(i+1)/2\n            // where k_base = (i+1)*i/2 + i = i*(i+1)/2 + i = i*(i+3)/2\n            // Let's verify: at j=i, k = (i+1)*i/2 + i = i*(i+1)/2 + i\n            // k_base = i*(i+1)/2 + i\n            // k[j] = i*(i+1)/2 + i + j*(j+1)/2 - i*(i+1)/2 = i + j*(j+1)/2\n            // So k[j] = i + j*(j+1)/2\n            \n            // We can unroll the inner loop in chunks of 4\n            int j = i;\n            int limit = 256;\n            \n            // Scalar loop since k indices are non-contiguous (scatter operation)\n            // Unroll by 4 for better instruction-level parallelism\n            for (; j <= limit - 4; j += 4) {\n                int k0 = i + j*(j+1)/2;\n                int k1 = i + (j+1)*(j+2)/2;\n                int k2 = i + (j+2)*(j+3)/2;\n                int k3 = i + (j+3)*(j+4)/2;\n                flat_2d_array[k0] += bb[j][i];\n                flat_2d_array[k1] += bb[j+1][i];\n                flat_2d_array[k2] += bb[j+2][i];\n                flat_2d_array[k3] += bb[j+3][i];\n            }\n            // Scalar cleanup\n            // Reset k to correct value for remaining iterations\n            if (j < limit) {\n                k = i + j*(j+1)/2;\n                for (; j < limit; j++) {\n                    flat_2d_array[k] += bb[j][i];\n                    k += j+1;\n                }\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s141_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s141",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s141_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s141_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s141_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

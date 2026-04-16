@@ -1,0 +1,72 @@
+```c
+#include <stddef.h>
+
+float vectorized_s314(int iterations, int LEN_1D, float* a)
+{
+    typedef float float4 __attribute__((vector_size(16)));
+
+    float x = a[0];
+
+    int i = 1;
+
+    // We'll use 4-wide SIMD vectors
+    // Initialize vector with x in all lanes
+    float4 vmax = {x, x, x, x};
+
+    // Process chunks of 4 starting from index 1
+    // We need to be careful: start at i=1, so we process until we can fill a full vector
+    // For simplicity, let's start vector processing from index 0 and fix up at end
+    // Actually let's just do scalar until we hit alignment, then vector
+
+    // Simple approach: process 4 at a time from i=1
+    // We'll accumulate 4 separate max lanes
+    float4 vmax0 = {x, x, x, x};
+    float4 vmax1 = {x, x, x, x};
+    float4 vmax2 = {x, x, x, x};
+    float4 vmax3 = {x, x, x, x};
+
+    int limit = LEN_1D - 16 + 1;
+    for (; i < limit; i += 16) {
+        float4 v0, v1, v2, v3;
+        // Load 4 floats into each vector
+        __builtin_memcpy(&v0, &a[i],    sizeof(float4));
+        __builtin_memcpy(&v1, &a[i+4],  sizeof(float4));
+        __builtin_memcpy(&v2, &a[i+8],  sizeof(float4));
+        __builtin_memcpy(&v3, &a[i+12], sizeof(float4));
+
+        // Element-wise max using ternary (compiler should vectorize)
+        vmax0 = v0 > vmax0 ? v0 : vmax0;
+        vmax1 = v1 > vmax1 ? v1 : vmax1;
+        vmax2 = v2 > vmax2 ? v2 : vmax2;
+        vmax3 = v3 > vmax3 ? v3 : vmax3;
+    }
+
+    // Merge the 4 accumulators
+    vmax0 = vmax0 > vmax1 ? vmax0 : vmax1;
+    vmax2 = vmax2 > vmax3 ? vmax2 : vmax3;
+    vmax0 = vmax0 > vmax2 ? vmax0 : vmax2;
+
+    // Process remaining chunks of 4
+    limit = LEN_1D - 4 + 1;
+    for (; i < limit; i += 4) {
+        float4 v0;
+        __builtin_memcpy(&v0, &a[i], sizeof(float4));
+        vmax0 = v0 > vmax0 ? v0 : vmax0;
+    }
+
+    // Reduce vmax0 to scalar
+    float tmp[4];
+    __builtin_memcpy(tmp, &vmax0, sizeof(float4));
+    for (int j = 0; j < 4; j++) {
+        if (tmp[j] > x) x = tmp[j];
+    }
+
+    // Scalar tail
+    for (; i < LEN_1D; i++) {
+        float ai = a[i];
+        x = ai > x ? ai : x;
+    }
+
+    return x;
+}
+```

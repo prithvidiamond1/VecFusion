@@ -1,0 +1,43 @@
+Candidate code:
+```c
+void vectorized_s242(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d)
+{
+    float s12 = s1 + s2;
+    for (int nl = 0; nl < iterations/5; nl++) {
+        // This loop has a loop-carried dependency: a[i] depends on a[i-1]
+        // We can partially vectorize by computing the independent parts (b[i]+c[i]+d[i]+s12)
+        // and then doing the recurrence in scalar.
+        // Precompute the independent increments
+        float tmp[LEN_1D];
+        
+        // Vectorize the independent part
+        int i = 1;
+        int limit = LEN_1D - ((LEN_1D - 1) % 8);
+        
+        for (; i < limit; i += 8) {
+            tmp[i]   = b[i]   + c[i]   + d[i]   + s12;
+            tmp[i+1] = b[i+1] + c[i+1] + d[i+1] + s12;
+            tmp[i+2] = b[i+2] + c[i+2] + d[i+2] + s12;
+            tmp[i+3] = b[i+3] + c[i+3] + d[i+3] + s12;
+            tmp[i+4] = b[i+4] + c[i+4] + d[i+4] + s12;
+            tmp[i+5] = b[i+5] + c[i+5] + d[i+5] + s12;
+            tmp[i+6] = b[i+6] + c[i+6] + d[i+6] + s12;
+            tmp[i+7] = b[i+7] + c[i+7] + d[i+7] + s12;
+        }
+        for (; i < LEN_1D; i++) {
+            tmp[i] = b[i] + c[i] + d[i] + s12;
+        }
+        
+        // Scalar recurrence (loop-carried dependency, cannot be vectorized)
+        for (i = 1; i < LEN_1D; i++) {
+            a[i] = a[i-1] + tmp[i];
+        }
+    }
+}
+```
+
+External compile/test report:
+Compile succeeded for round 1.
+Exit code: 2
+stderr:
+Mismatch in parameter a on trial 0 at index 10

@@ -1,0 +1,19 @@
+The goto-based switch in the cleanup tail is broken: when `indx[i]` doesn't match any case (1–4), execution falls through to `L15` and adds `b[i]*b[i]`, but more critically the label/goto structure causes incorrect behavior — when a case matches (e.g., `case 2: goto L20`), after executing `L20` it hits `goto L50` correctly, but if no case matches, it falls into `L15` unintentionally. Also, the default behavior in the unrolled block (using `b[i]*b[i]` for unknown indices) may not match the reference which likely does nothing for unmatched indices.
+
+- **Root cause**: The original `s442` uses a computed goto / switch where unmatched `indx[i]` values do **nothing** (no update to `a[i]`). Your `else { val = b[i]*b[i]; }` default incorrectly applies `b*b` for non-1/2/3/4 indices.
+- **Fix the unrolled block**: Remove the `else` clause (or set `val = 0.0f` and skip the add, or restructure with a flag). The safest fix: use a flag or just skip `a[i] += val` when index is out of range.
+- **Fix the cleanup tail**: Replace the goto-based switch with a plain `switch` statement with `case` bodies and `break`, and add a `default: /* do nothing */` to avoid falling into `L15`.
+- **Specifically**, replace the tail loop with:
+  ```c
+  for (; i < LEN_1D; i++) {
+      switch (indx[i]) {
+          case 1: a[i] += b[i] * b[i]; break;
+          case 2: a[i] += c[i] * c[i]; break;
+          case 3: a[i] += d[i] * d[i]; break;
+          case 4: a[i] += e[i] * e[i]; break;
+          default: break;
+      }
+  }
+  ```
+- **Fix the unrolled block** similarly: only update `a[i+k]` when `idx` is 1–4, with no `else` branch that modifies `a`.
+- Remove all `goto` labels and `goto` statements from the function entirely.

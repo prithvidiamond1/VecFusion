@@ -1,0 +1,9 @@
+- The loop condition `i <= LEN_1D - 4` should be `i + 3 < LEN_1D` (equivalently `i <= LEN_1D - 4`), but when `LEN_1D - 4` could be negative or zero (small LEN_1D), this is fine. The real bug is the **off-by-one**: the unrolled loop runs while `i <= LEN_1D - 4`, meaning the last valid unrolled iteration accesses `i+3 = LEN_1D - 1`, which is correct. Check the scalar cleanup loop condition: `i < LEN_1D` is correct.
+
+- The actual bug: the unrolled loop condition `i <= LEN_1D - 4` allows `i+3` up to `LEN_1D - 1`, which is fine. But `LEN_1D - 4` as an `int` subtraction when `LEN_1D < 4` wraps to a large positive number (if `LEN_1D` is small). Change the condition to `i + 3 < LEN_1D` (i.e., `i < LEN_1D - 3`) to be safe.
+
+- More critically: the mismatch at index 6 on trial 0 suggests the unrolled block is writing `b[i]` values that are then used as `prev_b`, but the **scalar cleanup loop reads `prev_b` from the last `b3`** correctly. The issue is the unrolled loop uses `i <= LEN_1D - 4` which should be `i + 3 <= LEN_1D - 1`, i.e., `i <= LEN_1D - 4`. That is the same thing — so the boundary is correct.
+
+- The real problem: **`prev_b` is initialized to `b[0]` but the original loop starts at `i=1` using `b[i-1]` = `b[0]`**. After the outer `nl` loop's first iteration, `b[0]` is never updated (original loop starts at `i=1`), so `prev_b = b[0]` is correct on iteration 0 but on subsequent `nl` iterations `b[0]` still holds the original value — this matches the reference since the reference also never writes `b[0]`. This part is correct.
+
+- The actual bug is that **`iterations/2` should be `iterations`** — the reference `s323` runs `nl < iterations` not `nl < iterations/2`. Using half the iterations means the output after the function returns differs from the reference which ran the full count. Change `iterations/2` back to `iterations`.

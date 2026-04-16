@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s1244_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s1244_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Save original a[] values before updating\n        float a_prev = a[0];\n        for (int i = 0; i < LEN_1D-1; i++) {\n            float a_next = a[i+1];\n            a[i] = b[i] + c[i] * c[i] + b[i]*b[i] + c[i];\n            d[i] = a[i] + a_next;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s1244_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s1244_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s1244_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // We need to compute new a[i] = b[i] + c[i]*c[i] + b[i]*b[i] + c[i]\n        // and d[i] = new_a[i] + a[i+1] (original a[i+1])\n        // Since a[i+1] is read before a[i+1] is written (we write a[i] and read a[i+1]),\n        // we can vectorize by saving a[i+1] values first or processing carefully.\n        // The dependency: a[i] is written, a[i+1] is read (original). Since i+1 > i,\n        // we read a[i+1] before we write it (we write a[i] in iteration i, a[i+1] in iteration i+1).\n        // So we can vectorize safely if we read a[i+1] before writing a[i].\n\n        int i = 0;\n        int limit = LEN_1D - 1;\n\n        // Process in chunks of 8\n        int vec_limit = limit - (limit % 8);\n\n        for (; i < vec_limit; i += 8) {\n            // Load original a[i+1..i+8] before overwriting a[i..i+7]\n            float a_next0 = a[i+1];\n            float a_next1 = a[i+2];\n            float a_next2 = a[i+3];\n            float a_next3 = a[i+4];\n            float a_next4 = a[i+5];\n            float a_next5 = a[i+6];\n            float a_next6 = a[i+7];\n            float a_next7 = a[i+8];\n\n            float b0 = b[i+0], b1 = b[i+1], b2 = b[i+2], b3 = b[i+3];\n            float b4 = b[i+4], b5 = b[i+5], b6 = b[i+6], b7 = b[i+7];\n\n            float c0 = c[i+0], c1 = c[i+1], c2 = c[i+2], c3 = c[i+3];\n            float c4 = c[i+4], c5 = c[i+5], c6 = c[i+6], c7 = c[i+7];\n\n            float na0 = b0 + c0*c0 + b0*b0 + c0;\n            float na1 = b1 + c1*c1 + b1*b1 + c1;\n            float na2 = b2 + c2*c2 + b2*b2 + c2;\n            float na3 = b3 + c3*c3 + b3*b3 + c3;\n            float na4 = b4 + c4*c4 + b4*b4 + c4;\n            float na5 = b5 + c5*c5 + b5*b5 + c5;\n            float na6 = b6 + c6*c6 + b6*b6 + c6;\n            float na7 = b7 + c7*c7 + b7*b7 + c7;\n\n            a[i+0] = na0; a[i+1] = na1; a[i+2] = na2; a[i+3] = na3;\n            a[i+4] = na4; a[i+5] = na5; a[i+6] = na6; a[i+7] = na7;\n\n            d[i+0] = na0 + a_next0;\n            d[i+1] = na1 + a_next1;\n            d[i+2] = na2 + a_next2;\n            d[i+3] = na3 + a_next3;\n            d[i+4] = na4 + a_next4;\n            d[i+5] = na5 + a_next5;\n            d[i+6] = na6 + a_next6;\n            d[i+7] = na7 + a_next7;\n        }\n\n        // Scalar cleanup\n        for (; i < limit; i++) {\n            float a_next = a[i+1];\n            a[i] = b[i] + c[i]*c[i] + b[i]*b[i] + c[i];\n            d[i] = a[i] + a_next;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s1244_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s1244",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s1244_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s1244_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s1244_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

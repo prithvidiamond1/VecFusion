@@ -1,0 +1,10 @@
+Looking at the failure: the test expects `src[0]` to remain as `srcStart` (the original value passed in), but the function is writing to `src[0] = srcStart` and then using `src` as a working buffer. The mismatch at index 0 suggests the caller's `src` array is being corrupted.
+
+The core issue is that the function uses the caller's `src` array as a scratch buffer (writing `srcStart`, `divs[i]`, `srcEnd` into it), which overwrites the original contents. The `src` parameter should not be modified — use a local/alloca buffer instead.
+
+- Allocate a local buffer `int* srcBuf = (int*)alloca((divCount + 2) * sizeof(int));` and use `srcBuf` for all the scratch work instead of writing into `src`.
+- Replace all writes to `src[...]` (the fill section and `src[divCount + 1] = srcEnd`) with writes to `srcBuf[...]`.
+- Replace all reads from `src[i]`, `src[i+1]`, etc. in the `srcDelta` computation with reads from `srcBuf[...]`.
+- Do **not** write anything back to the caller's `src` parameter at all — leave it untouched.
+- The `dst` writes are fine as-is (that's the intended output).
+- Remove the lines `src[0] = srcStart;`, `src[i+1] = divs[i];`, and `src[divCount+1] = srcEnd;` entirely (replace with `srcBuf` equivalents).

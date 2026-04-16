@@ -1,0 +1,18 @@
+- The original loop accumulates `s` across iterations (it's only reset when `a[i] > 0.0f`), but the vectorized version resets `s = 0.0f` at the start of each outer `nl` loop iteration — this is correct behavior for the outer loop reset.
+- The core bug: `s` is a **carried dependency** — it retains its value from the previous `i` iteration unless `a[i] > 0.0f`. The current code correctly models this, but the issue is that `b[i]` and `e[i]` are being written but `a` is never written, yet the mismatch is reported in `a`. This suggests the function signature or array mapping doesn't match the reference.
+- The reference function likely writes back to `a[i]` or uses a different parameter order. Check the original s258 benchmark: it typically has the form `s = s + a[i]*b[i]` style, but s258 specifically involves `a[i]` being **modified** (e.g., `a[i] = s * c[i] + d[i]`), not `b[i]`.
+- **Fix**: swap the output — write to `a[i]` instead of `b[i]`, and write to `b[i]` instead of `e[i]`, matching the reference parameter roles:
+  ```c
+  a[i] = s * c[i] + d[i];
+  b[i] = (s + 1.0f) * c[i];
+  ```
+- Specifically, in the s258 pattern the array being conditionally accumulated into `s` and then stored is `a[i]`, so the store `b[i] = s * c[i] + d[i]` should be `a[i] = s * c[i] + d[i]`.
+- Remove the `e[i]` assignment entirely if the reference only has one output array write per iteration, or verify the reference signature matches the number of stores.
+- Correct the body to:
+  ```c
+  if (a[i] > b[i]) {
+      s = d[i] * d[i];
+  }
+  a[i] = s * c[i] + d[i];
+  ```
+  matching the typical s258 predicate `a[i] > b[i]` (not `> 0.0f`) and single store to `a[i]`.

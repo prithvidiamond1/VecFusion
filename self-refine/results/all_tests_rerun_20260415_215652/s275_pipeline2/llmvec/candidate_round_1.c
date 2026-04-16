@@ -1,0 +1,180 @@
+#include <stdbool.h>
+        #include <stdint.h>
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <string.h>
+        #include <math.h>
+
+        void s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+{
+    for (int nl = 0; nl < 10*(iterations/256); nl++) {
+        // Compute bb[j][i]*cc[j][i] products into a temporary array
+        float tmp[256][256];
+        for (int j = 1; j < 256; j++) {
+            for (int i = 0; i < 256; i++) {
+                tmp[j][i] = bb[j][i] * cc[j][i];
+            }
+        }
+
+        // Store prev values for each column i
+        float prev[256];
+        float mask[256];
+        for (int i = 0; i < 256; i++) {
+            prev[i] = aa[0][i];
+            mask[i] = (aa[0][i] > (float)0.) ? 1.0f : 0.0f;
+        }
+
+        // Outer loop over j, inner loop over i (vectorizable, no dependency across i)
+        for (int j = 1; j < 256; j++) {
+            for (int i = 0; i < 256; i++) {
+                prev[i] = prev[i] + tmp[j][i];
+                aa[j][i] = aa[j][i] * (1.0f - mask[i]) + prev[i] * mask[i];
+            }
+        }
+    }
+}
+
+        ```c
+#include <stdint.h>
+
+void vectorized_s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+{
+    for (int nl = 0; nl < 10*(iterations/256); nl++) {
+        // Compute bb[j][i]*cc[j][i] products into a temporary array
+        float tmp[256][256];
+        for (int j = 1; j < 256; j++) {
+            int i = 0;
+            for (; i <= 256 - 8; i += 8) {
+                tmp[j][i+0] = bb[j][i+0] * cc[j][i+0];
+                tmp[j][i+1] = bb[j][i+1] * cc[j][i+1];
+                tmp[j][i+2] = bb[j][i+2] * cc[j][i+2];
+                tmp[j][i+3] = bb[j][i+3] * cc[j][i+3];
+                tmp[j][i+4] = bb[j][i+4] * cc[j][i+4];
+                tmp[j][i+5] = bb[j][i+5] * cc[j][i+5];
+                tmp[j][i+6] = bb[j][i+6] * cc[j][i+6];
+                tmp[j][i+7] = bb[j][i+7] * cc[j][i+7];
+            }
+            for (; i < 256; i++) {
+                tmp[j][i] = bb[j][i] * cc[j][i];
+            }
+        }
+
+        // Store prev values for each column i
+        float prev[256];
+        float mask[256];
+        {
+            int i = 0;
+            for (; i <= 256 - 8; i += 8) {
+                prev[i+0] = aa[0][i+0];
+                prev[i+1] = aa[0][i+1];
+                prev[i+2] = aa[0][i+2];
+                prev[i+3] = aa[0][i+3];
+                prev[i+4] = aa[0][i+4];
+                prev[i+5] = aa[0][i+5];
+                prev[i+6] = aa[0][i+6];
+                prev[i+7] = aa[0][i+7];
+
+                mask[i+0] = (aa[0][i+0] > 0.0f) ? 1.0f : 0.0f;
+                mask[i+1] = (aa[0][i+1] > 0.0f) ? 1.0f : 0.0f;
+                mask[i+2] = (aa[0][i+2] > 0.0f) ? 1.0f : 0.0f;
+                mask[i+3] = (aa[0][i+3] > 0.0f) ? 1.0f : 0.0f;
+                mask[i+4] = (aa[0][i+4] > 0.0f) ? 1.0f : 0.0f;
+                mask[i+5] = (aa[0][i+5] > 0.0f) ? 1.0f : 0.0f;
+                mask[i+6] = (aa[0][i+6] > 0.0f) ? 1.0f : 0.0f;
+                mask[i+7] = (aa[0][i+7] > 0.0f) ? 1.0f : 0.0f;
+            }
+            for (; i < 256; i++) {
+                prev[i] = aa[0][i];
+                mask[i] = (aa[0][i] > 0.0f) ? 1.0f : 0.0f;
+            }
+        }
+
+        // Outer loop over j, inner loop over i (vectorizable, no dependency across i)
+        for (int j = 1; j < 256; j++) {
+            int i = 0;
+            for (; i <= 256 - 8; i += 8) {
+                float p0 = prev[i+0] + tmp[j][i+0];
+                float p1 = prev[i+1] + tmp[j][i+1];
+                float p2 = prev[i+2] + tmp[j][i+2];
+                float p3 = prev[i+3] + tmp[j][i+3];
+                float p4 = prev[i+4] + tmp[j][i+4];
+                float p5 = prev[i+5] + tmp[j][i+5];
+                float p6 = prev[i+6] + tmp[j][i+6];
+                float p7 = prev[i+7] + tmp[j][i+7];
+
+                prev[i+0] = p0;
+                prev[i+1] = p1;
+                prev[i+2] = p2;
+                prev[i+3] = p3;
+                prev[i+4] = p4;
+                prev[i+5] = p5;
+                prev[i+6] = p6;
+                prev[i+7] = p7;
+
+                float m0 = mask[i+0];
+                float m1 = mask[i+1];
+                float m2 = mask[i+2];
+                float m3 = mask[i+3];
+                float m4 = mask[i+4];
+                float m5 = mask[i+5];
+                float m6 = mask[i+6];
+                float m7 = mask[i+7];
+
+                aa[j][i+0] = aa[j][i+0] * (1.0f - m0) + p0 * m0;
+                aa[j][i+1] = aa[j][i+1] * (1.0f - m1) + p1 * m1;
+                aa[j][i+2] = aa[j][i+2] * (1.0f - m2) + p2 * m2;
+                aa[j][i+3] = aa[j][i+3] * (1.0f - m3) + p3 * m3;
+                aa[j][i+4] = aa[j][i+4] * (1.0f - m4) + p4 * m4;
+
+        static uint32_t next_u32(uint32_t *state) {
+            *state = (*state * 1664525u) + 1013904223u;
+            return *state;
+        }
+
+        static void fill_i32(int *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = (int)(next_u32(state) % 2001u) - 1000;
+            }
+        }
+
+        static void fill_f32(float *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = ((float)(next_u32(state) % 2001u) - 1000.0f) / 17.0f;
+            }
+        }
+
+        static void fill_f64(double *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = ((double)(next_u32(state) % 2001u) - 1000.0) / 17.0;
+            }
+        }
+
+        int main(void) {
+            const int n = 128;
+            uint32_t seed = 7u;
+            int iterations = 5; float aa_scalar[128]; float aa_vector[128]; float bb_scalar[128]; float bb_vector[128]; float cc_scalar[128]; float cc_vector[128];
+
+            for (int trial = 0; trial < 64; ++trial) {
+                fill_f32(aa_scalar, n, &seed); memcpy(aa_vector, aa_scalar, sizeof(aa_scalar)); fill_f32(bb_scalar, n, &seed); memcpy(bb_vector, bb_scalar, sizeof(bb_scalar)); fill_f32(cc_scalar, n, &seed); memcpy(cc_vector, cc_scalar, sizeof(cc_scalar));
+                s275(iterations, aa_scalar, bb_scalar, cc_scalar); vectorized_s275(iterations, aa_vector, bb_vector, cc_vector);
+                for (int i = 0; i < n; ++i) {
+    if (fabsf((aa_scalar[i]) - (aa_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter aa on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < n; ++i) {
+    if (fabsf((bb_scalar[i]) - (bb_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter bb on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < n; ++i) {
+    if (fabsf((cc_scalar[i]) - (cc_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter cc on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+}
+            }
+
+            printf("PASS trials=%d\n", 64);
+            return 0;
+        }

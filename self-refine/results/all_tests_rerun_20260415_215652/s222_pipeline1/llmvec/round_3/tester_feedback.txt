@@ -1,0 +1,5 @@
+- The net effect on `a[i]` is wrong. The original loop does `a[i] += b[i]*c[i]` then `a[i] -= b[i]*c[i]` in the **same** iteration, so `a[i]` must remain **unchanged**. Remove all `a[i] += b[i]*c[i]` updates (both the unrolled block and the scalar tail).
+- The `e[]` recurrence loop is correct and should be kept as-is.
+- The outer loop bound `iterations/2` should be `iterations` (or whatever the original benchmark uses — check if halving is correct; the mismatch at index 1 on trial 0 suggests the `a[]` modification is the primary bug, but verify the iteration count too).
+- Start the `a[]` loop at `i = 0` (not `i = 1`) if the original processes all indices from 0; since `a` is net-unchanged anyway, simply remove the loop entirely.
+- Since `a[i]` is net-unchanged, the simplest correct fix is to **delete both the unrolled and scalar-tail loops for `a`**, leaving only the `e[]` recurrence.

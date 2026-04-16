@@ -1,0 +1,22 @@
+- The function resets `dot = 0.0f` inside the outer loop on every iteration, which is correct for the reference behavior, but the final returned `dot` value is mismatching — check whether the reference initializes `dot` outside the outer loop (i.e., only once before both loops) rather than resetting it each outer iteration.
+- Move `dot = 0.0f;` to before the outer `nl` loop (remove it from inside the loop), so the dot product accumulates across all `8 * iterations` outer iterations, matching the reference semantics.
+
+Specifically, change:
+```c
+float dot = 0.0f;
+for (int nl = 0; nl < 8 * iterations; nl++) {
+    dot = 0.0f;   // <-- remove this line
+    for (int i = 0; i < LEN_1D; i++) {
+        dot += a[i] * b[i];
+    }
+}
+```
+to:
+```c
+float dot = 0.0f;
+for (int nl = 0; nl < 8 * iterations; nl++) {
+    for (int i = 0; i < LEN_1D; i++) {
+        dot += a[i] * b[i];
+    }
+}
+```

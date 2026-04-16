@@ -1,0 +1,9 @@
+The test is failing because the candidate writes back to `src` (the caller's array), but the original function's `src` parameter is meant to be read-only input (the divs are passed separately via `divs`). The candidate is incorrectly overwriting `src[0..divCount+1]` with `srcBuf` contents, corrupting the caller's data.
+
+Additionally, the `scaleEven`/`scaleOdd` logic for the dstDelta computation is wrong: it uses a fixed `isScalable` flag to pick even/odd scales, but the correct behavior alternates per-segment starting from the parity of segment index 0 (non-scalable for even segments, scalable for odd, or vice versa depending on the nine-patch convention).
+
+- **Remove the entire "Copy srcBuf into caller's src array" block** — do not write anything back to `src`. The `src` parameter should not be modified at all.
+- **Fix the even/odd scale assignment**: segment `i` is scalable if `i % 2 == (isScalable ? 1 : 0)` (odd-indexed segments are scalable in a nine-patch). Use `scaleEven = scaleWhenNonScalable` and `scaleOdd = scaleWhenScalable` unconditionally (not gated on `isScalable`), since `isScalable` controls whether the *overall* region is scalable, not the per-segment alternation.
+- **Fix the scalar cleanup parity**: after the unrolled loop ends at index `i`, the parity should be `i % 2 == 1` means odd segment → scalable. Simplify to: `bool segIsScalable = (i % 2 == 1);` and toggle each iteration.
+- **Remove the redundant double-assignment of `curScalable`** (the two conflicting lines before the scalar loop).
+- **Do not use `src` as a scratch buffer or output** — it is an input-only array in this context.

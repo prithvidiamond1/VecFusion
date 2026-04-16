@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s256_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s256_opt(int iterations, float* a, float* d, float aa[256][256], float bb[256][256])\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        for (int i = 0; i < 256; i++) {\n            float a0 = a[0];\n            float a1 = (float)1.0 - a0;  // odd indices\n            float a2 = a0;               // even indices (>=2)\n            for (int j = 1; j < 256; j++) {\n                a[j] = (j % 2 == 1) ? a1 : a2;\n            }\n            for (int j = 1; j < 256; j++) {\n                aa[j][i] = a[j] + bb[j][i] * d[j];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s256_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s256_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s256_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s256(int iterations, float* a, float* d, float aa[256][256], float bb[256][256])\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        for (int i = 0; i < 256; i++) {\n            float a0 = a[0];\n            float a1 = (float)1.0 - a0;  // odd indices\n            float a2 = a0;               // even indices (>=2)\n\n            // Fill a[1..255] with alternating a1 (odd) and a2 (even)\n            // Unroll by 8 (4 pairs)\n            int j = 1;\n            for (; j + 7 < 256; j += 8) {\n                a[j+0] = a1;\n                a[j+1] = a2;\n                a[j+2] = a1;\n                a[j+3] = a2;\n                a[j+4] = a1;\n                a[j+5] = a2;\n                a[j+6] = a1;\n                a[j+7] = a2;\n            }\n            for (; j < 256; j++) {\n                a[j] = (j % 2 == 1) ? a1 : a2;\n            }\n\n            // Compute aa[j][i] = a[j] + bb[j][i] * d[j] for j=1..255\n            // Unroll by 8\n            j = 1;\n            for (; j + 7 < 256; j += 8) {\n                aa[j+0][i] = a[j+0] + bb[j+0][i] * d[j+0];\n                aa[j+1][i] = a[j+1] + bb[j+1][i] * d[j+1];\n                aa[j+2][i] = a[j+2] + bb[j+2][i] * d[j+2];\n                aa[j+3][i] = a[j+3] + bb[j+3][i] * d[j+3];\n                aa[j+4][i] = a[j+4] + bb[j+4][i] * d[j+4];\n                aa[j+5][i] = a[j+5] + bb[j+5][i] * d[j+5];\n                aa[j+6][i] = a[j+6] + bb[j+6][i] * d[j+6];\n                aa[j+7][i] = a[j+7] + bb[j+7][i] * d[j+7];\n            }\n            for (; j < 256; j++) {\n                aa[j][i] = a[j] + bb[j][i] * d[j];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s256_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s256",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s256_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s256_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s256_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

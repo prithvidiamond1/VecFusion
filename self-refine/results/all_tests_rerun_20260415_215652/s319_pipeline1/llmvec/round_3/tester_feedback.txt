@@ -1,0 +1,13 @@
+The issue is that the reference implementation for s319 computes `a[i] = c[i] + d[i]` and `b[i] = c[i] + e[i]`, accumulates their sum, then sets `a[0] = sum`. But the candidate reads `c[i+0]` again for the `b` computation **after** `a[i+0]` has already been written — since `a` and `c` could alias or the reference may differ in ordering, the real problem is:
+
+- **The candidate accumulates `a[i]` values using the pre-write `a0..a7` values, but the reference likely reads `a[i]` after it's been stored** (i.e., `sum += a[i]` after `a[i] = c[i]+d[i]`). This is equivalent, so that's fine.
+
+- **The real bug**: In the vectorized loop, `sum0..sum7` are **not reset to 0 each outer `nl` iteration** — they are declared inside the outer loop so they are reset. That's fine.
+
+- **Actual bug**: The candidate uses `c[i+0]` for computing `b0` after `a[i+0]` is written. If `a == c` (aliasing), `c[i+0]` would return the newly written `a[i+0]` value. The reference scalar loop does `b[i] = c[i] + e[i]` where `c[i]` is the original value. The vectorized version also reads `c[i+0]` for `b0` — but `a[i+0]` was just written, and if `a` and `c` point to the same array, `c[i+0]` is now `a0` not the original `c[i]`. **Fix: compute all `b` values before writing to `a[]`**, or compute them from the already-saved `a0` values.
+
+**Fixes needed:**
+
+- Move the computation of `b0..b7` (and `b[i+0..7]` stores) to **before** the stores `a[i+0] = a0` etc., so that `c[i]` is read before `a[i]` is overwritten.
+- Similarly in the scalar tail loop, compute `b[i] = c[i] + e[i]` **before** `a[i] = c[i] + d[i]` (or at least before any store that could overwrite `c[i]`).
+- Specifically: reorder so all reads of `c[i]`, `d[i]`, `e[i]` happen before any writes to `a[i]` or `b[i]`.

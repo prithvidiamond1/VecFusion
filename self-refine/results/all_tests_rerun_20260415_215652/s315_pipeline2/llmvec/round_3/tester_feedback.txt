@@ -1,0 +1,3 @@
+- The function returns `x + (float)index` but the reference expects them returned separately or the checksum computed differently. The issue is that `x` holds `max_val` and `index` is the 0-based index, but the reference implementation likely uses a **1-based index** (i.e., `index + 1`) to match Fortran-style indexing conventions used in these benchmarks.
+- Change `index = j;` to `index = j + 1;` (1-based) so the returned value `x + (float)index` matches the reference checksum.
+- Also ensure `x` is initialized before the loop in case `iterations == 0`; add `x = 0.0f; index = 0;` before the `nl` loop to avoid returning uninitialized values.

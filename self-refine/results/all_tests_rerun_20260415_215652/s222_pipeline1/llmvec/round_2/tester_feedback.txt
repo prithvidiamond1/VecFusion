@@ -1,0 +1,5 @@
+The test expects `a[i]` to be updated as `a[i] += b[i]*c[i]` (net addition), but the code does `a[i] += bc; a[i] -= bc;` which cancels out to a no-op (net zero change).
+
+- Remove the `a[i+N] -= bcN;` lines in the unrolled loop — the subtraction cancels the addition, leaving `a[i]` unchanged when it should be incremented.
+- Remove the `a[i] -= bc;` line in the scalar tail loop for the same reason.
+- The correct body should be just `a[i+N] += bcN;` (and `a[i] += bc;` in the tail).

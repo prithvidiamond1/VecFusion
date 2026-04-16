@@ -1,0 +1,30 @@
+void s123_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    int half = LEN_1D / 2;
+    float tmp_b[LEN_1D];
+    float tmp_c[LEN_1D];
+    float tmp_de[LEN_1D];
+    int   tmp_valid[LEN_1D];
+
+    for (int nl = 0; nl < iterations; nl++) {
+
+        // Loop 1: compute de, tmp_b, tmp_c, tmp_valid (vectorizable)
+        for (int i = 0; i < half; i++) {
+            tmp_de[i]    = d[i] * e[i];
+            tmp_b[i]     = b[i] + tmp_de[i];
+            tmp_c[i]     = c[i] + tmp_de[i];
+            tmp_valid[i] = (c[i] > 0.0f) ? 1 : 0;
+        }
+
+        // Loop 2: scatter results into a[] sequentially
+        int j = 0;
+        for (int i = 0; i < half; i++) {
+            a[j] = tmp_b[i];
+            j++;
+            if (tmp_valid[i]) {
+                a[j] = tmp_c[i];
+                j++;
+            }
+        }
+    }
+}

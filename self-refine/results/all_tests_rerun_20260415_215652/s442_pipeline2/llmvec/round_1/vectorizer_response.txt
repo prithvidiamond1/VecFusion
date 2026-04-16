@@ -1,0 +1,77 @@
+```c
+#include <stdint.h>
+
+void vectorized_s442(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e, int* indx)
+{
+    typedef int v4si __attribute__((vector_size(16)));
+    typedef float v4sf __attribute__((vector_size(16)));
+
+    int limit = iterations / 2;
+
+    for (int nl = 0; nl < limit; nl++) {
+        int i = 0;
+        int vec_len = LEN_1D - (LEN_1D % 4);
+
+        for (; i < vec_len; i += 4) {
+            // Load indices
+            v4si idx = {indx[i], indx[i+1], indx[i+2], indx[i+3]};
+
+            // Compute masks
+            v4si two  = {2, 2, 2, 2};
+            v4si three = {3, 3, 3, 3};
+            v4si four  = {4, 4, 4, 4};
+
+            v4si use_c_mask = (idx == two);
+            v4si use_d_mask = (idx == three);
+            v4si use_e_mask = (idx == four);
+            v4si use_b_mask = ~use_c_mask & ~use_d_mask & ~use_e_mask;
+
+            // Convert masks to float (mask is -1 for true, 0 for false in GCC vector ext)
+            // We need 1.0f for true, 0.0f for false
+            // use_b_mask & 1 gives 1 for true (since -1 in two's complement has all bits set)
+            v4si one_i = {1, 1, 1, 1};
+            v4si ub = use_b_mask & one_i;
+            v4si uc = use_c_mask & one_i;
+            v4si ud = use_d_mask & one_i;
+            v4si ue = use_e_mask & one_i;
+
+            v4sf fub = __builtin_convertvector(ub, v4sf);
+            v4sf fuc = __builtin_convertvector(uc, v4sf);
+            v4sf fud = __builtin_convertvector(ud, v4sf);
+            v4sf fue = __builtin_convertvector(ue, v4sf);
+
+            v4sf bv = {b[i], b[i+1], b[i+2], b[i+3]};
+            v4sf cv = {c[i], c[i+1], c[i+2], c[i+3]};
+            v4sf dv = {d[i], d[i+1], d[i+2], d[i+3]};
+            v4sf ev = {e[i], e[i+1], e[i+2], e[i+3]};
+            v4sf av = {a[i], a[i+1], a[i+2], a[i+3]};
+
+            v4sf val = fub * (bv * bv)
+                     + fuc * (cv * cv)
+                     + fud * (dv * dv)
+                     + fue * (ev * ev);
+
+            av = av + val;
+
+            a[i]   = av[0];
+            a[i+1] = av[1];
+            a[i+2] = av[2];
+            a[i+3] = av[3];
+        }
+
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            int idx = indx[i];
+            int use_c = (idx == 2);
+            int use_d = (idx == 3);
+            int use_e = (idx == 4);
+            int use_b = !use_c & !use_d & !use_e;
+            float val = (float)use_b * (b[i] * b[i])
+                      + (float)use_c * (c[i] * c[i])
+                      + (float)use_d * (d[i] * d[i])
+                      + (float)use_e * (e[i] * e[i]);
+            a[i] += val;
+        }
+    }
+}
+```

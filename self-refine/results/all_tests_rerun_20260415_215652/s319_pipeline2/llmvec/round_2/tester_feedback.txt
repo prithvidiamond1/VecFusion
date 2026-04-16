@@ -1,0 +1,9 @@
+- The function returns only the last iteration's `sum`, but the reference implementation accumulates `sum` across all `nl` iterations (or returns the final `sum` after the last iteration resets it each time — check which). The issue is that `sum` is reset to `0.0f` at the start of each `nl` iteration, so the returned value is only from the last `nl` loop. If the reference does the same, the logic is correct structurally, but the dot-product computation may differ.
+- The root cause of the mismatch: the original `s319` computes `a[i] = c[i] + d[i]` and `b[i] = c[i] + e[i]`, then `sum += a[i]*b[i]`. The candidate does this correctly, so check the accumulation order — floating-point reassociation in the unrolled loop changes the result vs. scalar sequential accumulation.
+- Specifically, the candidate accumulates 8 products at once with `sum += ai0*bi0 + ai1*bi1 + ...` which reorders floating-point operations relative to the scalar reference `sum += a[i]*b[i]` done one at a time. This causes floating-point differences that trigger the mismatch check.
+- Fix: accumulate `sum` one element at a time (sequentially) to match the reference's floating-point order, even in the unrolled loop. Replace the single fused `sum += ai0*bi0 + ...` with individual sequential additions:
+  ```c
+  sum += ai0*bi0; sum += ai1*bi1; sum += ai2*bi2; sum += ai3*bi3;
+  sum += ai4*bi4; sum += ai5*bi5; sum += ai6*bi6; sum += ai7*bi7;
+  ```
+- This preserves the exact same floating-point accumulation order as the scalar reference loop, eliminating the return value mismatch.

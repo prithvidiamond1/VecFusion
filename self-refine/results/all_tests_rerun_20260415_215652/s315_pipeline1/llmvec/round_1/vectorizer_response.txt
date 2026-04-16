@@ -1,0 +1,50 @@
+```c
+#include <stdint.h>
+#include <float.h>
+
+float vectorized_s315(int iterations, int LEN_1D, float* a)
+{
+    for (int i = 0; i < LEN_1D; i++)
+        a[i] = (i * 7) % LEN_1D;
+
+    float x, chksum;
+    int index;
+    for (int nl = 0; nl < iterations; nl++) {
+        // Vectorized max-finding with 4-wide unroll
+        float max_val0 = -FLT_MAX, max_val1 = -FLT_MAX;
+        float max_val2 = -FLT_MAX, max_val3 = -FLT_MAX;
+        int max_idx0 = 0, max_idx1 = 0, max_idx2 = 0, max_idx3 = 0;
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+        for (; i < limit; i += 4) {
+            float v0 = a[i+0];
+            float v1 = a[i+1];
+            float v2 = a[i+2];
+            float v3 = a[i+3];
+
+            if (v0 > max_val0) { max_val0 = v0; max_idx0 = i+0; }
+            if (v1 > max_val1) { max_val1 = v1; max_idx1 = i+1; }
+            if (v2 > max_val2) { max_val2 = v2; max_idx2 = i+2; }
+            if (v3 > max_val3) { max_val3 = v3; max_idx3 = i+3; }
+        }
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            if (a[i] > max_val0) { max_val0 = a[i]; max_idx0 = i; }
+        }
+
+        // Reduce across 4 lanes
+        // Merge lane1 into lane0
+        if (max_val1 > max_val0) { max_val0 = max_val1; max_idx0 = max_idx1; }
+        // Merge lane2 into lane0
+        if (max_val2 > max_val0) { max_val0 = max_val2; max_idx0 = max_idx2; }
+        // Merge lane3 into lane0
+        if (max_val3 > max_val0) { max_val0 = max_val3; max_idx0 = max_idx3; }
+
+        x = max_val0;
+        index = max_idx0;
+        chksum = x + (float)index;
+    }
+    return index + x + 1;
+}
+```

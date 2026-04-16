@@ -1,0 +1,51 @@
+#include <string.h>
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.f;
+
+        float s_arr[256];
+
+        // First pass: compute s values (sequential due to dependency on b[i] and accumulation)
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > b[i]) {
+                s += d[i] * d[i];
+            }
+            s_arr[i] = s;
+        }
+
+        // Second pass: vectorizable
+        int i = 0;
+        for (; i <= 256 - 8; i += 8) {
+            b[i+0] = s_arr[i+0] * c[i+0] + d[i+0];
+            b[i+1] = s_arr[i+1] * c[i+1] + d[i+1];
+            b[i+2] = s_arr[i+2] * c[i+2] + d[i+2];
+            b[i+3] = s_arr[i+3] * c[i+3] + d[i+3];
+            b[i+4] = s_arr[i+4] * c[i+4] + d[i+4];
+            b[i+5] = s_arr[i+5] * c[i+5] + d[i+5];
+            b[i+6] = s_arr[i+6] * c[i+6] + d[i+6];
+            b[i+7] = s_arr[i+7] * c[i+7] + d[i+7];
+        }
+        for (; i < 256; ++i) {
+            b[i] = s_arr[i] * c[i] + d[i];
+        }
+
+        // Third pass: vectorizable
+        i = 0;
+        for (; i <= 256 - 8; i += 8) {
+            e[i+0] = (s_arr[i+0] + 1.f) * aa[0][i+0];
+            e[i+1] = (s_arr[i+1] + 1.f) * aa[0][i+1];
+            e[i+2] = (s_arr[i+2] + 1.f) * aa[0][i+2];
+            e[i+3] = (s_arr[i+3] + 1.f) * aa[0][i+3];
+            e[i+4] = (s_arr[i+4] + 1.f) * aa[0][i+4];
+            e[i+5] = (s_arr[i+5] + 1.f) * aa[0][i+5];
+            e[i+6] = (s_arr[i+6] + 1.f) * aa[0][i+6];
+            e[i+7] = (s_arr[i+7] + 1.f) * aa[0][i+7];
+        }
+        for (; i < 256; ++i) {
+            e[i] = (s_arr[i] + 1.f) * aa[0][i];
+        }
+    }
+}

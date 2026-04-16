@@ -1,0 +1,90 @@
+Candidate code:
+```c
+#include <stdbool.h>
+#include <alloca.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed, int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd, bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    float scaleWhenScalable    = normalCase ? scale : 0.0f;
+    float scaleWhenNonScalable = normalCase ? 1.0f  : scale;
+
+    // Fill src array - vectorize the divs copy
+    src[0] = srcStart;
+    {
+        int i = 0;
+        // Unrolled loop for copying divs into src[1..divCount]
+        for (; i + 3 < divCount; i += 4) {
+            src[i + 1] = divs[i];
+            src[i + 2] = divs[i + 1];
+            src[i + 3] = divs[i + 2];
+            src[i + 4] = divs[i + 3];
+        }
+        for (; i < divCount; i++) {
+            src[i + 1] = divs[i];
+        }
+    }
+    src[divCount + 1] = srcEnd;
+
+    // Precompute srcDelta array (unrolled)
+    int* srcDelta = (int*)alloca((divCount + 1) * sizeof(int));
+    {
+        int i = 0;
+        for (; i + 3 < divCount; i += 4) {
+            srcDelta[i]     = src[i + 1] - src[i];
+            srcDelta[i + 1] = src[i + 2] - src[i + 1];
+            srcDelta[i + 2] = src[i + 3] - src[i + 2];
+            srcDelta[i + 3] = src[i + 4] - src[i + 3];
+        }
+        for (; i < divCount; i++) {
+            srcDelta[i] = src[i + 1] - src[i];
+        }
+    }
+
+    // Precompute dstDelta array using alternating isScalable
+    // We can vectorize by precomputing two scale arrays and selecting based on parity
+    float* dstDelta = (float*)alloca((divCount + 1) * sizeof(float));
+    {
+        // Precompute scale for even indices (starting scalable = isScalable)
+        // and odd indices (starting scalable = !isScalable)
+        float scaleEven = (int)isScalable ? scaleWhenScalable : scaleWhenNonScalable;
+        float scaleOdd  = (int)isScalable ? scaleWhenNonScalable : scaleWhenScalable;
+
+        int i = 0;
+        // Unroll by 4 (2 pairs of even/odd)
+        for (; i + 3 < divCount; i += 4) {
+            dstDelta[i]     = scaleEven * (float)srcDelta[i];
+            dstDelta[i + 1] = scaleOdd  * (float)srcDelta[i + 1];
+            dstDelta[i + 2] = scaleEven * (float)srcDelta[i + 2];
+            dstDelta[i + 3] = scaleOdd  * (float)srcDelta[i + 3];
+        }
+        // Scalar cleanup
+        int curScalable = (int)isScalable;
+        for (; i < divCount; i++) {
+            float s = curScalable ? scaleWhenScalable : scaleWhenNonScalable;
+            dstDelta[i] = s * (float)srcDelta[i];
+            curScalable = !curScalable;
+        }
+    }
+
+    // Accumulate dst (sequential due to dependency)
+    dst[0] = dstStart;
+    for (int i = 0; i < divCount; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+    dst[divCount + 1] = dstEnd;
+}
+```
+
+External compile/test report:
+Compile succeeded for round 1.
+Exit code: -6
+stderr:
+Mismatch in parameter src on trial 0 at index 0

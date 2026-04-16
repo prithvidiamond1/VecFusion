@@ -1,0 +1,22 @@
+Compile failed.
+            Command: clang results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4
+            stderr:
+            results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:55: error: restrict requires a pointer or reference ('float' is invalid)
+   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];
+      |                                                       ^
+results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:89: error: restrict requires a pointer or reference ('float' is invalid)
+   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];
+      |                                                                                         ^
+results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:123: error: restrict requires a pointer or reference ('float' is invalid)
+   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];
+      |                                                                                                                           ^
+results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:157: error: restrict requires a pointer or reference ('float' is invalid)
+   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];
+      |                                                                                                                                                             ^
+results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:191: error: restrict requires a pointer or reference ('float' is invalid)
+   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];
+      |                                                                                                                                                                                               ^
+results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:225: error: restrict requires a pointer or reference ('float' is invalid)
+   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];
+      |                                                                                                                                                                                                                                 ^
+6 errors generated.

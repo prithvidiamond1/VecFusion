@@ -1,0 +1,9 @@
+- The cleanup loop assumes `LEN_1D % 5 == 0` (steps by 5 and accesses `i+4`), but `limit` is computed as `LEN_1D - (LEN_1D % 20)`, so the remaining elements (`LEN_1D % 20`) may not be a multiple of 5 — if `LEN_1D % 20` is e.g. 10, the cleanup loop runs one iteration of 5 correctly, but if it's not a multiple of 5 at all, it will go out of bounds or miss elements.
+- More critically, the original loop steps by 5 and accesses exactly `a[i+0]..a[i+4]`, so `LEN_1D` must be a multiple of 5. The cleanup loop is fine for multiples of 5, but the `limit` calculation (`LEN_1D - (LEN_1D % 20)`) may leave up to 15 remaining elements that are not a multiple of 5 — replace the cleanup loop with a simple scalar loop stepping by 1 to handle any remainder safely:
+```c
+for (; i < LEN_1D; i++) {
+    dot += a[i] * b[i];
+}
+```
+- The `dot` variable is declared outside the `nl` loop but `dot = 0.0f` is set at the top of each `nl` iteration — this is fine, but `dot` is only updated from `acc0+acc1+acc2+acc3` and the cleanup; ensure the cleanup adds into `dot` (not a separate variable) — the current code does this correctly.
+- The most likely cause of the return mismatch: the cleanup loop steps by 5 and accesses `i+4`, which can read beyond `LEN_1D` if the remainder is not a multiple of 5, producing wrong (garbage) values. Fix by replacing the cleanup with a single-element loop as shown above.

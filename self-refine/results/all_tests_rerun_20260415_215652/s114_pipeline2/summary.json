@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s114_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s114_opt(int iterations, float aa[256][256], float bb[256][256])\n{\n    float trans[256][256];\n    for (int i = 0; i < 256; i++) {\n        for (int j = 0; j < i; j++) {\n            trans[i][j] = aa[j][i];\n        }\n    }\n\n    for (int nl = 0; nl < 200*(iterations/(256)); nl++) {\n        for (int i = 1; i < 256; i++) {\n            for (int j = 0; j < i; j++) {\n                aa[i][j] = trans[i][j] + bb[i][j];\n            }\n        }\n        for (int i = 0; i < 256; i++) {\n            for (int j = 0; j < i; j++) {\n                trans[i][j] = aa[j][i];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s114_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s114_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s114_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n#include <stdlib.h>\n\nvoid vectorized_s114(int iterations, float aa[256][256], float bb[256][256])\n{\n    static float trans[256][256];\n\n    // Initialize trans: trans[i][j] = aa[j][i] for j < i\n    for (int i = 0; i < 256; i++) {\n        int j = 0;\n        for (; j + 7 < i; j += 8) {\n            trans[i][j+0] = aa[j+0][i];\n            trans[i][j+1] = aa[j+1][i];\n            trans[i][j+2] = aa[j+2][i];\n            trans[i][j+3] = aa[j+3][i];\n            trans[i][j+4] = aa[j+4][i];\n            trans[i][j+5] = aa[j+5][i];\n            trans[i][j+6] = aa[j+6][i];\n            trans[i][j+7] = aa[j+7][i];\n        }\n        for (; j < i; j++) {\n            trans[i][j] = aa[j][i];\n        }\n    }\n\n    int limit = 200 * (iterations / 256);\n\n    for (int nl = 0; nl < limit; nl++) {\n        // aa[i][j] = trans[i][j] + bb[i][j] for j < i, i from 1..255\n        for (int i = 1; i < 256; i++) {\n            int j = 0;\n            for (; j + 7 < i; j += 8) {\n                aa[i][j+0] = trans[i][j+0] + bb[i][j+0];\n                aa[i][j+1] = trans[i][j+1] + bb[i][j+1];\n                aa[i][j+2] = trans[i][j+2] + bb[i][j+2];\n                aa[i][j+3] = trans[i][j+3] + bb[i][j+3];\n                aa[i][j+4] = trans[i][j+4] + bb[i][j+4];\n                aa[i][j+5] = trans[i][j+5] + bb[i][j+5];\n                aa[i][j+6] = trans[i][j+6] + bb[i][j+6];\n                aa[i][j+7] = trans[i][j+7] + bb[i][j+7];\n            }\n            for (; j < i; j++) {\n                aa[i][j] = trans[i][j] + bb[i][j];\n            }\n        }\n\n        // trans[i][j] = aa[j][i] for j < i\n        for (int i = 0; i < 256; i++) {\n            int j = 0;\n            for (; j + 7 < i; j += 8) {\n                trans[i][j+0] = aa[j+0][i];\n                trans[i][j+1] = aa[j+1][i];\n                trans[i][j+2] = aa[j+2][i];\n                trans[i][j+3] = aa[j+3][i];\n                trans[i][j+4] = aa[j+4][i];\n                trans[i][j+5] = aa[j+5][i];\n                trans[i][j+6] = aa[j+6][i];\n                trans[i][j+7] = aa[j+7][i];\n            }\n            for (; j < i; j++) {\n                trans[i][j] = aa[j][i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 2.",
+      "compile_feedback": "Compile succeeded for round 2.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 2.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 2,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s114_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s114",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s114_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s114_pipeline2/llmvec/candidate_round_2.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s114_pipeline2/llmvec/candidate_round_2"
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s312_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s312_opt(int iterations, int LEN_1D, float* a)\n{\n    float prod;\n    for (int nl = 0; nl < 10 * iterations; nl++) {\n        float prod0 = 1.0f;\n        float prod1 = 1.0f;\n        float prod2 = 1.0f;\n        float prod3 = 1.0f;\n\n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 4);\n\n        for (i = 0; i < limit; i += 4) {\n            prod0 *= a[i];\n            prod1 *= a[i + 1];\n            prod2 *= a[i + 2];\n            prod3 *= a[i + 3];\n        }\n\n        for (; i < LEN_1D; i++) {\n            prod0 *= a[i];\n        }\n\n        prod = prod0 * prod1 * prod2 * prod3;\n    }\n    return prod;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s312_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s312_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s312_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\ntypedef float float4 __attribute__((vector_size(16)));\n\nfloat vectorized_s312(int iterations, int LEN_1D, float* a)\n{\n    float prod;\n    for (int nl = 0; nl < 10 * iterations; nl++) {\n        float4 vprod = {1.0f, 1.0f, 1.0f, 1.0f};\n\n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 4);\n\n        for (i = 0; i < limit; i += 4) {\n            float4 va = {a[i], a[i+1], a[i+2], a[i+3]};\n            vprod *= va;\n        }\n\n        float prod0 = vprod[0];\n        float prod1 = vprod[1];\n        float prod2 = vprod[2];\n        float prod3 = vprod[3];\n\n        for (; i < LEN_1D; i++) {\n            prod0 *= a[i];\n        }\n\n        prod = prod0 * prod1 * prod2 * prod3;\n    }\n    return prod;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s312_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s312",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s312_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s312_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s312_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s242_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "void vectorized_s242(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d)\n{\n    float s12 = s1 + s2;\n    for (int nl = 0; nl < iterations/5; nl++) {\n        float tmp[LEN_1D];\n\n        int i = 0;\n        int limit = LEN_1D - 7;\n        if (limit < 0) limit = 0;\n\n        for (; i < limit; i += 8) {\n            tmp[i]   = b[i]   + c[i]   + d[i]   + s12;\n            tmp[i+1] = b[i+1] + c[i+1] + d[i+1] + s12;\n            tmp[i+2] = b[i+2] + c[i+2] + d[i+2] + s12;\n            tmp[i+3] = b[i+3] + c[i+3] + d[i+3] + s12;\n            tmp[i+4] = b[i+4] + c[i+4] + d[i+4] + s12;\n            tmp[i+5] = b[i+5] + c[i+5] + d[i+5] + s12;\n            tmp[i+6] = b[i+6] + c[i+6] + d[i+6] + s12;\n            tmp[i+7] = b[i+7] + c[i+7] + d[i+7] + s12;\n        }\n        for (; i < LEN_1D; i++) {\n            tmp[i] = b[i] + c[i] + d[i] + s12;\n        }\n\n        /* The original loop starts at i=1: a[i] = a[i-1] + s1+s2+b[i]+c[i]+d[i]\n           So a[0] is never written by the inner loop; only a[1..LEN_1D-1] are updated.\n           a[1] = a[0] + tmp[1], a[2] = a[1] + tmp[2], etc.\n           We must NOT touch a[0], and start the prefix sum from a[0]. */\n        for (i = 1; i < LEN_1D; i++) {\n            a[i] = a[i-1] + tmp[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 10",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 10",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s242_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s242",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s242_pipeline1/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s242_opt(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d)\n{\n    float s12 = s1 + s2;\n    for (int nl = 0; nl < iterations/5; nl++) {\n        // Compute prefix sums of (b[i] + c[i] + d[i] + s12) independently\n        // Then reconstruct a[i] = a[0] + sum_{k=1}^{i} (s12 + b[k] + c[k] + d[k])\n        // Step 1: compute increments into a temporary scan array\n        // We use b as a conceptual helper but keep a separate temp array approach\n        // Instead: precompute cumulative sum in a temp buffer, then add a[0]\n        float temp[LEN_1D];\n        // Step 1: vectorizable - compute per-element increments\n        for (int i = 1; i < LEN_1D; ++i) {\n            temp[i] = s12 + b[i] + c[i] + d[i];\n        }\n        // Step 2: prefix sum (carry dependency isolated here)\n        for (int i = 2; i < LEN_1D; ++i) {\n            temp[i] = temp[i] + temp[i - 1];\n        }\n        // Step 3: vectorizable - write back results\n        float a0 = a[0];\n        for (int i = 1; i < LEN_1D; ++i) {\n            a[i] = a0 + temp[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s242_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s242_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s242_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

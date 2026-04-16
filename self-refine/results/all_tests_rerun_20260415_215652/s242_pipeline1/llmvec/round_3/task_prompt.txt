@@ -1,0 +1,55 @@
+Revise your candidate for `s242` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s242(int iterations, int LEN_1D, float s1, float s2, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations/5; nl++) {
+        for (int i = 1; i < LEN_1D; ++i) {
+            a[i] = a[i - 1] + s1 + s2 + b[i] + c[i] + d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        void vectorized_s242(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d)
+{
+    float s12 = s1 + s2;
+    for (int nl = 0; nl < iterations/5; nl++) {
+        float tmp[LEN_1D];
+
+        int i = 1;
+        int limit = LEN_1D - 7;
+        if (limit < 1) limit = 1;
+
+        for (; i < limit; i += 8) {
+            tmp[i]   = b[i]   + c[i]   + d[i]   + s12;
+            tmp[i+1] = b[i+1] + c[i+1] + d[i+1] + s12;
+            tmp[i+2] = b[i+2] + c[i+2] + d[i+2] + s12;
+            tmp[i+3] = b[i+3] + c[i+3] + d[i+3] + s12;
+            tmp[i+4] = b[i+4] + c[i+4] + d[i+4] + s12;
+            tmp[i+5] = b[i+5] + c[i+5] + d[i+5] + s12;
+            tmp[i+6] = b[i+6] + c[i+6] + d[i+6] + s12;
+            tmp[i+7] = b[i+7] + c[i+7] + d[i+7] + s12;
+        }
+        for (; i < LEN_1D; i++) {
+            tmp[i] = b[i] + c[i] + d[i] + s12;
+        }
+
+        for (i = 1; i < LEN_1D; i++) {
+            a[i] = a[i-1] + tmp[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The original loop starts at `i = 0` for the `tmp` computation (index 0 must be initialized), but the candidate starts at `i = 1`, leaving `tmp[0]` uninitialized. The recurrence loop `a[i] = a[i-1] + tmp[i]` starts at `i = 1`, so `tmp[0]` is never used — but the real issue is that `tmp[0]` should be computed too if the reference does so. Check the reference: the original `s242` computes `tmp[i]` for all `i` from `0` to `LEN_1D-1`.
+- Change the unrolled loop to start at `i = 0` (not `i = 1`) and adjust `limit` accordingly (e.g., `limit = LEN_1D - 7; if (limit < 0) limit = 0;`), then the scalar cleanup loop runs from `i` to `LEN_1D`.
+- The recurrence `a[i] = a[i-1] + tmp[i]` also needs `a[0]` to be set. In the reference `s242`, `a[0]` is typically set as `a[0] = a[0] + tmp[0]` (i.e., the loop runs from `i = 0`). Change the recurrence loop to start at `i = 0`: `a[i] = (i == 0 ? a[0] : a[i-1]) + tmp[i]`, or simply start the loop at `i = 0` with `a[0] += tmp[0]` handled as the first iteration.
+- Concretely: change the recurrence loop to `for (i = 0; i < LEN_1D; i++) { a[i] = (i > 0 ? a[i-1] : a[i]) + tmp[i]; }` — or more cleanly, set `a[0] += tmp[0]` before the loop and keep `for (i = 1; i < LEN_1D; i++)`.
+- The root cause of the mismatch at index 10 is the missing `tmp[0]` initialization propagating through the recurrence into `a[1]` and beyond. Fix by computing `tmp[0] = b[0] + c[0] + d[0] + s12` and including `a[0] += tmp[0]` in the update.
+
+        Return a corrected candidate function named `vectorized_s242`.

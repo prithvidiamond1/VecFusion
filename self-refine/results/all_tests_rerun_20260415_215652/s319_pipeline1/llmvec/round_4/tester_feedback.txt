@@ -1,0 +1,13 @@
+- The function computes `sum` using `a[i] + b[i]` (the newly written values), but the reference implementation accumulates `a[i] + b[i]` where `a[i] = c[i] + d[i]` and `b[i] = c[i] + e[i]`, so `sum += (c[i]+d[i]) + (c[i]+e[i])` = `2*c[i] + d[i] + e[i]`. Check that the accumulation matches exactly — the current code looks correct for that, so the mismatch is likely elsewhere.
+
+- The final `a[0] = sum;` overwrites `a[0]` with the accumulated sum, but the reference likely does this only once per outer loop iteration. Verify this is intentional and matches the reference — if the reference does `a[0] = sum` after the inner loop, this is correct, but confirm the reference doesn't skip this assignment.
+
+- The most likely bug: after writing `a[i]` and `b[i]`, the sum accumulation uses the local variables `a0..a7` and `b0..b7`, which equal `c[i]+d[i]` and `c[i]+e[i]`. But `a[0]` is overwritten at the end of each `nl` iteration. On the **next** `nl` iteration, `c`, `d`, `e` arrays are read fresh, but `a[0]` was clobbered. If the reference reads `a[0]` as input (via `c`, `d`, or `e` aliasing), this could differ — but more likely the issue is that `a[0] = sum` is set, then `return a[0]` returns it, which should be fine.
+
+- **Most probable root cause**: The reference implementation accumulates `a[i] + b[i]` *after* storing, meaning it reads back from the arrays. Since `a[0]` is overwritten by `sum` at end of loop, on the next iteration `a[0]` in the vectorized main loop computes `a[0] = c[0] + d[0]` (ignoring the previous `sum` stored there). This is correct only if `a` and `c/d/e` don't alias — confirm no aliasing issue exists.
+
+- **Fix**: The scalar reference for s319 typically does: `a[i] = c[i] + d[i]; b[i] = c[i] + e[i]; sum += a[i] + b[i];` then `a[0] = sum;`. The vectorized code matches this logic. The discrepancy may be that `sum` should be initialized to `0` only once (outside the `nl` loop), not reset each iteration — **remove `sum = 0.0f;` inside the `nl` loop** if the reference accumulates across all iterations.
+
+- Specifically: move `sum = 0.0f;` to before the `nl` loop (initialize once), and change `a[0] = sum;` to execute only after the `nl` loop ends, if that matches the reference semantics. If the reference resets per iteration and writes `a[0]` each time, keep as-is but verify the final `return a[0]` returns the last iteration's sum correctly.
+
+- **Most actionable fix**: Remove `sum = 0.0f;` from inside the `nl` loop (keep only the outer initialization), so sum accumulates across all `2 * iterations` outer iterations before being stored — this is the most common cause of "return mismatch on trial 0" in these benchmarks.

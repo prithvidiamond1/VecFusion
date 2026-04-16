@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s1161_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s1161_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        for (int i = 0; i < LEN_1D-1; ++i) {\n            int neg = (c[i] < (float)0.);\n            int pos = !neg;\n            a[i] = a[i] * neg + (c[i] + d[i] * e[i]) * pos;\n            b[i] = b[i] * pos + (a[i] + d[i] * d[i]) * neg;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s1161_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s1161_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s1161_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s1161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        int i = 0;\n        int limit = LEN_1D - 1;\n\n#if defined(__clang__) || defined(__GNUC__)\n        typedef float float4 __attribute__((vector_size(16)));\n\n        int vec_limit = limit - (limit % 4);\n        for (; i < vec_limit; i += 4) {\n            float4 ci, di, ei, ai, bi;\n            // Load\n            __builtin_memcpy(&ci, c + i, 16);\n            __builtin_memcpy(&di, d + i, 16);\n            __builtin_memcpy(&ei, e + i, 16);\n            __builtin_memcpy(&ai, a + i, 16);\n            __builtin_memcpy(&bi, b + i, 16);\n\n            // neg mask: c[i] < 0.0f => -1 (all bits set), else 0\n            // pos = !neg\n            // Use vector comparison which yields 0 or -1 (all bits set)\n            typedef int int4 __attribute__((vector_size(16)));\n\n            int4 neg_mask = __builtin_convertvector(ci < (float4){0.f, 0.f, 0.f, 0.f}, int4);\n            // neg_mask is -1 where true, 0 where false\n            // neg as float: -1 -> 1.0f (we need 1.0 where neg is true)\n            // We'll use bitwise AND with float representation\n\n            // Convert masks to float: neg_mask & 1.0f bits\n            float4 one = {1.f, 1.f, 1.f, 1.f};\n            float4 zero = {0.f, 0.f, 0.f, 0.f};\n\n            // neg_float = neg_mask ? 1.0f : 0.0f\n            // pos_float = neg_mask ? 0.0f : 1.0f\n            typedef int int4b __attribute__((vector_size(16)));\n            int4b one_bits, zero_bits, neg_bits;\n            __builtin_memcpy(&one_bits, &one, 16);\n            __builtin_memcpy(&zero_bits, &zero, 16);\n\n            neg_bits = neg_mask; // -1 or 0\n\n            int4b neg_float_bits = neg_bits & one_bits;\n            int4b pos_float_bits = (~neg_bits) & one_bits;\n\n            float4 neg_float, pos_float;\n            __builtin_memcpy(&neg_float, &neg_float_bits, 16);\n            __builtin_memcpy(&pos_float, &pos_float_bits, 16);\n\n            // a[i] = a[i] * neg + (c[i] + d[i] * e[i]) * pos\n            float4 new_a = ai * neg_float + (ci + di * ei) * pos_float;\n\n            // b[i] = b[i] * pos + (a[i] + d[i] * d[i]) * neg\n            // Note: uses original a[i] before update? No, scalar uses updated a[i]\n            // In scalar: a[i] is updated first, then b[i] uses new a[i]\n            float4 new_b = bi * pos_float + (new_a + di * di) * neg_float;\n\n            __builtin_memcpy(a + i, &new_a, 16);\n            __builtin_memcpy(b + i, &new_b, 16);\n        }\n#endif\n\n        // Scalar cleanup\n        for (; i < limit; i++) {\n            int neg = (c[i] < (float)0.);\n            int pos = !neg;\n            a[i] = a[i] * neg + (c[i] + d[i] * e[i]) * pos;\n            b[i] = b[i] * pos + (a[i] + d[i] * d[i]) * neg;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s1161_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s1161",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s1161_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s1161_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s1161_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

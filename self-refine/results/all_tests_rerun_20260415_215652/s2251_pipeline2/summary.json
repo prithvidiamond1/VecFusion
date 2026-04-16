@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s2251_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s2251_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // i=0: s=0.0 (initial value)\n        a[0] = 0.0f * e[0];\n        float s = b[0] + c[0];\n        b[0] = a[0] + d[0];\n\n        // For i>=1: a[i] = s_prev * e[i], where s_prev = b[i-1]_orig + c[i-1]\n        // Note: b[i-1] is already updated at this point, so we need original b[i-1]\n        // s carries the value b[i-1]_orig + c[i-1] from previous iteration\n        for (int i = 1; i < LEN_1D; i++) {\n            a[i] = s * e[i];\n            s = b[i] + c[i];\n            b[i] = a[i] + d[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s2251_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s2251_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s2251_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s2251(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // i=0: s=0.0 (initial value)\n        a[0] = 0.0f * e[0];\n        float s = b[0] + c[0];\n        b[0] = a[0] + d[0];\n\n        // The loop has a loop-carried dependency through s:\n        //   s_{i} = b[i] + c[i]  (using original b[i])\n        //   a[i]  = s_{i-1} * e[i]\n        //   b[i]  = a[i] + d[i]\n        //\n        // Because s depends on the original b[i] (before update),\n        // and a[i] depends on s from the previous iteration,\n        // this is a serial recurrence. We can't fully vectorize the\n        // dependency chain, but we can unroll to help the compiler\n        // pipeline and reduce loop overhead.\n\n        int i = 1;\n        // Unroll by 4\n        for (; i <= LEN_1D - 4; i += 4) {\n            float s0 = s;\n            float a0 = s0 * e[i];\n            float s1 = b[i] + c[i];\n            b[i] = a0 + d[i];\n            a[i] = a0;\n\n            float a1 = s1 * e[i+1];\n            float s2 = b[i+1] + c[i+1];\n            b[i+1] = a1 + d[i+1];\n            a[i+1] = a1;\n\n            float a2 = s2 * e[i+2];\n            float s3 = b[i+2] + c[i+2];\n            b[i+2] = a2 + d[i+2];\n            a[i+2] = a2;\n\n            float a3 = s3 * e[i+3];\n            float s4 = b[i+3] + c[i+3];\n            b[i+3] = a3 + d[i+3];\n            a[i+3] = a3;\n\n            s = s4;\n        }\n\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            a[i] = s * e[i];\n            s = b[i] + c[i];\n            b[i] = a[i] + d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s2251_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s2251",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s2251_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s2251_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s2251_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a,float* b,float* c, float* d,float* e, float aa[256][256])
+{
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > 0.) {
+                s = d[i] * d[i];
+            }
+            b[i] = s * c[i] + d[i];
+            e[i] = (s + (float)1.) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s = 0.0f;
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > 0.0f) {
+                s = d[i] * d[i];
+            }
+            b[i] = s * c[i] + d[i];
+            e[i] = (s + 1.0f) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The scalar reference loop updates `s` conditionally (only when `a[i] > 0.0f`), making `s` carry over between iterations of `i`. This creates a loop-carried dependency that the vectorized version must preserve — the current code already does this correctly in scalar form, so the logic itself is fine.
+- The mismatch suggests the function signature or parameter order doesn't match what the test harness expects. Check that `aa` is declared as `float aa[256][256]` (or equivalently `float (*aa)[256]`) and that the parameter order matches the reference exactly.
+- The test reports "Mismatch in parameter a" — this likely means the harness passes `aa` as a flat pointer or with a different layout. Change `aa[256][256]` to `float* aa` and index it as `aa[i]` (using only the first row, index `[0][i]` → `aa[i]`).
+- Specifically, replace `float aa[256][256]` with `float* aa` in the parameter list, and replace `aa[0][i]` with `aa[i]` in the body.
+- Verify the parameter order matches the harness: `(int iterations, float* a, float* b, float* c, float* d, float* e, float* aa)`.
+
+        Return a corrected candidate function named `vectorized_s258`.

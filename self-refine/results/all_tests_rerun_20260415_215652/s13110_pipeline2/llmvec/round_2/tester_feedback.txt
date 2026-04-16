@@ -1,0 +1,2 @@
+- The file contains a duplicate ` ```c ` fence at line 64 inside the code — remove it entirely.
+- The function body is truncated: the closing `return chksum;` and `}` are missing — add `return chksum;` followed by the closing `}` to complete the function.

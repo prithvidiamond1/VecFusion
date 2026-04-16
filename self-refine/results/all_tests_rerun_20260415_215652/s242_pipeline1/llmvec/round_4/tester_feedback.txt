@@ -1,0 +1,37 @@
+The issue is that the prefix sum uses `tmp[i]` (which is `b[i] + c[i] + d[i] + s12`) but the original loop computes `a[i] = a[i-1] + s1 + s2 + b[i] + c[i] + d[i]`, which is `a[i-1] + tmp[i]` — that part looks correct.
+
+The real problem is the **starting index for `tmp`**: the original loop starts at `i=1`, so `tmp[1]` through `tmp[LEN_1D-1]` are what matter. But `tmp[0]` is also computed (harmlessly). More critically, the original loop is:
+
+```
+a[i] = a[i-1] + s1+s2+b[i]+c[i]+d[i]
+```
+
+which means `tmp[i]` should be `b[i] + c[i] + d[i] + s1 + s2`. That matches `s12 = s1 + s2`. So the formula is correct.
+
+- The actual bug: the **unrolled loop uses `limit = LEN_1D - 7`** but should use `LEN_1D - 7` only when `LEN_1D >= 8`. When `LEN_1D` is small (e.g., 10 in the test), `limit = 3`, so the unrolled loop runs for `i=0` only (writes indices 0–7), then the scalar loop covers `i=8,9`. This is fine for `tmp`. The issue is elsewhere.
+
+- The real bug: **`tmp` is a VLA declared inside the loop but `tmp[0]` is used in the prefix sum indirectly** — actually `tmp[i]` for `i` starting at 1 is fine. But wait: the prefix sum uses `tmp[i]` for `i=1..LEN_1D-1`, but the original loop adds `s1+s2+b[i]+c[i]+d[i]` — note `s1+s2 = s12`, so `tmp[i] = b[i]+c[i]+d[i]+s12` is correct.
+
+- The actual discrepancy: the original code likely computes `a[i] = a[i-1] + s1 + s2 + b[i] + c[i] + d[i]` where `s1+s2` is added **once per element**, but `s12 = s1+s2` is precomputed outside the `nl` loop — this is correct and not the issue.
+
+- **The real fix**: The prefix-sum loop should start at `i=1` and use `tmp[i]` where `tmp[i] = b[i]+c[i]+d[i]+s1+s2`. But `s12` is computed as `s1+s2` **once before the nl loop** — this is correct.
+
+- **Actual bug found**: The unrolled loop fills `tmp[0]` through `tmp[LEN_1D-1]`, but the prefix sum reads `tmp[i]` for `i=1..LEN_1D-1`. `tmp[0]` is computed but never used in the prefix sum — this is fine. The computation is correct.
+
+- **The true fix**: Change `tmp[i] = b[i] + c[i] + d[i] + s12` to use `s1 + s2` inline (no change needed since `s12 = s1+s2`). Instead, the prefix sum must use `tmp[i]` which equals `b[i]+c[i]+d[i]+s1+s2` — **but the original adds `s1+s2` not `s1*s2`**. Verify `s12 = s1 + s2` ✓.
+
+- **The actual fix**: The `tmp` array and prefix-sum are correct. The only remaining issue is that `tmp` should be indexed starting from `i=1` in the unrolled fill too (index 0 is wasted but harmless). **The real bug is that `s12` must be recomputed inside the `nl` loop if `s1`/`s2` could change — they don't here.** The fix is: move `float s12 = s1 + s2;` inside the `nl` loop (though it shouldn't matter). More likely: **replace `tmp[i]` in the prefix sum with the direct expression** to avoid any VLA initialization issue:
+
+```c
+for (i = 1; i < LEN_1D; i++) {
+    a[i] = a[i-1] + b[i] + c[i] + d[i] + s1 + s2;
+}
+```
+
+And remove the `tmp` array entirely, since the two-pass approach is equivalent to the original single-pass recurrence only if there are no dependencies — but **there IS a loop-carried dependency** (`a[i]` depends on `a[i-1]`), so the prefix sum approach is correct. Remove `tmp` and inline:
+
+```c
+for (i = 1; i < LEN_1D; i++) {
+    a[i] = a[i-1] + b[i] + c[i] + d[i] + s1 + s2;
+}
+```

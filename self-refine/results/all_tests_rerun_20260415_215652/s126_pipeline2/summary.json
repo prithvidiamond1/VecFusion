@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s126_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s126_opt(int iterations, float bb[256][256], float cc[256][256], float * flat_2d_array)\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        for (int j = 1; j < 256; j++) {\n            for (int i = 0; i < 256; i++) {\n                bb[j][i] = bb[j-1][i] + flat_2d_array[i*256 + (j-1)] * cc[j][i];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s126_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s126_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s126_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\ntypedef float float4 __attribute__((vector_size(16)));\n\nvoid vectorized_s126(int iterations, float bb[256][256], float cc[256][256], float * flat_2d_array)\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        for (int j = 1; j < 256; j++) {\n            int i = 0;\n            // Process 16 floats at a time (4 vectors of 4)\n            for (; i <= 256 - 16; i += 16) {\n                float4 bb_prev0 = *(float4*)(&bb[j-1][i+0]);\n                float4 bb_prev1 = *(float4*)(&bb[j-1][i+4]);\n                float4 bb_prev2 = *(float4*)(&bb[j-1][i+8]);\n                float4 bb_prev3 = *(float4*)(&bb[j-1][i+12]);\n\n                // flat_2d_array[i*256 + (j-1)] - note: indexed by i, not j\n                // For each i, the index is i*256 + (j-1)\n                // These are not contiguous in memory, so we gather manually\n                float4 flat0 = {\n                    flat_2d_array[(i+0)*256 + (j-1)],\n                    flat_2d_array[(i+1)*256 + (j-1)],\n                    flat_2d_array[(i+2)*256 + (j-1)],\n                    flat_2d_array[(i+3)*256 + (j-1)]\n                };\n                float4 flat1 = {\n                    flat_2d_array[(i+4)*256 + (j-1)],\n                    flat_2d_array[(i+5)*256 + (j-1)],\n                    flat_2d_array[(i+6)*256 + (j-1)],\n                    flat_2d_array[(i+7)*256 + (j-1)]\n                };\n                float4 flat2 = {\n                    flat_2d_array[(i+8)*256 + (j-1)],\n                    flat_2d_array[(i+9)*256 + (j-1)],\n                    flat_2d_array[(i+10)*256 + (j-1)],\n                    flat_2d_array[(i+11)*256 + (j-1)]\n                };\n                float4 flat3 = {\n                    flat_2d_array[(i+12)*256 + (j-1)],\n                    flat_2d_array[(i+13)*256 + (j-1)],\n                    flat_2d_array[(i+14)*256 + (j-1)],\n                    flat_2d_array[(i+15)*256 + (j-1)]\n                };\n\n                float4 cc0 = *(float4*)(&cc[j][i+0]);\n                float4 cc1 = *(float4*)(&cc[j][i+4]);\n                float4 cc2 = *(float4*)(&cc[j][i+8]);\n                float4 cc3 = *(float4*)(&cc[j][i+12]);\n\n                *(float4*)(&bb[j][i+0])  = bb_prev0 + flat0 * cc0;\n                *(float4*)(&bb[j][i+4])  = bb_prev1 + flat1 * cc1;\n                *(float4*)(&bb[j][i+8])  = bb_prev2 + flat2 * cc2;\n                *(float4*)(&bb[j][i+12]) = bb_prev3 + flat3 * cc3;\n            }\n            // Scalar cleanup\n            for (; i < 256; i++) {\n                bb[j][i] = bb[j-1][i] + flat_2d_array[i*256 + (j-1)] * cc[j][i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s126_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s126",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s126_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s126_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s126_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

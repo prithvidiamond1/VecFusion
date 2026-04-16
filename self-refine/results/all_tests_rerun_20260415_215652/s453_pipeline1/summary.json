@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s453_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s453(int iterations, int LEN_1D, float* a, float* b)\n{\n    for (int nl = 0; nl < iterations * 2; nl++) {\n        // s starts at 0 and increments by 2 each iteration\n        // so at index i, s = 2*(i+1) = 2*i + 2\n        // a[i] = s * b[i] = (2*(i+1)) * b[i]\n\n        int i = 0;\n\n        // Unroll by 4 for vector-friendly code\n        for (; i <= LEN_1D - 4; i += 4) {\n            float s0 = (float)(2 * (i + 1));\n            float s1 = (float)(2 * (i + 2));\n            float s2 = (float)(2 * (i + 3));\n            float s3 = (float)(2 * (i + 4));\n            a[i + 0] = s0 * b[i + 0];\n            a[i + 1] = s1 * b[i + 1];\n            a[i + 2] = s2 * b[i + 2];\n            a[i + 3] = s3 * b[i + 3];\n        }\n\n        // Scalar tail\n        for (; i < LEN_1D; i++) {\n            float s = (float)(2 * (i + 1));\n            a[i] = s * b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s453_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s453",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s453_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s453_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s453_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

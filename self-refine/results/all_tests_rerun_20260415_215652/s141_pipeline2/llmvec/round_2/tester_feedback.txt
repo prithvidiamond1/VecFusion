@@ -1,0 +1,15 @@
+The errors are in the test harness code (line 143), not in the candidate function itself. The test harness declares `float __restrict__ flat_2d_array_scalar[128]` — `__restrict__` cannot be applied to array declarations, only to pointers. The harness is auto-generated and appended to the candidate file, so the candidate must not emit anything that causes this, but the real issue is the harness itself uses wrong array sizes (128 instead of matching the function's 256×256 expectation).
+
+However, since the candidate code is what gets submitted, here are the fixes needed:
+
+- The compile errors on line 143 are in the **test harness**, not the candidate — but the harness is likely auto-generated from the candidate's signature. The `__restrict__` on array variables in the harness is invalid; ensure the function signature uses `float * __restrict__` (pointer), not an array type, which it already does — this is a harness bug, not a candidate bug.
+
+- The harness also passes `float[128]` arrays to a function expecting `float (*)[256]` — the test harness array sizes are too small (128 vs 256). This is a harness issue but may require the candidate to use smaller dimensions or the harness needs fixing.
+
+- Since you cannot change the harness, verify the candidate's `bb` parameter dimension matches what the harness provides: if the harness uses `float bb[128]` (1D, size 128), change `bb[256][256]` to a flat pointer `float * __restrict__ bb` and index as `bb[j*256+i]` or adjust dimensions to match.
+
+- Change `float bb[256][256]` to `float * __restrict__ bb` and access as `bb[j*256 + i]` to match a flat array passed from the harness.
+
+- Similarly update all `bb[j][i]` accesses to `bb[j*256 + i]` (or appropriate stride).
+
+- The `col_sum[256][256]` stack allocation is 256 KB — consider reducing or using a flat array if stack size is a concern, though this is not a compile error.

@@ -1,0 +1,92 @@
+Revise your candidate for `s315` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s315(int iterations, int LEN_1D, float* a)
+{
+    for (int i = 0; i < LEN_1D; i++)
+        a[i] = (i * 7) % LEN_1D;
+
+    float x, chksum;
+    int index;
+    for (int nl = 0; nl < iterations; nl++) {
+        /* First pass: find the maximum value using a pure float reduction (vectorizable) */
+        float max_val = a[0];
+        for (int i = 1; i < LEN_1D; i++) {
+            max_val = a[i] > max_val ? a[i] : max_val;
+        }
+
+        /* Second pass: find minimum index where a[i] == max_val
+           Use negated-index max reduction: max of (-i) where a[i]==max_val
+           Equivalent to finding the first (minimum) occurrence index.
+           neg_idx starts at 0 (corresponds to index 0).
+           For each i, if a[i]==max_val and -i > neg_idx, update neg_idx = -i.
+           This is a standard max-reduction, vectorizable. */
+        int neg_idx = 0; /* -index, starts at -(0) = 0 */
+        for (int i = 0; i < LEN_1D; i++) {
+            int c = (a[i] == max_val);
+            int candidate = -i;
+            neg_idx = (c & (candidate > neg_idx)) ? candidate : neg_idx;
+        }
+
+        x = max_val;
+        index = -neg_idx;
+        chksum = x + (float)index;
+    }
+    return index + x + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <float.h>
+
+float vectorized_s315(int iterations, int LEN_1D, float* a)
+{
+    float x, chksum;
+    int index;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        /* First pass: find the maximum value using unrolled reduction */
+        float max0 = -FLT_MAX, max1 = -FLT_MAX, max2 = -FLT_MAX, max3 = -FLT_MAX;
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+        for (; i < limit; i += 4) {
+            float v0 = a[i+0];
+            float v1 = a[i+1];
+            float v2 = a[i+2];
+            float v3 = a[i+3];
+            max0 = v0 > max0 ? v0 : max0;
+            max1 = v1 > max1 ? v1 : max1;
+            max2 = v2 > max2 ? v2 : max2;
+            max3 = v3 > max3 ? v3 : max3;
+        }
+        for (; i < LEN_1D; i++) {
+            float v = a[i];
+            max0 = v > max0 ? v : max0;
+        }
+        float tmp0 = max0 > max1 ? max0 : max1;
+        float tmp1 = max2 > max3 ? max2 : max3;
+        float max_val = tmp0 > tmp1 ? tmp0 : tmp1;
+
+        /* Second pass: find minimum (first) index where a[i] == max_val */
+        index = 0;
+        for (int j = 0; j < LEN_1D; j++) {
+            if (a[j] == max_val) { index = j; break; }
+        }
+
+        x = max_val;
+        chksum = x + (float)index;
+        (void)chksum;
+    }
+    return x + (float)index;
+}
+        ```
+
+        Tester feedback:
+        - The function returns `x + (float)index` but the reference expects them returned separately or the checksum computed differently. The issue is that `x` holds `max_val` and `index` is the 0-based index, but the reference implementation likely uses a **1-based index** (i.e., `index + 1`) to match Fortran-style indexing conventions used in these benchmarks.
+- Change `index = j;` to `index = j + 1;` (1-based) so the returned value `x + (float)index` matches the reference checksum.
+- Also ensure `x` is initialized before the loop in case `iterations == 0`; add `x = 0.0f; index = 0;` before the `nl` loop to avoid returning uninitialized values.
+
+        Return a corrected candidate function named `vectorized_s315`.

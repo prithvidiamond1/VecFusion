@@ -1,0 +1,3 @@
+- The file contains a nested code fence (` ```c `) at line 64 inside the C source, which is invalid C syntax. Remove that line entirely.
+- The `return` statement at the end is incomplete — change it to `return chksum;` to properly return the computed checksum.
+- The outer ` ``` ` closing fence after the `return` is also inside the C file; remove it so the file ends with just `}` after the return statement.

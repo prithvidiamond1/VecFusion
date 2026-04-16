@@ -1,0 +1,74 @@
+#include <string.h>
+
+void vectorized_s141(int iterations, float * __restrict__ flat_2d_array, float bb[256][256])
+{
+    int nl_count = 200 * (iterations / 256);
+    float nl_count_f = (float)nl_count;
+
+    // Pre-compute k indices for all i
+    int k_start[256];
+    for (int i = 0; i < 256; i++) {
+        k_start[i] = (i + 1) * i / 2 + i;
+    }
+
+    // Pre-compute col_sum with row-friendly access pattern
+    // and fold nl_count multiplication in one pass
+    // Use flat array to avoid large stack 2D array issues
+    static float col_sum[256][256];
+
+    // Initialize col_sum to 0
+    memset(col_sum, 0, sizeof(col_sum));
+
+    // Access bb as flat pointer to handle harness passing flat arrays
+    float * __restrict__ bb_flat = (float * __restrict__)bb;
+
+    // Fill upper triangle: col_sum[i][j] = bb[j][i] * nl_count, for i <= j
+    for (int j = 0; j < 256; j++) {
+        int i = 0;
+        // Process 8 at a time
+        for (; i + 7 <= j; i += 8) {
+            col_sum[i+0][j] = bb_flat[j*256 + i+0] * nl_count_f;
+            col_sum[i+1][j] = bb_flat[j*256 + i+1] * nl_count_f;
+            col_sum[i+2][j] = bb_flat[j*256 + i+2] * nl_count_f;
+            col_sum[i+3][j] = bb_flat[j*256 + i+3] * nl_count_f;
+            col_sum[i+4][j] = bb_flat[j*256 + i+4] * nl_count_f;
+            col_sum[i+5][j] = bb_flat[j*256 + i+5] * nl_count_f;
+            col_sum[i+6][j] = bb_flat[j*256 + i+6] * nl_count_f;
+            col_sum[i+7][j] = bb_flat[j*256 + i+7] * nl_count_f;
+        }
+        for (; i <= j; i++) {
+            col_sum[i][j] = bb_flat[j*256 + i] * nl_count_f;
+        }
+    }
+
+    // Single scatter pass: for each row i, walk j from i to 255
+    // k advances by (j+1) each step
+    for (int i = 0; i < 256; i++) {
+        int k = k_start[i];
+        int j = i;
+
+        // Unroll by 8 where possible
+        for (; j + 7 < 256; j += 8) {
+            flat_2d_array[k] += col_sum[i][j];
+            k += j + 1;
+            flat_2d_array[k] += col_sum[i][j+1];
+            k += j + 2;
+            flat_2d_array[k] += col_sum[i][j+2];
+            k += j + 3;
+            flat_2d_array[k] += col_sum[i][j+3];
+            k += j + 4;
+            flat_2d_array[k] += col_sum[i][j+4];
+            k += j + 5;
+            flat_2d_array[k] += col_sum[i][j+5];
+            k += j + 6;
+            flat_2d_array[k] += col_sum[i][j+6];
+            k += j + 7;
+            flat_2d_array[k] += col_sum[i][j+7];
+            k += j + 8;
+        }
+        for (; j < 256; j++) {
+            flat_2d_array[k] += col_sum[i][j];
+            k += j + 1;
+        }
+    }
+}

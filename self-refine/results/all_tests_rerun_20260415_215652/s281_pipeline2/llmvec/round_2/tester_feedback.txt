@@ -1,0 +1,3 @@
+- The candidate code has a duplicate/nested ` ```c ` fence at the top (the file starts with ` ```c ` then immediately has another ` ```c ` on line 2), causing the literal backtick text to appear inside the C source and trigger a parse error.
+- Remove the outer ` ```c ` / ` ``` ` markdown fences entirely — the submitted file must contain only valid C source code, no markdown formatting.
+- The code is also truncated at the end (the last loop and closing braces are missing); complete the second half loop and close all braces: finish the `for` loop body, add the scalar tail loop, and close the `nl` loop and the function.

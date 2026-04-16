@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s13110_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nfloat vectorized_s13110(int iterations, float aa[256][256])\n{\n    int xindex, yindex;\n    float max, chksum;\n\n    for (int nl = 0; nl < 100 * (iterations / (256)); nl++) {\n        max = aa[0][0];\n        xindex = 0;\n        yindex = 0;\n\n        for (int i = 0; i < 256; i++) {\n            // Process 8 floats at a time using unrolled scalar (vector-friendly)\n            // We track max and its index across j dimension\n            float local_max0 = aa[i][0];   int local_j0 = 0;\n            float local_max1 = aa[i][1];   int local_j1 = 1;\n            float local_max2 = aa[i][2];   int local_j2 = 2;\n            float local_max3 = aa[i][3];   int local_j3 = 3;\n            float local_max4 = aa[i][4];   int local_j4 = 4;\n            float local_max5 = aa[i][5];   int local_j5 = 5;\n            float local_max6 = aa[i][6];   int local_j6 = 6;\n            float local_max7 = aa[i][7];   int local_j7 = 7;\n\n            for (int j = 8; j < 256; j += 8) {\n                float v0 = aa[i][j+0];\n                float v1 = aa[i][j+1];\n                float v2 = aa[i][j+2];\n                float v3 = aa[i][j+3];\n                float v4 = aa[i][j+4];\n                float v5 = aa[i][j+5];\n                float v6 = aa[i][j+6];\n                float v7 = aa[i][j+7];\n\n                if (v0 > local_max0) { local_max0 = v0; local_j0 = j+0; }\n                if (v1 > local_max1) { local_max1 = v1; local_j1 = j+1; }\n                if (v2 > local_max2) { local_max2 = v2; local_j2 = j+2; }\n                if (v3 > local_max3) { local_max3 = v3; local_j3 = j+3; }\n                if (v4 > local_max4) { local_max4 = v4; local_j4 = j+4; }\n                if (v5 > local_max5) { local_max5 = v5; local_j5 = j+5; }\n                if (v6 > local_max6) { local_max6 = v6; local_j6 = j+6; }\n                if (v7 > local_max7) { local_max7 = v7; local_j7 = j+7; }\n            }\n\n            // Reduce 8 lanes\n            float row_max = local_max0; int row_j = local_j0;\n            if (local_max1 > row_max) { row_max = local_max1; row_j = local_j1; }\n            if (local_max2 > row_max) { row_max = local_max2; row_j = local_j2; }\n            if (local_max3 > row_max) { row_max = local_max3; row_j = local_j3; }\n            if (local_max4 > row_max) { row_max = local_max4; row_j = local_j4; }\n            if (local_max5 > row_max) { row_max = local_max5; row_j = local_j5; }\n            if (local_max6 > row_max) { row_max = local_max6; row_j = local_j6; }\n            if (local_max7 > row_max) { row_max = local_max7; row_j = local_j7; }\n\n            if (row_max > max) {\n                max = row_max;\n                xindex = i;\n                yindex = row_j;\n            }\n        }\n\n        chksum = max + (float)xindex + (float)yindex;\n    }\n\n    return max + xindex + 1 + yindex + 1;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s13110_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s13110",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s13110_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s13110_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s13110_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

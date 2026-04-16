@@ -1,0 +1,65 @@
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations, int LEN_1D, float* a, float* b)
+{
+    float dot = 0.0f;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        float sum0 = 0.0f, sum1 = 0.0f, sum2 = 0.0f, sum3 = 0.0f, sum4 = 0.0f;
+        for (int i = 0; i < LEN_1D; i += 5) {
+            sum0 += a[i]     * b[i];
+            sum1 += a[i + 1] * b[i + 1];
+            sum2 += a[i + 2] * b[i + 2];
+            sum3 += a[i + 3] * b[i + 3];
+            sum4 += a[i + 4] * b[i + 4];
+        }
+        dot = sum0 + sum1 + sum2 + sum3 + sum4;
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+typedef float float4 __attribute__((vector_size(16)));
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float* b)
+{
+    float dot = 0.0f;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        /* Use contiguous vectorization: process 4 floats at a time */
+        float4 vsum = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        int limit = (LEN_1D / 4) * 4;
+        int i = 0;
+
+        for (; i < limit; i += 4) {
+            float4 va, vb;
+            va[0] = a[i];   va[1] = a[i+1]; va[2] = a[i+2]; va[3] = a[i+3];
+            vb[0] = b[i];   vb[1] = b[i+1]; vb[2] = b[i+2]; vb[3] = b[i+3];
+            vsum += va * vb;
+        }
+
+        float total = vsum[0] + vsum[1] + vsum[2] + vsum[3];
+
+        /* Scalar tail for remaining elements */
+        for (; i < LEN_1D; i++) {
+            total += a[i] * b[i];
+        }
+
+        dot = total;
+    }
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The function resets `vsum` to zero at the start of each `nl` iteration and overwrites `dot = total` each time, which is correct structurally, but the reference implementation accumulates `dot` across the outer loop (i.e., `dot += a[i]*b[i]` inside the outer loop, not a fresh dot product each iteration).
+- The original `s352` kernel does `dot += a[i]*b[i]` — it **accumulates** into `dot` across all outer `nl` iterations, not resets each time.
+- Fix: initialize `dot = 0.0f` before the outer loop (already done), but inside the outer loop **add** `total` to `dot` instead of assigning: change `dot = total;` to `dot += total;`.
+- Also initialize `vsum` outside or accumulate properly — since each `nl` pass should add to the running `dot`, the simplest fix is `dot += total;` (keep `vsum` reset per inner pass, just accumulate into `dot`).
+
+        Return a corrected candidate function named `vectorized_s352`.

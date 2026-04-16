@@ -1,0 +1,7 @@
+The compile error is in the test harness wrapper code, not in the candidate function itself. The issue is a `redefinition of 'n'` conflict between `const int n = 128;` and `int n = n;` in the generated test code.
+
+- The test harness declares `const int n = 128;` then later tries `int n = n;` — this is a harness generation bug where the variable `n` is being re-declared in the same scope.
+- Fix: in the test harness, remove the redundant `int n = n;` redeclaration (or rename it), since `n` is already defined as `const int n = 128;` in the enclosing scope.
+- The candidate function `vectorized_s212` itself compiles cleanly — no changes needed to the function body or signature.
+- The `typedef float float4 __attribute__((vector_size(16)));` inside the function body is valid C11 with clang, so that is not the issue.
+- Ensure the test harness uses a single declaration of `n` (e.g., keep only `const int n = 128;`) and does not attempt to shadow or redefine it within the same block scope.

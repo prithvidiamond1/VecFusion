@@ -1,0 +1,47 @@
+```c
+#include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int index = 0;
+    float max = 0.0f;
+    float chksum = 0.0f;
+
+    for (int nl = 0; nl < iterations/2; nl++) {
+        index = 0;
+        max = fabsf(a[0]);
+
+        int chunk = (LEN_1D - 1) / 4;
+        int rem_start = 1 + chunk * 4;
+
+        int ki = inc; // starts at a[1*inc]
+
+        for (int ci = 0; ci < chunk; ci++) {
+            float v0 = fabsf(a[ki]);          ki += inc;
+            float v1 = fabsf(a[ki]);          ki += inc;
+            float v2 = fabsf(a[ki]);          ki += inc;
+            float v3 = fabsf(a[ki]);          ki += inc;
+
+            int base = 1 + ci * 4;
+
+            if (v0 > max) { max = v0; index = base + 0; }
+            if (v1 > max) { max = v1; index = base + 1; }
+            if (v2 > max) { max = v2; index = base + 2; }
+            if (v3 > max) { max = v3; index = base + 3; }
+        }
+
+        // Scalar cleanup for remaining elements
+        for (int i2 = rem_start; i2 < LEN_1D; i2++) {
+            float v = fabsf(a[ki]);
+            if (v > max) {
+                max = v;
+                index = i2;
+            }
+            ki += inc;
+        }
+
+        chksum = max + (float)index;
+    }
+    return chksum;
+}
+```

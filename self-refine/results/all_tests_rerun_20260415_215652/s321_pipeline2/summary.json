@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s321_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s321_opt(int iterations, int LEN_1D, float* a, float* b)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        float prev = a[0];\n        for (int i = 1; i < LEN_1D; i++) {\n            float curr = a[i] + prev * b[i];\n            prev = curr;\n            a[i] = curr;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s321_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s321_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s321_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s321(int iterations, int LEN_1D, float* a, float* b)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        float prev = a[0];\n        int i = 1;\n\n        // Unrolled loop - still scalar due to loop-carried dependency on prev\n        // but unrolling helps instruction-level parallelism and compiler optimization\n        for (; i <= LEN_1D - 4; i += 4) {\n            float c0 = a[i+0] + prev  * b[i+0];\n            float c1 = a[i+1] + c0   * b[i+1];\n            float c2 = a[i+2] + c1   * b[i+2];\n            float c3 = a[i+3] + c2   * b[i+3];\n            a[i+0] = c0;\n            a[i+1] = c1;\n            a[i+2] = c2;\n            a[i+3] = c3;\n            prev = c3;\n        }\n\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            float curr = a[i] + prev * b[i];\n            prev = curr;\n            a[i] = curr;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s321_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s321",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s321_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s321_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s321_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

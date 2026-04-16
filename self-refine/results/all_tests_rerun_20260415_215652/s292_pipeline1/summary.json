@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s292_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s292(int iterations, int LEN_1D, float* a, float* b)\n{\n    int im1, im2;\n    for (int nl = 0; nl < iterations; nl++) {\n        im1 = LEN_1D - 1;\n        im2 = LEN_1D - 2;\n        // The loop has a recurrence on im1/im2 that depends on i,\n        // but the values of im1 and im2 for each iteration can be\n        // precomputed: for iteration i, im1 = i-1 (mod LEN_1D) and\n        // im2 = i-2 (mod LEN_1D).\n        // So a[i] = (b[i] + b[(i-1+LEN_1D)%LEN_1D] + b[(i-2+LEN_1D)%LEN_1D]) * 0.333f\n        // We can unroll this with direct index computation.\n\n        // Handle first two elements with wrap-around\n        // i=0: im1=LEN_1D-1, im2=LEN_1D-2\n        // i=1: im1=0, im2=LEN_1D-1\n        // i>=2: im1=i-1, im2=i-2\n\n        if (LEN_1D >= 1) {\n            a[0] = (b[0] + b[LEN_1D - 1] + b[LEN_1D - 2]) * 0.333f;\n        }\n        if (LEN_1D >= 2) {\n            a[1] = (b[1] + b[0] + b[LEN_1D - 1]) * 0.333f;\n        }\n\n        // For i >= 2, no wrap-around needed\n        int i = 2;\n        // Vectorized portion (unroll by 8)\n        int limit = LEN_1D - (LEN_1D - 2) % 8;\n        for (; i <= LEN_1D - 8; i += 8) {\n            a[i + 0] = (b[i + 0] + b[i - 1] + b[i - 2]) * 0.333f;\n            a[i + 1] = (b[i + 1] + b[i + 0] + b[i - 1]) * 0.333f;\n            a[i + 2] = (b[i + 2] + b[i + 1] + b[i + 0]) * 0.333f;\n            a[i + 3] = (b[i + 3] + b[i + 2] + b[i + 1]) * 0.333f;\n            a[i + 4] = (b[i + 4] + b[i + 3] + b[i + 2]) * 0.333f;\n            a[i + 5] = (b[i + 5] + b[i + 4] + b[i + 3]) * 0.333f;\n            a[i + 6] = (b[i + 6] + b[i + 5] + b[i + 4]) * 0.333f;\n            a[i + 7] = (b[i + 7] + b[i + 6] + b[i + 5]) * 0.333f;\n        }\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            a[i] = (b[i] + b[i - 1] + b[i - 2]) * 0.333f;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s292_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s292",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s292_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s292_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s292_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+The compile error is in the test harness code (line 94), not in the candidate function itself. The issue is a `redefinition of 'n'` in the test scaffold — `int n = n;` conflicts with `const int n = 128;` already declared in the same scope.
+
+- The test harness declares `const int n = 128;` then later tries `int n = n;` — this is a scaffolding/harness bug, not in the candidate function body itself.
+- The fix needed in the harness: remove or rename the redundant `int n = n;` declaration (e.g., use a different variable name or simply omit it since `n` is already in scope).
+- Since you control the candidate file, ensure the candidate source file does **not** include any inline test harness that re-declares `n` after `const int n = 128;`.
+- If the test harness is appended to the candidate file, add a new scope block (`{ }`) around the conflicting `int n = n;` line, or rename it to `int n2 = n;`.
+- Alternatively, remove the `int n = n;` line entirely from the harness since `n` is already defined as `const int n = 128;` and is accessible.

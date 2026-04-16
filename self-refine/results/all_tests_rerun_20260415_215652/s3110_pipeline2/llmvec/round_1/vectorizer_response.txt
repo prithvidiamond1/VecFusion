@@ -1,0 +1,92 @@
+```c
+#include <stdint.h>
+#include <float.h>
+
+float vectorized_s3110(int iterations, float aa[256][256]) {
+    int xindex, yindex;
+    float max, chksum;
+    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {
+        max = aa[0][0];
+        xindex = 0;
+        yindex = 0;
+
+        /* Pass 1: find the maximum value using unrolled loop */
+        float local_max = aa[0][0];
+
+        /* Use 8-wide unrolling for vectorization hint */
+        float m0 = aa[0][0], m1 = aa[0][0], m2 = aa[0][0], m3 = aa[0][0];
+        float m4 = aa[0][0], m5 = aa[0][0], m6 = aa[0][0], m7 = aa[0][0];
+
+        for (int i = 0; i < 256; i++) {
+            const float *row = aa[i];
+            int j = 0;
+            for (; j <= 256 - 8; j += 8) {
+                float v0 = row[j+0], v1 = row[j+1], v2 = row[j+2], v3 = row[j+3];
+                float v4 = row[j+4], v5 = row[j+5], v6 = row[j+6], v7 = row[j+7];
+                m0 = v0 > m0 ? v0 : m0;
+                m1 = v1 > m1 ? v1 : m1;
+                m2 = v2 > m2 ? v2 : m2;
+                m3 = v3 > m3 ? v3 : m3;
+                m4 = v4 > m4 ? v4 : m4;
+                m5 = v5 > m5 ? v5 : m5;
+                m6 = v6 > m6 ? v6 : m6;
+                m7 = v7 > m7 ? v7 : m7;
+            }
+            for (; j < 256; j++) {
+                float v = row[j];
+                m0 = v > m0 ? v : m0;
+            }
+        }
+        /* Reduce the 8 partial maxima */
+        local_max = m0;
+        local_max = m1 > local_max ? m1 : local_max;
+        local_max = m2 > local_max ? m2 : local_max;
+        local_max = m3 > local_max ? m3 : local_max;
+        local_max = m4 > local_max ? m4 : local_max;
+        local_max = m5 > local_max ? m5 : local_max;
+        local_max = m6 > local_max ? m6 : local_max;
+        local_max = m7 > local_max ? m7 : local_max;
+        max = local_max;
+
+        /* Pass 2: find the first occurrence row by row */
+        int found_i = 256;
+        int found_j = 256;
+        for (int i = 0; i < 256; i++) {
+            const float *row = aa[i];
+            int row_j = 256;
+            /* Unrolled search for first match in this row */
+            int j = 0;
+            for (; j <= 256 - 8; j += 8) {
+                int match0 = (row[j+0] == max) & (row_j == 256);
+                row_j = match0 ? j+0 : row_j;
+                int match1 = (row[j+1] == max) & (row_j == 256);
+                row_j = match1 ? j+1 : row_j;
+                int match2 = (row[j+2] == max) & (row_j == 256);
+                row_j = match2 ? j+2 : row_j;
+                int match3 = (row[j+3] == max) & (row_j == 256);
+                row_j = match3 ? j+3 : row_j;
+                int match4 = (row[j+4] == max) & (row_j == 256);
+                row_j = match4 ? j+4 : row_j;
+                int match5 = (row[j+5] == max) & (row_j == 256);
+                row_j = match5 ? j+5 : row_j;
+                int match6 = (row[j+6] == max) & (row_j == 256);
+                row_j = match6 ? j+6 : row_j;
+                int match7 = (row[j+7] == max) & (row_j == 256);
+                row_j = match7 ? j+7 : row_j;
+            }
+            for (; j < 256; j++) {
+                int match = (row[j] == max) & (row_j == 256);
+                row_j = match ? j : row_j;
+            }
+            int use_row = (row_j < 256) & (found_i == 256);
+            found_i = use_row ? i : found_i;
+            found_j = use_row ? row_j : found_j;
+        }
+        xindex = found_i;
+        yindex = found_j;
+
+        chksum = max + (float)xindex + (float)yindex;
+    }
+    return max + xindex + 1 + yindex + 1;
+}
+```

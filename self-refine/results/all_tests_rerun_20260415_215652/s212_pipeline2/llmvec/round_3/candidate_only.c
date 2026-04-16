@@ -1,0 +1,42 @@
+#include <string.h>
+
+void vectorized_s212(int n, float *a, float *b, float *c, float *d) {
+    float *a_orig = (float *)__builtin_alloca((n - 1) * sizeof(float));
+    memcpy(a_orig, a + 1, (n - 1) * sizeof(float));
+
+    int i = 0;
+    int len = n - 1;
+
+#if defined(__clang__) || defined(__GNUC__)
+    typedef float float4 __attribute__((vector_size(16)));
+
+    int vec_len = len - (len % 4);
+
+    for (i = 0; i < vec_len; i += 4) {
+        float4 av, cv, bv, a_orig_v, dv;
+
+        __builtin_memcpy(&av, &a[i], 16);
+        __builtin_memcpy(&cv, &c[i], 16);
+        av = av * cv;
+        __builtin_memcpy(&a[i], &av, 16);
+
+        __builtin_memcpy(&bv, &b[i], 16);
+        __builtin_memcpy(&a_orig_v, &a_orig[i], 16);
+        __builtin_memcpy(&dv, &d[i], 16);
+        bv = bv + a_orig_v * dv;
+        __builtin_memcpy(&b[i], &bv, 16);
+    }
+
+    for (; i < len; i++) {
+        a[i] *= c[i];
+        b[i] += a_orig[i] * d[i];
+    }
+#else
+    for (i = 0; i < len; i++) {
+        a[i] *= c[i];
+    }
+    for (i = 0; i < len; i++) {
+        b[i] += a_orig[i] * d[i];
+    }
+#endif
+}

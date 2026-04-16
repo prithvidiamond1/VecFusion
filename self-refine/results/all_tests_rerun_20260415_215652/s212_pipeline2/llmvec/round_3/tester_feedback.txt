@@ -1,0 +1,3 @@
+The error is in the test harness code (line 97), not in the candidate function itself. The issue is `int n = n;` redeclaring `n` when `const int n = 128;` is already defined in the same scope.
+
+- Fix line 97: remove the redeclaration of `n` — change `int n = n;` to just remove that variable declaration, since `n` is already defined as `const int n = 128;` on line 95.

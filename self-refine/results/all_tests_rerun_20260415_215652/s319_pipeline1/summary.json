@@ -1,0 +1,40 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s319_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\nfloat vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)\n{\n    float sum = 0.0f;\n    for (int nl = 0; nl < 2 * iterations; nl++) {\n        sum = 0.0f;\n\n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 8);\n\n        float sum0 = 0.0f, sum1 = 0.0f, sum2 = 0.0f, sum3 = 0.0f;\n        float sum4 = 0.0f, sum5 = 0.0f, sum6 = 0.0f, sum7 = 0.0f;\n\n        for (; i < limit; i += 8) {\n            /* Read all inputs before any writes */\n            float c0 = c[i+0], c1 = c[i+1], c2 = c[i+2], c3 = c[i+3];\n            float c4 = c[i+4], c5 = c[i+5], c6 = c[i+6], c7 = c[i+7];\n\n            float d0 = d[i+0], d1 = d[i+1], d2 = d[i+2], d3 = d[i+3];\n            float d4 = d[i+4], d5 = d[i+5], d6 = d[i+6], d7 = d[i+7];\n\n            float e0 = e[i+0], e1 = e[i+1], e2 = e[i+2], e3 = e[i+3];\n            float e4 = e[i+4], e5 = e[i+5], e6 = e[i+6], e7 = e[i+7];\n\n            float a0 = c0 + d0, a1 = c1 + d1, a2 = c2 + d2, a3 = c3 + d3;\n            float a4 = c4 + d4, a5 = c5 + d5, a6 = c6 + d6, a7 = c7 + d7;\n\n            float b0 = c0 + e0, b1 = c1 + e1, b2 = c2 + e2, b3 = c3 + e3;\n            float b4 = c4 + e4, b5 = c5 + e5, b6 = c6 + e6, b7 = c7 + e7;\n\n            /* Now write outputs */\n            a[i+0] = a0; a[i+1] = a1; a[i+2] = a2; a[i+3] = a3;\n            a[i+4] = a4; a[i+5] = a5; a[i+6] = a6; a[i+7] = a7;\n\n            b[i+0] = b0; b[i+1] = b1; b[i+2] = b2; b[i+3] = b3;\n            b[i+4] = b4; b[i+5] = b5; b[i+6] = b6; b[i+7] = b7;\n\n            sum0 += a0 + b0;\n            sum1 += a1 + b1;\n            sum2 += a2 + b2;\n            sum3 += a3 + b3;\n            sum4 += a4 + b4;\n            sum5 += a5 + b5;\n            sum6 += a6 + b6;\n            sum7 += a7 + b7;\n        }\n\n        sum = (sum0 + sum1) + (sum2 + sum3) + (sum4 + sum5) + (sum6 + sum7);\n\n        for (; i < LEN_1D; i++) {\n            float ci = c[i], di = d[i], ei = e[i];\n            float ai = ci + di;\n            float bi = ci + ei;\n            a[i] = ai;\n            b[i] = bi;\n            sum += ai + bi;\n        }\n\n        a[0] = sum;\n    }\n    return a[0];\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s319_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s319",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s319_pipeline1/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s319_opt(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)\n{\n    float sum;\n    for (int nl = 0; nl < 2 * iterations; nl++) {\n        sum = 0.;\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = c[i] + d[i];\n        }\n        for (int i = 0; i < LEN_1D; i++) {\n            b[i] = c[i] + e[i];\n        }\n        for (int i = 0; i < LEN_1D; i++) {\n            sum += a[i];\n            sum += b[i];\n        }\n    }\n    return sum;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s319_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s319_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s319_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

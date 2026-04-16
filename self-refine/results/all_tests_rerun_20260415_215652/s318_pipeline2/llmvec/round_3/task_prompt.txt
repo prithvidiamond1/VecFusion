@@ -1,0 +1,93 @@
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        index = 0;
+        max = fabsf(a[0]);
+
+        // First pass: find max value (vectorizable max-reduction)
+        for (int i = 1; i < LEN_1D; i++) {
+            float val = fabsf(a[i * inc]);
+            if (val > max) max = val;
+        }
+
+        // Second pass: find first index where value equals max
+        // Use a flag array approach to avoid loop-carried dependency on index
+        int found = 0;
+        for (int i = 1; i < LEN_1D; i++) {
+            float val = fabsf(a[i * inc]);
+            int is_max = (val == max);
+            int update = is_max & (found == 0);
+            index = update ? i : index;
+            found = found | update;
+        }
+
+        // Fix index: if max is a[0], index should remain 0
+        index = (fabsf(a[0]) == max) ? 0 : index;
+
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+#include <stdint.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int index;
+    float max, chksum;
+    chksum = 0.0f;
+    max = 0.0f;
+    index = 0;
+
+    for (int nl = 0; nl < iterations/2; nl++) {
+        index = 0;
+        max = fabsf(a[0]);
+
+        // Single pass: find max value and first index where max is achieved
+        // Unrolled 4x for vectorization friendliness, but must preserve
+        // "first strictly greater" semantics — do scalar unroll
+        int i = 1;
+        for (; i <= LEN_1D - 4; i += 4) {
+            float v0 = fabsf(a[i * inc]);
+            float v1 = fabsf(a[(i+1) * inc]);
+            float v2 = fabsf(a[(i+2) * inc]);
+            float v3 = fabsf(a[(i+3) * inc]);
+            if (v0 > max) { max = v0; index = i; }
+            if (v1 > max) { max = v1; index = i+1; }
+            if (v2 > max) { max = v2; index = i+2; }
+            if (v3 > max) { max = v3; index = i+3; }
+        }
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float val = fabsf(a[i * inc]);
+            if (val > max) { max = val; index = i; }
+        }
+
+        chksum = max + (float)index;
+    }
+    return chksum;
+}
+        ```
+
+        Tester feedback:
+        - The original `s318` uses `inc=1` (stride-1 access), so `a[i * inc]` is correct, but the reference likely initializes `a[0]` as the starting element with `index=0` referring to 1-based or 0-based indexing — check that `index` starts at `0` and `max = fabsf(a[0])` is correct (this part looks fine).
+
+- The main bug: the loop runs `iterations/2` times but the reference scalar likely runs `iterations` times. Change `iterations/2` to `iterations` to match the expected iteration count.
+
+- If the reference uses 1-based indexing (i.e., starts `i` from 1 and reports 1-based index), the returned `index` value will differ. Verify whether the reference initializes `index=1` and starts scanning from `i=2`, or `index=0` from `i=1`. The current code uses `index=0, i=1` which is 0-based — ensure this matches the reference implementation exactly.
+
+- The `inc` parameter: if `inc` can be non-1, `a[0]` should be `a[0 * inc]` (i.e., `a[0]`) — that's already correct since `0 * inc = 0`.
+
+- Most likely the sole fix needed: change `iterations/2` → `iterations` in the outer loop bound.
+
+        Return a corrected candidate function named `vectorized_s318`.

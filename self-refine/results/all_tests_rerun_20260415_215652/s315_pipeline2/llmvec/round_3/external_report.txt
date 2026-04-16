@@ -1,0 +1,4 @@
+Compile succeeded for round 3.
+Exit code: 2
+stderr:
+Return mismatch on trial 0

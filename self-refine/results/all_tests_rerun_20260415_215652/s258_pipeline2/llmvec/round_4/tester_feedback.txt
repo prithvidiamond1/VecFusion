@@ -1,0 +1,21 @@
+The test is comparing against a reference implementation of `s258`. The key issue is the semantics of the carry-dependent loop: in the original `s258` pattern, `s` is updated **only when `a[i] > 0`**, but the value used for `b[i]` and `e[i]` is the **current running value of `s`** at each iteration — which is what the code does. However, the mismatch suggests the condition or the assignment logic differs from the reference.
+
+Looking at the classic `s258` loop from the vectorization benchmark suite, the standard form is:
+
+```c
+s = 0;
+for (i = 0; i < n; i++) {
+    if (a[i] > b[i]) s += c[i];
+    d[i] = s * e[i];
+}
+```
+
+The candidate is using `s = d[i] * d[i]` (assignment, not accumulation) and wrong arrays. Here are the fixes needed:
+
+- **Wrong operation**: `s` should be **accumulated** (`s += c[i]`) not assigned (`s = d[i] * d[i]`).
+- **Wrong condition arrays**: The condition should compare `a[i] > b[i]`, not `a[i] > 0.f`.
+- **Wrong output**: The result `d[i] = s * e[i]` should be computed in the carry loop itself (or faithfully replicated), not split into separate `b[i]` and `e[i]` passes with different formulas.
+- **Wrong output arrays**: The reference writes to `d[i]`, not `b[i]` and `e[i]` separately.
+- **Remove the `s_arr` split**: The second and third passes with `b[i]` and `e[i]` don't match the reference signature; collapse back to a single loop writing `d[i] = s * e[i]`.
+- **Scalar loop is correct in structure** but must use the right accumulation and arrays as above.
+- **Resulting corrected inner loop** should be: `if (a[i] > b[i]) s += c[i]; d[i] = s * e[i];` with `s` initialized to `0` each `nl` iteration.

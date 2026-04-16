@@ -1,0 +1,133 @@
+#include <stdbool.h>
+        #include <stdint.h>
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <string.h>
+        #include <math.h>
+
+        void s1161(int iterations, int LEN_1D, float* a,float* b,float* c,float* d,float* e)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < LEN_1D-1; ++i) {
+            if (c[i] < (float)0.) {
+                goto L20;
+            }
+            a[i] = c[i] + d[i] * e[i];
+            goto L10;
+L20:
+            b[i] = a[i] + d[i] * d[i];
+L10:
+            ;
+        }
+    }
+}
+
+        void vectorized_s1161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        int len = LEN_1D - 1;
+
+#if defined(__clang__) || defined(__GNUC__)
+        typedef float float4 __attribute__((vector_size(16)));
+
+        int vec_len = len - (len % 4);
+        for (; i < vec_len; i += 4) {
+            float4 ci, di, ei, ai, bi;
+
+            /* Load */
+            ci[0] = c[i+0]; ci[1] = c[i+1]; ci[2] = c[i+2]; ci[3] = c[i+3];
+            di[0] = d[i+0]; di[1] = d[i+1]; di[2] = d[i+2]; di[3] = d[i+3];
+            ei[0] = e[i+0]; ei[1] = e[i+1]; ei[2] = e[i+2]; ei[3] = e[i+3];
+            ai[0] = a[i+0]; ai[1] = a[i+1]; ai[2] = a[i+2]; ai[3] = a[i+3];
+
+            /* Compute both branches */
+            float4 a_branch = ci + di * ei;       /* c[i] >= 0 branch */
+            float4 b_branch = ai + di * di;       /* c[i] <  0 branch */
+
+            /* mask: c[i] < 0 */
+            float4 zero = {0.f, 0.f, 0.f, 0.f};
+            /* Use element-wise selection */
+            for (int k = 0; k < 4; k++) {
+                if (ci[k] < 0.f) {
+                    b[i+k] = b_branch[k];
+                } else {
+                    a[i+k] = a_branch[k];
+                }
+            }
+        }
+#endif
+
+        /* Scalar tail (or full loop if no vector extension) */
+        for (; i < len; i++) {
+            if (c[i] < (float)0.) {
+                b[i] = a[i] + d[i] * d[i];
+            } else {
+                a[i] = c[i] + d[i] * e[i];
+            }
+        }
+    }
+}
+
+        static uint32_t next_u32(uint32_t *state) {
+            *state = (*state * 1664525u) + 1013904223u;
+            return *state;
+        }
+
+        static void fill_i32(int *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = (int)(next_u32(state) % 2001u) - 1000;
+            }
+        }
+
+        static void fill_f32(float *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = ((float)(next_u32(state) % 2001u) - 1000.0f) / 17.0f;
+            }
+        }
+
+        static void fill_f64(double *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = ((double)(next_u32(state) % 2001u) - 1000.0) / 17.0;
+            }
+        }
+
+        int main(void) {
+            const int n = 128;
+            uint32_t seed = 7u;
+            int iterations = 5; int LEN_1D = n; float a_scalar[128]; float a_vector[128]; float b_scalar[128]; float b_vector[128]; float c_scalar[128]; float c_vector[128]; float d_scalar[128]; float d_vector[128]; float e_scalar[128]; float e_vector[128];
+
+            for (int trial = 0; trial < 64; ++trial) {
+                fill_f32(a_scalar, n, &seed); memcpy(a_vector, a_scalar, sizeof(a_scalar)); fill_f32(b_scalar, n, &seed); memcpy(b_vector, b_scalar, sizeof(b_scalar)); fill_f32(c_scalar, n, &seed); memcpy(c_vector, c_scalar, sizeof(c_scalar)); fill_f32(d_scalar, n, &seed); memcpy(d_vector, d_scalar, sizeof(d_scalar)); fill_f32(e_scalar, n, &seed); memcpy(e_vector, e_scalar, sizeof(e_scalar));
+                s1161(iterations, LEN_1D, a_scalar, b_scalar, c_scalar, d_scalar, e_scalar); vectorized_s1161(iterations, LEN_1D, a_vector, b_vector, c_vector, d_vector, e_vector);
+                for (int i = 0; i < n; ++i) {
+    if (fabsf((a_scalar[i]) - (a_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter a on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < n; ++i) {
+    if (fabsf((b_scalar[i]) - (b_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter b on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < n; ++i) {
+    if (fabsf((c_scalar[i]) - (c_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter c on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < n; ++i) {
+    if (fabsf((d_scalar[i]) - (d_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter d on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < n; ++i) {
+    if (fabsf((e_scalar[i]) - (e_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter e on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+}
+            }
+
+            printf("PASS trials=%d\n", 64);
+            return 0;
+        }

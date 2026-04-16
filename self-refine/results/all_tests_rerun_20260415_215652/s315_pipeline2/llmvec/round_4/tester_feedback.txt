@@ -1,0 +1,6 @@
+- The function returns `x + (float)index` but the reference expects only `x` (the maximum value) or only `index` — the combined return is wrong.
+- Looking at the s315 pattern (ISAMAX-style), the function should return the **1-based index** of the maximum absolute value element as a float, i.e., `return (float)index;` — drop `x` from the return.
+- The search should use `fabsf(a[j])` for both the max-finding pass and the index-finding pass (ISAMAX finds the index of the element with maximum **absolute** value).
+- Update the reduction passes to compare `fabsf(v0)` etc. against `max0..max3`, and set `max_val` accordingly.
+- In the index search loop, compare `fabsf(a[j]) == max_val` (where `max_val` is the max of absolute values).
+- Change the return statement to `return (float)index;`.

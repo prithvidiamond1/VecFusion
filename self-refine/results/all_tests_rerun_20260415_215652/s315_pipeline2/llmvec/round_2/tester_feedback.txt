@@ -1,0 +1,9 @@
+The test expects a specific return value that matches the reference implementation. The issue is in how `index` is found and how the final value is computed.
+
+- The reference `s315` typically finds the index of the **first** maximum element and returns `x + index + 1` where `x` is the max value — but the initialization loop `a[i] = (i * 7) % LEN_1D` produces values 0..LEN_1D-1 (modulo), so the maximum is `LEN_1D - 1` and may appear at multiple indices; the first occurrence matters.
+
+- The real problem: the initialization `a[i] = (i * 7) % LEN_1D` is **wrong**. The reference benchmark initializes `a` externally before calling the function. Your function overwrites `a` with a custom pattern instead of using the externally provided data. **Remove the initialization loop** (the `for (int i = 0; i < LEN_1D; i++) a[i] = (i * 7) % LEN_1D;` block) so the function uses whatever `a` the caller provides.
+
+- The return value formula `index + x + 1` may also differ from the reference. The standard `s315` checksum is typically `x + (float)index` — check whether the `+ 1` is correct or should be removed.
+
+- Specifically: **delete** the initialization loop at the top of the function, and change the return to `x + (float)index` (dropping the `+ 1`) to match the reference checksum.

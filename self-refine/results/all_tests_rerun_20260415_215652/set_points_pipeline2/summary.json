@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/set_points_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void set_points_opt(float* dst, int* src, const int* divs, int divCount, int srcFixed, int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd, bool isScalable) {\n    float dstLen = dstEnd - dstStart;\n    float scale;\n    int normalCase = (srcFixed <= dstLen);\n    if (normalCase) {\n        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);\n    } else {\n        scale = dstLen / ((float) srcFixed);\n    }\n\n    // Precompute scale factors for scalable and non-scalable patches\n    float scaleWhenScalable    = normalCase ? scale : 0.0f;\n    float scaleWhenNonScalable = normalCase ? 1.0f  : scale;\n\n    // Fill src array (no dependency, can be vectorized)\n    src[0] = srcStart;\n    for (int i = 0; i < divCount; i++) {\n        src[i + 1] = divs[i];\n    }\n    src[divCount + 1] = srcEnd;\n\n    // Precompute srcDelta array\n    int* srcDelta = (int*)__builtin_alloca((divCount + 1) * sizeof(int));\n    for (int i = 0; i < divCount; i++) {\n        srcDelta[i] = src[i + 1] - src[i];\n    }\n\n    // Precompute dstDelta array using alternating isScalable (no dependency, vectorizable)\n    float* dstDelta = (float*)__builtin_alloca((divCount + 1) * sizeof(float));\n    int curScalable = (int)isScalable;\n    for (int i = 0; i < divCount; i++) {\n        float s = curScalable ? scaleWhenScalable : scaleWhenNonScalable;\n        dstDelta[i] = s * (float)srcDelta[i];\n        curScalable = !curScalable;\n    }\n\n    // Accumulate dst (sequential due to dependency)\n    dst[0] = dstStart;\n    for (int i = 0; i < divCount; i++) {\n        dst[i + 1] = dst[i] + dstDelta[i];\n    }\n    dst[divCount + 1] = dstEnd;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/set_points_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/set_points_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/set_points_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdbool.h>\n#include <alloca.h>\n\nvoid vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed, int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd, bool isScalable) {\n    float dstLen = dstEnd - dstStart;\n    float scale;\n    int normalCase = (srcFixed <= dstLen);\n    if (normalCase) {\n        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);\n    } else {\n        scale = dstLen / ((float) srcFixed);\n    }\n\n    float scaleWhenScalable    = normalCase ? scale : 0.0f;\n    float scaleWhenNonScalable = normalCase ? 1.0f  : scale;\n\n    // Fill src array (write back to caller's src)\n    src[0] = srcStart;\n    {\n        int i = 0;\n        for (; i + 3 < divCount; i += 4) {\n            src[i + 1] = divs[i];\n            src[i + 2] = divs[i + 1];\n            src[i + 3] = divs[i + 2];\n            src[i + 4] = divs[i + 3];\n        }\n        for (; i < divCount; i++) {\n            src[i + 1] = divs[i];\n        }\n    }\n    src[divCount + 1] = srcEnd;\n\n    int totalSegs = divCount + 1;\n\n    // Precompute srcDelta array: totalSegs elements\n    int* srcDelta = (int*)alloca(totalSegs * sizeof(int));\n    {\n        int i = 0;\n        for (; i + 3 < totalSegs; i += 4) {\n            srcDelta[i]     = src[i + 1] - src[i];\n            srcDelta[i + 1] = src[i + 2] - src[i + 1];\n            srcDelta[i + 2] = src[i + 3] - src[i + 2];\n            srcDelta[i + 3] = src[i + 4] - src[i + 3];\n        }\n        for (; i < totalSegs; i++) {\n            srcDelta[i] = src[i + 1] - src[i];\n        }\n    }\n\n    // Precompute dstDelta array: totalSegs elements\n    // Even segments: scalable when isScalable==true, non-scalable when isScalable==false\n    // Odd segments: non-scalable when isScalable==true, scalable when isScalable==false\n    float* dstDelta = (float*)alloca(totalSegs * sizeof(float));\n    {\n        float scaleEven = isScalable ? scaleWhenScalable    : scaleWhenNonScalable;\n        float scaleOdd  = isScalable ? scaleWhenNonScalable : scaleWhenScalable;\n\n        int i = 0;\n        for (; i + 3 < totalSegs; i += 4) {\n            dstDelta[i]     = scaleEven * (float)srcDelta[i];\n            dstDelta[i + 1] = scaleOdd  * (float)srcDelta[i + 1];\n            dstDelta[i + 2] = scaleEven * (float)srcDelta[i + 2];\n            dstDelta[i + 3] = scaleOdd  * (float)srcDelta[i + 3];\n        }\n        for (; i < totalSegs; i++) {\n            float s = ((i % 2) == 0) ? scaleEven : scaleOdd;\n            dstDelta[i] = s * (float)srcDelta[i];\n        }\n    }\n\n    // Accumulate dst (sequential due to dependency)\n    dst[0] = dstStart;\n    for (int i = 0; i < totalSegs; i++) {\n        dst[i + 1] = dst[i] + dstDelta[i];\n    }\n    dst[divCount + 1] = dstEnd;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: -6\nstderr:\nMismatch in parameter src on trial 0 at index 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: -6\nstderr:\nMismatch in parameter src on trial 0 at index 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/set_points_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "set_points",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/set_points_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed,\n                       int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,\n                       bool isScalable) {\n    float dstLen = dstEnd - dstStart;\n    float scale;\n    if (srcFixed <= dstLen) {\n        // This is the \"normal\" case, where we scale the \"scalable\" patches and leave\n        // the other patches fixed.\n        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);\n    } else {\n        // In this case, we eliminate the \"scalable\" patches and scale the \"fixed\" patches.\n        scale = dstLen / ((float) srcFixed);\n    }\n\n    src[0] = srcStart;\n    dst[0] = dstStart;\n    for (int i = 0; i < divCount; i++) {\n        src[i + 1] = divs[i];\n        int srcDelta = src[i + 1] - src[i];\n        float dstDelta;\n        if (srcFixed <= dstLen) {\n            dstDelta = isScalable ? scale * srcDelta : srcDelta;\n        } else {\n            dstDelta = isScalable ? 0.0f : scale * srcDelta;\n        }\n        dst[i + 1] = dst[i] + dstDelta;\n\n        // Alternate between \"scalable\" and \"fixed\" patches.\n        isScalable = !isScalable;\n    }\n\n    src[divCount + 1] = srcEnd;\n    dst[divCount + 1] = dstEnd;\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/set_points_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

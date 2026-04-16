@@ -1,0 +1,87 @@
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations,int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            if (fabsf(a[k]) <= max) {
+                goto L5;
+            }
+            index = i;
+            max = fabsf(a[k]);
+L5:
+            k += inc;
+        }
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int index = 0;
+    float max = 0.0f;
+    float chksum = 0.0f;
+
+    for (int nl = 0; nl < iterations/2; nl++) {
+        index = 0;
+        max = fabsf(a[0]);
+
+        int chunk = (LEN_1D - 1) / 4;
+        int rem_start = 1 + chunk * 4;
+
+        int ki = inc; // starts at a[1*inc]
+
+        for (int ci = 0; ci < chunk; ci++) {
+            float v0 = fabsf(a[ki]);          ki += inc;
+            float v1 = fabsf(a[ki]);          ki += inc;
+            float v2 = fabsf(a[ki]);          ki += inc;
+            float v3 = fabsf(a[ki]);          ki += inc;
+
+            int base = 1 + ci * 4;
+
+            if (v0 > max) { max = v0; index = base + 0; }
+            if (v1 > max) { max = v1; index = base + 1; }
+            if (v2 > max) { max = v2; index = base + 2; }
+            if (v3 > max) { max = v3; index = base + 3; }
+        }
+
+        // Scalar cleanup for remaining elements
+        for (int i2 = rem_start; i2 < LEN_1D; i2++) {
+            float v = fabsf(a[ki]);
+            if (v > max) {
+                max = v;
+                index = i2;
+            }
+            ki += inc;
+        }
+
+        chksum = max + (float)index;
+    }
+    return chksum;
+}
+        ```
+
+        Tester feedback:
+        - The function uses `inc` as a stride when accessing `a[ki]`, but the reference implementation accesses `a[i]` sequentially (stride-1). When `inc != 1`, the indexed accesses are wrong. Fix: use `a[i * inc]` or simply `a[i]` depending on the spec, but the index tracking should use the loop counter `i`, not `ki` scaled by `inc`.
+- The `index` variable should track the logical array index (loop counter `i`), not the strided memory position. Currently `index = base + 0/1/2/3` is correct for the logical index, but the memory access `a[ki]` with `ki += inc` means when `inc=1` it works, but the reference likely uses `a[i]` with `index = i`.
+- The most likely root cause: the original `s318` finds the index of the maximum of `fabsf(a[i])` for `i` in `[0, LEN_1D)` with stride 1 in the array. The `inc` parameter in the original is likely the loop increment for `i`, not a memory stride. Fix: change `ki` to be the loop index `i` and access `a[i]` directly (i.e., `ki` starts at 1 and increments by 1, not by `inc`).
+- Specifically, replace `int ki = inc;` with `int ki = 1;` and replace `ki += inc;` with `ki++;` in both loops, so array accesses are `a[ki]` with unit stride.
+- The `iterations/2` loop count may differ from reference — check if the reference uses `iterations` or `iterations/2`; if the outer loop runs `iterations` times, change `iterations/2` to `iterations`.
+- In the cleanup loop, `rem_start` should equal `1 + chunk * 4` which is correct, but verify `chunk = (LEN_1D - 1) / 4` covers all elements; the total elements processed are `1 + chunk*4 + (LEN_1D - rem_start)` which should equal `LEN_1D` — this arithmetic is correct only if `rem_start <= LEN_1D`.
+- The return value is `chksum` from the last iteration only; if `iterations/2 == 0` (i.e., `iterations < 2`), `chksum` returns `0.0f` instead of the computed value — ensure the loop runs at least once or handle this edge case.
+
+        Return a corrected candidate function named `vectorized_s318`.

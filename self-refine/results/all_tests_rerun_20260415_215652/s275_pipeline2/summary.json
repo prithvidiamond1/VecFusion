@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s275_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s275_opt(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        // Compute bb[j][i]*cc[j][i] products into a temporary array\n        float tmp[256][256];\n        for (int j = 1; j < 256; j++) {\n            for (int i = 0; i < 256; i++) {\n                tmp[j][i] = bb[j][i] * cc[j][i];\n            }\n        }\n\n        // Store prev values for each column i\n        float prev[256];\n        float mask[256];\n        for (int i = 0; i < 256; i++) {\n            prev[i] = aa[0][i];\n            mask[i] = (aa[0][i] > (float)0.) ? 1.0f : 0.0f;\n        }\n\n        // Outer loop over j, inner loop over i (vectorizable, no dependency across i)\n        for (int j = 1; j < 256; j++) {\n            for (int i = 0; i < 256; i++) {\n                prev[i] = prev[i] + tmp[j][i];\n                aa[j][i] = aa[j][i] * (1.0f - mask[i]) + prev[i] * mask[i];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s275_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s275_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s275_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "```c\n#include <stdint.h>\n\nvoid vectorized_s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        float tmp[256][256];\n        for (int j = 1; j < 256; j++) {\n            int i = 0;\n            for (; i <= 256 - 8; i += 8) {\n                tmp[j][i+0] = bb[j][i+0] * cc[j][i+0];\n                tmp[j][i+1] = bb[j][i+1] * cc[j][i+1];\n                tmp[j][i+2] = bb[j][i+2] * cc[j][i+2];\n                tmp[j][i+3] = bb[j][i+3] * cc[j][i+3];\n                tmp[j][i+4] = bb[j][i+4] * cc[j][i+4];\n                tmp[j][i+5] = bb[j][i+5] * cc[j][i+5];\n                tmp[j][i+6] = bb[j][i+6] * cc[j][i+6];\n                tmp[j][i+7] = bb[j][i+7] * cc[j][i+7];\n            }\n            for (; i < 256; i++) {\n                tmp[j][i] = bb[j][i] * cc[j][i];\n            }\n        }\n\n        float prev[256];\n        float mask[256];\n        {\n            int i = 0;\n            for (; i <= 256 - 8; i += 8) {\n                prev[i+0] = aa[0][i+0];\n                prev[i+1] = aa[0][i+1];\n                prev[i+2] = aa[0][i+2];\n                prev[i+3] = aa[0][i+3];\n                prev[i+4] = aa[0][i+4];\n                prev[i+5] = aa[0][i+5];\n                prev[i+6] = aa[0][i+6];\n                prev[i+7] = aa[0][i+7];\n\n                mask[i+0] = (aa[0][i+0] > 0.0f) ? 1.0f : 0.0f;\n                mask[i+1] = (aa[0][i+1] > 0.0f) ? 1.0f : 0.0f;\n                mask[i+2] = (aa[0][i+2] > 0.0f) ? 1.0f : 0.0f;\n                mask[i+3] = (aa[0][i+3] > 0.0f) ? 1.0f : 0.0f;\n                mask[i+4] = (aa[0][i+4] > 0.0f) ? 1.0f : 0.0f;\n                mask[i+5] = (aa[0][i+5] > 0.0f) ? 1.0f : 0.0f;\n                mask[i+6] = (aa[0][i+6] > 0.0f) ? 1.0f : 0.0f;\n                mask[i+7] = (aa[0][i+7] > 0.0f) ? 1.0f : 0.0f;\n            }\n            for (; i < 256; i++) {\n                prev[i] = aa[0][i];\n                mask[i] = (aa[0][i] > 0.0f) ? 1.0f : 0.0f;\n            }\n        }\n\n        for (int j = 1; j < 256; j++) {\n            int i = 0;\n            for (; i <= 256 - 8; i += 8) {\n                float p0 = prev[i+0] + tmp[j][i+0];\n                float p1 = prev[i+1] + tmp[j][i+1];\n                float p2 = prev[i+2] + tmp[j][i+2];\n                float p3 = prev[i+3] + tmp[j][i+3];\n                float p4 = prev[i+4] + tmp[j][i+4];\n                float p5 = prev[i+5] + tmp[j][i+5];\n                float p6 = prev[i+6] + tmp[j][i+6];\n                float p7 = prev[i+7] + tmp[j][i+7];\n\n                prev[i+0] = p0;\n                prev[i+1] = p1;\n                prev[i+2] = p2;\n                prev[i+3] = p3;\n                prev[i+4] = p4;\n                prev[i+5] = p5;\n                prev[i+6] = p6;\n                prev[i+7] = p7;\n\n                float m0 = mask[i+0];\n                float m1 = mask[i+1];\n                float m2 = mask[i+2];\n                float m3 = mask[i+3];\n                float m4 = mask[i+4];\n                float m5 = mask[i+5];\n                float m6 = mask[i+6];\n                float m7 = mask[i+7];\n\n                aa[j][i+0] = aa[j][i+0] * (1.0f - m0) + p0 * m0;\n                aa[j][i+1] = aa[j][i+1] * (1.0f - m1) + p1 * m1;\n                aa[j][i+2] = aa[j][i+2] * (1.0f - m2) + p2 * m2;\n                aa[j][i+3] = aa[j][i+3] * (1.0f - m3) + p3 * m3;\n                aa[j][i+4] = aa[j][i+4] * (1.0f - m4) + p4 * m4;\n                aa[j][i+5] = aa[j][i+5] * (1.0f - m5) + p5 * m5;\n                aa[j][i+6] = aa[j][i+",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile failed.\n            Command: clang results/all_tests_rerun_20260415_215652/s275_pipeline2/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s275_pipeline2/llmvec/candidate_round_4\n            stderr:\n            results/all_tests_rerun_20260415_215652/s275_pipeline2/llmvec/candidate_round_4.c:37:9: error: expected identifier or '('\n   37 |         ```c\n      |         ^\n1 error generated.",
+      "unit_test_output": "Compile failed.\n            Command: clang results/all_tests_rerun_20260415_215652/s275_pipeline2/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s275_pipeline2/llmvec/candidate_round_4\n            stderr:\n            results/all_tests_rerun_20260415_215652/s275_pipeline2/llmvec/candidate_round_4.c:37:9: error: expected identifier or '('\n   37 |         ```c\n      |         ^\n1 error generated.",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s275_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s275",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s275_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        for (int i = 0; i < 256; i++) {\n            if (aa[0][i] > (float)0.) {\n                for (int j = 1; j < 256; j++) {\n                    aa[j][i] = aa[j-1][i] + bb[j][i] * cc[j][i];\n                }\n            }\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s275_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

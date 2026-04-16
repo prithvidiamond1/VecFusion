@@ -1,0 +1,15 @@
+```c
+void vectorized_s322(int iterations, int LEN_1D, float* a, float* b, float* c)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        float prev2 = a[0];
+        float prev1 = a[1];
+        for (int i = 2; i < LEN_1D; i++) {
+            float curr = a[i] + prev1 * b[i] + prev2 * c[i];
+            prev2 = prev1;
+            prev1 = curr;
+            a[i] = curr;
+        }
+    }
+}
+```

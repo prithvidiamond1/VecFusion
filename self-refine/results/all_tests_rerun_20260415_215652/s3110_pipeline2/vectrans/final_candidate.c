@@ -1,0 +1,39 @@
+float s3110_opt(int iterations, float aa[256][256]) {
+    int xindex, yindex;
+    float max, chksum;
+    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {
+        max = aa[0][0];
+        xindex = 0;
+        yindex = 0;
+
+        /* Pass 1: find the maximum value (pure reduction, vectorizable) */
+        float local_max = aa[0][0];
+        for (int i = 0; i < 256; i++) {
+            for (int j = 0; j < 256; j++) {
+                local_max = aa[i][j] > local_max ? aa[i][j] : local_max;
+            }
+        }
+        max = local_max;
+
+        /* Pass 2: find the first occurrence row by row */
+        int found_i = 256;
+        int found_j = 256;
+        for (int i = 0; i < 256; i++) {
+            /* Per-row: find minimum j where aa[i][j] == max */
+            int row_j = 256; /* invalid sentinel */
+            for (int j = 0; j < 256; j++) {
+                int match = (aa[i][j] == max) & (row_j == 256);
+                row_j = match ? j : row_j;
+            }
+            /* Update found indices only if this row has a match and no earlier row did */
+            int use_row = (row_j < 256) & (found_i == 256);
+            found_i = use_row ? i : found_i;
+            found_j = use_row ? row_j : found_j;
+        }
+        xindex = found_i;
+        yindex = found_j;
+
+        chksum = max + (float)xindex + (float)yindex;
+    }
+    return max + xindex + 1 + yindex + 1;
+}

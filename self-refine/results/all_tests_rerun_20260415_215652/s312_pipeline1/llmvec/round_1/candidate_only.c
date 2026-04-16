@@ -1,0 +1,34 @@
+#include <stdint.h>
+
+float vectorized_s312(int iterations, int LEN_1D, float* a)
+{
+    float prod;
+    for (int nl = 0; nl < 10 * iterations; nl++) {
+        // Use 4-wide unrolling to allow the compiler to vectorize the reduction
+        float prod0 = 1.0f;
+        float prod1 = 1.0f;
+        float prod2 = 1.0f;
+        float prod3 = 1.0f;
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+        for (; i < limit; i += 4) {
+            prod0 *= a[i + 0];
+            prod1 *= a[i + 1];
+            prod2 *= a[i + 2];
+            prod3 *= a[i + 3];
+        }
+        // Combine partial products
+        prod0 *= prod1;
+        prod2 *= prod3;
+        prod0 *= prod2;
+
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            prod0 *= a[i];
+        }
+
+        prod = prod0;
+    }
+    return prod;
+}

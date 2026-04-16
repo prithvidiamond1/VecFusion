@@ -1,0 +1,73 @@
+Revise your candidate for `s323` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s323(int iterations,int LEN_1D, float* a, float *b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] = b[i-1] + c[i] * d[i];
+            b[i] = a[i] + c[i] * e[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        void vectorized_s323(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        float prev_b = b[0];
+        int i = 1;
+
+        for (; i < LEN_1D - 3; i += 4) {
+            float cd0 = c[i+0] * d[i+0];
+            float ce0 = c[i+0] * e[i+0];
+            float a0 = prev_b + cd0;
+            float b0 = a0 + ce0;
+
+            float cd1 = c[i+1] * d[i+1];
+            float ce1 = c[i+1] * e[i+1];
+            float a1 = b0 + cd1;
+            float b1 = a1 + ce1;
+
+            float cd2 = c[i+2] * d[i+2];
+            float ce2 = c[i+2] * e[i+2];
+            float a2 = b1 + cd2;
+            float b2 = a2 + ce2;
+
+            float cd3 = c[i+3] * d[i+3];
+            float ce3 = c[i+3] * e[i+3];
+            float a3 = b2 + cd3;
+            float b3 = a3 + ce3;
+
+            a[i+0] = a0; b[i+0] = b0;
+            a[i+1] = a1; b[i+1] = b1;
+            a[i+2] = a2; b[i+2] = b2;
+            a[i+3] = a3; b[i+3] = b3;
+
+            prev_b = b3;
+        }
+
+        for (; i < LEN_1D; i++) {
+            a[i] = prev_b + c[i] * d[i];
+            b[i] = a[i]   + c[i] * e[i];
+            prev_b = b[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The loop has a recurrence dependency issue: each iteration depends on the previous `b` value, so the 4-wide unrolling is incorrect — it uses `prev_b` only for the first element of each group, but `a1` should depend on `b0`, `a2` on `b1`, etc. That part is actually correct. The real bug is the **loop starts at `i=1`** but `a[0]` and `b[0]` are never written, and the original loop (s323) starts at `i=0`.
+
+- The original s323 loop runs from `i=0` to `LEN_1D-1`. Your loop starts at `i=1`, skipping index 0, so `a[0]` is never updated, causing the mismatch at index 6 (or nearby indices due to the carry-forward error).
+- Fix: initialize `prev_b = b[-1]`... no — the original recurrence uses `b[i-1]` where `b[-1]` is not valid. Check the reference: s323 typically does `a[i] = b[i-1] + c[i]*d[i]` starting at `i=1`, with `a[0]` left untouched. But the test expects `a[0]` to be written.
+- Most likely the reference loop is `for i in 0..LEN_1D: a[i]=b[i-1]+c[i]*d[i]` using the **original** `b[i-1]` (not the updated one). That means there is **no recurrence** — `b[i-1]` is read before `b[i]` is written, so reads are from the old `b` array.
+- Fix: remove the recurrence tracking entirely. Use the original `b[i]` values directly: `a[i] = b[i-1] + c[i]*d[i]`, then `b[i] = a[i] + c[i]*e[i]`, starting at `i=1`, and handle `i=0` separately as `a[0] = b[LEN_1D-1] + c[0]*d[0]` — or more likely start at `i=1` with no update to `a[0]`.
+- Actually the simplest fix: **start `i` at `0`**, set `prev_b` to `b[LEN_1D-1]` (wrap-around) or check what s323 reference does — most likely `prev_b` should be initialized to `b[LEN_1D-1]` for a cyclic version, or the loop truly starts at `i=1` and `a[0]` is untouched.
+- **Concrete fix**: change the unrolled loop start to `i=0` and initialize `prev_b = b[LEN_1D-1]` if the reference is cyclic, OR keep `i=1` but ensure the scalar cleanup loop also starts at `i` correctly and that the test expectation matches — the mismatch at index 6 suggests the `prev_b` carry is wrong after the 4-wide block (indices 1–4), affecting index 5 onward.
+- The scalar tail loop at the end correctly uses `prev_b`, but the unrolled block's `prev_b` initialization at `i=1` means the block covers indices 1–4 (4 elements), then 5–8, etc. Index 6 is in the second block — verify `prev_b` after first block equals `b[4]` (the updated value), which it does. So the bug is simply that **`a[0]` is never written** — add before the loop: `a[0] = b[LEN_1D-1] + c[0]*d[0]; b[0] = a[0] + c[0]*e[0];` and set `prev_b = b[0]`, then start `i=1`.
+
+        Return a corrected candidate function named `vectorized_s323`.

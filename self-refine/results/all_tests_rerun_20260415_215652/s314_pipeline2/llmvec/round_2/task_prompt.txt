@@ -1,0 +1,114 @@
+Revise your candidate for `s314` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s314(int iterations, int LEN_1D, float* a)
+{
+    float x = a[0];
+    for (int i = 1; i < LEN_1D; i++) {
+        float ai = a[i];
+        x = ai > x ? ai : x;
+    }
+    return x;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+float vectorized_s314(int iterations, int LEN_1D, float* a)
+{
+    typedef float float4 __attribute__((vector_size(16)));
+
+    float x = a[0];
+
+    int i = 1;
+
+    // We'll use 4-wide SIMD vectors
+    // Initialize vector with x in all lanes
+    float4 vmax = {x, x, x, x};
+
+    // Process chunks of 4 starting from index 1
+    // We need to be careful: start at i=1, so we process until we can fill a full vector
+    // For simplicity, let's start vector processing from index 0 and fix up at end
+    // Actually let's just do scalar until we hit alignment, then vector
+
+    // Simple approach: process 4 at a time from i=1
+    // We'll accumulate 4 separate max lanes
+    float4 vmax0 = {x, x, x, x};
+    float4 vmax1 = {x, x, x, x};
+    float4 vmax2 = {x, x, x, x};
+    float4 vmax3 = {x, x, x, x};
+
+    int limit = LEN_1D - 16 + 1;
+    for (; i < limit; i += 16) {
+        float4 v0, v1, v2, v3;
+        // Load 4 floats into each vector
+        __builtin_memcpy(&v0, &a[i],    sizeof(float4));
+        __builtin_memcpy(&v1, &a[i+4],  sizeof(float4));
+        __builtin_memcpy(&v2, &a[i+8],  sizeof(float4));
+        __builtin_memcpy(&v3, &a[i+12], sizeof(float4));
+
+        // Element-wise max using ternary (compiler should vectorize)
+        vmax0 = v0 > vmax0 ? v0 : vmax0;
+        vmax1 = v1 > vmax1 ? v1 : vmax1;
+        vmax2 = v2 > vmax2 ? v2 : vmax2;
+        vmax3 = v3 > vmax3 ? v3 : vmax3;
+    }
+
+    // Merge the 4 accumulators
+    vmax0 = vmax0 > vmax1 ? vmax0 : vmax1;
+    vmax2 = vmax2 > vmax3 ? vmax2 : vmax3;
+    vmax0 = vmax0 > vmax2 ? vmax0 : vmax2;
+
+    // Process remaining chunks of 4
+    limit = LEN_1D - 4 + 1;
+    for (; i < limit; i += 4) {
+        float4 v0;
+        __builtin_memcpy(&v0, &a[i], sizeof(float4));
+        vmax0 = v0 > vmax0 ? v0 : vmax0;
+    }
+
+    // Reduce vmax0 to scalar
+    float tmp[4];
+    __builtin_memcpy(tmp, &vmax0, sizeof(float4));
+    for (int j = 0; j < 4; j++) {
+        if (tmp[j] > x) x = tmp[j];
+    }
+
+    // Scalar tail
+    for (; i < LEN_1D; i++) {
+        float ai = a[i];
+        x = ai > x ? ai : x;
+    }
+
+    return x;
+}
+        ```
+
+        Tester feedback:
+        The errors all stem from the same root cause: in Clang, comparing GCC-style `__attribute__((vector_size))` vectors with `>` returns an integer mask vector, which cannot be used as the condition of a ternary `?:` operator.
+
+- **Fix**: Replace all ternary-based vector max expressions like `vmax0 = v0 > vmax0 ? v0 : vmax0;` with the `__builtin_elementwise_max` intrinsic or use explicit masking. The simplest portable fix is to use `__builtin_elementwise_max(v0, vmax0)` for each comparison, e.g.:
+  ```c
+  vmax0 = __builtin_elementwise_max(v0, vmax0);
+  vmax1 = __builtin_elementwise_max(v1, vmax1);
+  vmax2 = __builtin_elementwise_max(v2, vmax2);
+  vmax3 = __builtin_elementwise_max(v3, vmax3);
+  ```
+  Apply this same fix to all 8 occurrences of the ternary vector max pattern (inside both loops and the merge section).
+
+- **Alternative fix** if `__builtin_elementwise_max` is unavailable: use explicit mask selection:
+  ```c
+  typedef int int4 __attribute__((vector_size(16)));
+  int4 mask = (int4)(v0 > vmax0);
+  vmax0 = (float4)((mask & (int4)v0) | (~mask & (int4)vmax0));
+  ```
+  but `__builtin_elementwise_max` is cleaner and available in Clang 15+.
+
+- The `typedef float float4 __attribute__((vector_size(16)));` syntax is non-standard; move the typedef outside the function or use the standard form: `typedef float float4 __attribute__((vector_size(16)));` at file scope (this is a warning risk but not the current error).
+
+- The unused `vmax` variable (line 12, `float4 vmax = {x, x, x, x};`) should be removed to avoid the `-Wunused-variable` warning.
+
+        Return a corrected candidate function named `vectorized_s314`.

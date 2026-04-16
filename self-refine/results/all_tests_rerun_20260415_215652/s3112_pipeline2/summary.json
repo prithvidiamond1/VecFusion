@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s3112_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s3112_opt(int iterations, int LEN_1D, float* a, float* b)\n{\n    float sum;\n    for (int nl = 0; nl < iterations; nl++) {\n        sum = (float)0.0;\n\n        // Pass 1 (vectorizable): copy a[i] into b[i]\n        for (int i = 0; i < LEN_1D; i++) {\n            b[i] = a[i];\n        }\n\n        int BLOCK = 1024;\n        int nblocks = (LEN_1D + BLOCK - 1) / BLOCK;\n        float block_sum[nblocks];\n\n        // Pass 2a: compute local prefix sum within each block (sequential per block, but short)\n        for (int k = 0; k < nblocks; k++) {\n            int start = k * BLOCK;\n            int end = start + BLOCK < LEN_1D ? start + BLOCK : LEN_1D;\n            float s = 0.0f;\n            for (int i = start; i < end; i++) {\n                s += b[i];\n                b[i] = s;\n            }\n            block_sum[k] = s;\n        }\n\n        // Pass 2b (sequential): compute cumulative block carry offsets\n        float carry = 0.0f;\n        float block_carry[nblocks];\n        for (int k = 0; k < nblocks; k++) {\n            block_carry[k] = carry;\n            carry += block_sum[k];\n        }\n\n        // Pass 3 (vectorizable): add block carry offset to each element\n        for (int k = 0; k < nblocks; k++) {\n            int start = k * BLOCK;\n            int end = start + BLOCK < LEN_1D ? start + BLOCK : LEN_1D;\n            float off = block_carry[k];\n            for (int i = start; i < end; i++) {\n                b[i] += off;\n            }\n        }\n\n        sum = b[LEN_1D - 1];\n    }\n    return sum;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s3112_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s3112_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s3112_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\ntypedef float float4 __attribute__((vector_size(16)));\n\nfloat vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)\n{\n    float sum;\n    for (int nl = 0; nl < iterations; nl++) {\n        sum = (float)0.0;\n\n        // Pass 1 (vectorized): copy a[i] into b[i]\n        int i = 0;\n        for (; i <= LEN_1D - 4; i += 4) {\n            float4 va;\n            __builtin_memcpy(&va, &a[i], 16);\n            __builtin_memcpy(&b[i], &va, 16);\n        }\n        for (; i < LEN_1D; i++) {\n            b[i] = a[i];\n        }\n\n        int BLOCK = 1024;\n        int nblocks = (LEN_1D + BLOCK - 1) / BLOCK;\n\n        // Use VLAs for block sums\n        float block_sum[nblocks];\n        float block_carry[nblocks];\n\n        // Pass 2a: compute local prefix sum within each block (sequential per block)\n        for (int k = 0; k < nblocks; k++) {\n            int start = k * BLOCK;\n            int end = start + BLOCK < LEN_1D ? start + BLOCK : LEN_1D;\n            float s = 0.0f;\n            for (int j = start; j < end; j++) {\n                s += b[j];\n                b[j] = s;\n            }\n            block_sum[k] = s;\n        }\n\n        // Pass 2b (sequential): compute cumulative block carry offsets\n        float carry = 0.0f;\n        for (int k = 0; k < nblocks; k++) {\n            block_carry[k] = carry;\n            carry += block_sum[k];\n        }\n\n        // Pass 3 (vectorized): add block carry offset to each element\n        for (int k = 0; k < nblocks; k++) {\n            int start = k * BLOCK;\n            int end = start + BLOCK < LEN_1D ? start + BLOCK : LEN_1D;\n            float off = block_carry[k];\n\n            // Broadcast offset into a vector\n            float4 voff = {off, off, off, off};\n\n            int j = start;\n            for (; j <= end - 4; j += 4) {\n                float4 vb;\n                __builtin_memcpy(&vb, &b[j], 16);\n                vb = vb + voff;\n                __builtin_memcpy(&b[j], &vb, 16);\n            }\n            for (; j < end; j++) {\n                b[j] += off;\n            }\n        }\n\n        sum = b[LEN_1D - 1];\n    }\n    return sum;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s3112_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s3112",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s3112_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s3112_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s3112_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}
