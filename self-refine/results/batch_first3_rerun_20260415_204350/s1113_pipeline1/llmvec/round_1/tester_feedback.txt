@@ -1,0 +1,10 @@
+The issue is that `mid = a[LEN_1D/2]` is captured **before** the loop modifies `a`, but when `LEN_1D/2 < LEN_1D` (always true), the element at index `LEN_1D/2` gets overwritten during the loop iteration, which is correct behavior. However, the reference implementation likely re-reads `a[LEN_1D/2]` **after** it has been updated by a previous outer loop iteration.
+
+Looking more carefully: the mismatch at index 65 with `LEN_1D` likely being 128 means `LEN_1D/2 = 64`. The element `a[64]` gets written during the loop (`a[64] = mid + b[64]`), so on the **next** outer iteration, `mid` should be `a[64]` from the **previous** iteration's result (i.e., `old_mid + b[64]`), not the original `a[64]`.
+
+The candidate code is actually correct in capturing `mid` before the inner loop. The bug is that the **reference** scalar code reads `a[LEN_1D/2]` once before the inner loop too — so the logic should match. The real problem:
+
+- The original benchmark `s1113` uses `1*iterations` not `2*iterations` for the outer loop count. Using `2*iterations` causes extra iterations that diverge from the reference output.
+
+**Fix:**
+- Change `2*iterations` back to `iterations` in the outer loop: `for (int nl = 0; nl < iterations; nl++)`.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from .adapters import CompilerBaselineAdapter, LLMVectorizerAdapter, VecTransAdapter
@@ -43,9 +44,15 @@ class PipelineOrchestrator:
 
         vectrans_result = self.vectrans.run(source_file.read_text(), outdir / "vectrans")
         steps.append(vectrans_result)
+
         if vectrans_result.ok and vectrans_result.candidate_code:
             vectrans_code_path = outdir / "vectrans_verified_input.c"
-            vectrans_code_path.write_text(vectrans_result.candidate_code)
+            normalized_code = self._restore_original_function_name(
+                vectrans_result.candidate_code,
+                scalar_function,
+            )
+            vectrans_code_path.write_text(normalized_code)
+
             llm_result = self.llmvec.run(vectrans_code_path, scalar_function, outdir / "llmvec")
             steps.append(llm_result)
             if llm_result.ok:
@@ -54,6 +61,10 @@ class PipelineOrchestrator:
         compiler_result = self.compiler.run(source_file, outdir / "compiler")
         steps.append(compiler_result)
         return self._finalize("pipeline2", compiler_result, steps, outdir)
+
+    def _restore_original_function_name(self, code: str, scalar_function: str) -> str:
+        opt_name = f"{scalar_function}_opt"
+        return re.sub(rf"\b{re.escape(opt_name)}\b", scalar_function, code)
 
     def _finalize(
         self,

@@ -1,0 +1,40 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/batch_first3_rerun_20260415_204350/s1113_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s1113(int iterations, int LEN_1D, float* a, float* b)\n{\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        float mid = a[LEN_1D/2];\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = mid + b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 65",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 65",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/batch_first3_rerun_20260415_204350/s1113_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s1113",
+        "input_snapshot": "results/batch_first3_rerun_20260415_204350/s1113_pipeline1/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s1113_opt(int iterations, int LEN_1D, float* a, float* b)\n{\n    int mid = LEN_1D / 2;\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        float temp = a[mid];\n        for (int i = 0; i < mid; i++) {\n            a[i] = temp + b[i];\n        }\n        a[mid] = temp + b[mid];\n        float temp2 = a[mid];\n        for (int i = mid + 1; i < LEN_1D; i++) {\n            a[i] = temp2 + b[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/batch_first3_rerun_20260415_204350/s1113_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/batch_first3_rerun_20260415_204350/s1113_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/batch_first3_rerun_20260415_204350/s1113_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

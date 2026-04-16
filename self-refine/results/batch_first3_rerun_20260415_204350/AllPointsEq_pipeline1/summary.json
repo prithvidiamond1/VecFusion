@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/batch_first3_rerun_20260415_204350/AllPointsEq_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdbool.h>\n#include <stdint.h>\n\nbool vectorized_AllPointsEq(const int pts[], int count) {\n    if (count <= 1) return true;\n\n    int val = pts[0];\n\n    typedef int v8si __attribute__((vector_size(32)));\n\n    v8si vval = {val, val, val, val, val, val, val, val};\n\n    int i = 1;\n    int simd_end = 1 + ((count - 1) / 8) * 8;\n\n    for (; i < simd_end; i += 8) {\n        v8si chunk;\n        __builtin_memcpy(&chunk, &pts[i], sizeof(v8si));\n        v8si cmp = (chunk != vval);\n        /* If any lane is non-zero, they differ */\n        int r0 = cmp[0] | cmp[1] | cmp[2] | cmp[3] |\n                 cmp[4] | cmp[5] | cmp[6] | cmp[7];\n        if (r0) return false;\n    }\n\n    /* Scalar tail */\n    for (; i < count; ++i) {\n        if (pts[i] != val) return false;\n    }\n\n    return true;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/batch_first3_rerun_20260415_204350/AllPointsEq_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "AllPointsEq",
+        "input_snapshot": "results/batch_first3_rerun_20260415_204350/AllPointsEq_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/batch_first3_rerun_20260415_204350/AllPointsEq_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/batch_first3_rerun_20260415_204350/AllPointsEq_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

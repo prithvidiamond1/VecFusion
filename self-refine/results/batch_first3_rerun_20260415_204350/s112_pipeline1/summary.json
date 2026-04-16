@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/batch_first3_rerun_20260415_204350/s112_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {\n    for (int nl = 0; nl < 3 * iterations; nl++) {\n        // This loop has a loop-carried dependency: a[i+1] depends on a[i] from previous iteration\n        // (going backwards: a[i+1] = a[i] + b[i], then a[i] = a[i-1] + b[i-1], etc.)\n        // The dependency chain means each iteration depends on the previous one,\n        // so true vectorization is not possible. We unroll manually for better pipelining.\n        int i = LEN_1D - 2;\n        // Process in chunks of 4 with unrolling, but since there's a dependency,\n        // we must process sequentially. Unroll by 4 for instruction-level parallelism hints.\n        for (; i >= 3; i -= 4) {\n            a[i + 1] = a[i] + b[i];\n            a[i]     = a[i - 1] + b[i - 1];\n            a[i - 1] = a[i - 2] + b[i - 2];\n            a[i - 2] = a[i - 3] + b[i - 3];\n        }\n        for (; i >= 0; i--) {\n            a[i + 1] = a[i] + b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/batch_first3_rerun_20260415_204350/s112_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s112",
+        "input_snapshot": "results/batch_first3_rerun_20260415_204350/s112_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/batch_first3_rerun_20260415_204350/s112_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/batch_first3_rerun_20260415_204350/s112_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

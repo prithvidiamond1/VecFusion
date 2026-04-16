@@ -1,0 +1,20 @@
+The issue is that `mid = a[LEN_1D/2]` is captured **before** the loop modifies `a`, but when `i` reaches `LEN_1D/2`, `a[LEN_1D/2]` gets overwritten. On the next outer iteration, `mid` is read from the already-modified value instead of the original. This matches the reference behavior only if `mid` is read from the **original** (pre-loop) `a[LEN_1D/2]`.
+
+The reference scalar loop reads `mid` once before the inner loop each outer iteration — that part is correct. The mismatch at index 65 (which is near `LEN_1D/2` for typical `LEN_1D=128`) suggests the problem is that the **second outer iteration** reads a corrupted `a[64]` because the first inner loop already wrote to it.
+
+- The root cause: `a[LEN_1D/2]` is written during the inner loop (when `i == LEN_1D/2`), so on the next `nl` iteration, `mid` gets the wrong value.
+- Fix: save `mid` from `b[LEN_1D/2]` plus the original `a[LEN_1D/2]`... actually, re-examine the original: the reference likely uses `a[LEN_1D/2]` read before any writes, which is what the code does — but the **second iteration** reads the already-overwritten `a[LEN_1D/2]`.
+- The correct fix is to read `mid` from a **saved copy** before the very first iteration, or recognize that the reference scalar code has the same behavior (reads modified `a` on subsequent iterations). Check the reference: if it also reads the modified `a[LEN_1D/2]` each outer iteration, the logic is correct and the bug is elsewhere.
+- Most likely the original benchmark intends `mid = a[LEN_1D/2]` to use the **value of `a` at that point each iteration** (including modifications), so the vectorized version should match exactly — meaning the unrolled loop must write `a[LEN_1D/2]` before `mid` is used for indices after it, which it does not (mid is fixed).
+- **Concrete fix**: after writing `a[i]` for `i == LEN_1D/2`, do **not** re-read `mid`; instead ensure `mid` is updated if `LEN_1D/2` falls within the already-processed range. The simplest correct fix: remove the unrolling and just write the straightforward scalar loop so behavior exactly matches reference:
+
+```c
+for (int nl = 0; nl < 2*iterations; nl++) {
+    float mid = a[LEN_1D/2];
+    for (int i = 0; i < LEN_1D; i++) {
+        a[i] = mid + b[i];
+    }
+}
+```
+
+- This matches the reference exactly: `mid` is captured once per outer iteration from `a[LEN_1D/2]` (which on iteration >0 is the previously written value `mid_prev + b[LEN_1D/2]`), then all elements are set uniformly.
