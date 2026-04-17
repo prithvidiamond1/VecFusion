@@ -123,8 +123,8 @@ def parse_args() -> RunConfig:
     )
     parser.add_argument(
         "--model",
-        default=os.environ.get("LLM_VECTORIZER_MODEL", "claude-sonnet-4-6"),
-        help="Anthropic model name.",
+        default=os.environ.get("LLM_VECTORIZER_MODEL", "deepseek-chat"),
+        help="Model name for the Anthropic-compatible provider.",
     )
     parser.add_argument("--max-rounds", type=int, default=4, help="Maximum vectorization attempts.")
     parser.add_argument("--num-trials", type=int, default=64, help="Number of randomized tests.")
@@ -155,18 +155,25 @@ def parse_args() -> RunConfig:
     )
     parser.add_argument(
         "--api-base-url",
-        default=(
-            os.environ.get("LLM_BASE_URL")
-            or os.environ.get("ANTHROPIC_BASE_URL")
-            or "https://api.anthropic.com"
-        ),
-        help="Anthropic API base URL.",
+        default=os.environ.get("ANTHROPIC_BASE_URL", "https://api.deepseek.com/anthropic"),
+        help="Anthropic-compatible API base URL.",
     )
     parser.add_argument(
         "--api-timeout",
         type=int,
         default=120,
         help="HTTP timeout in seconds for model calls.",
+    )
+    parser.add_argument(
+        "--model",
+        default=os.environ.get("LLM_VECTORIZER_MODEL", "deepseek-chat"),
+        help="Model name for the Anthropic-compatible provider.",
+    )
+
+    parser.add_argument(
+        "--api-base-url",
+        default=os.environ.get("ANTHROPIC_BASE_URL", "https://api.deepseek.com/anthropic"),
+        help="Anthropic-compatible API base URL.",
     )
     args = parser.parse_args()
     return RunConfig(
@@ -182,10 +189,9 @@ def parse_args() -> RunConfig:
         work_dir=args.work_dir.resolve() if args.work_dir else None,
         target_hint=args.target_hint,
         dry_run=args.dry_run,
-        api_base_url=args.api_base_url,
+        api_base_url=args.api_base_url.rstrip("/"),
         api_timeout=args.api_timeout,
     )
-
 
 def read_source(path: Path) -> str:
     try:
@@ -197,11 +203,15 @@ def read_source(path: Path) -> str:
 def get_api_key() -> str:
     api_key = (
         os.environ.get("ANTHROPIC_API_KEY")
+        or os.environ.get("ANTHROPIC_AUTH_TOKEN")
         or os.environ.get("CLAUDE_API_KEY")
+        or os.environ.get("DEEPSEEK_API_KEY")
         or os.environ.get("API_KEY")
     )
     if not api_key:
-        raise SystemExit("ANTHROPIC_API_KEY, CLAUDE_API_KEY, or API_KEY is required unless --dry-run is used.")
+        raise SystemExit(
+            "ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, CLAUDE_API_KEY, DEEPSEEK_API_KEY, or API_KEY is required unless --dry-run is used."
+        )
     return api_key
 
 
@@ -211,9 +221,11 @@ class ClaudeAgent:
         self.system_message = system_message
         self.config = config
         self.api_key = api_key
-
+    
     def _messages_url(self) -> str:
         base = self.config.api_base_url.rstrip("/")
+        if base.endswith("/anthropic"):
+            return f"{base}/messages"
         if base.endswith("/v1"):
             return f"{base}/messages"
         return f"{base}/v1/messages"
@@ -237,18 +249,17 @@ class ClaudeAgent:
                 timeout=self.config.api_timeout,
             )
         except requests.RequestException as exc:
-            raise SystemExit(f"Anthropic API request failed: {exc}") from exc
+            raise SystemExit(f"Anthropic-compatible API request failed: {exc}") from exc
         if response.status_code >= 400:
-            raise SystemExit(f"Anthropic API error {response.status_code}: {response.text}")
+            raise SystemExit(f"Anthropic-compatible API error {response.status_code}: {response.text}")
 
         payload = response.json()
         parts = payload.get("content", [])
         text_parts = [part.get("text", "") for part in parts if part.get("type") == "text"]
         reply = "\n".join(part for part in text_parts if part).strip()
         if not reply:
-            raise SystemExit(f"Anthropic API returned no text content: {payload}")
+            raise SystemExit(f"Anthropic-compatible API returned no text content: {payload}")
         return reply
-
 
 def make_vectorizer_prompt(config: RunConfig) -> str:
     return textwrap.dedent(
@@ -453,7 +464,7 @@ def scalar_value_for(name: str) -> str:
     if "iter" in lower:
         return "5"
     if "len" in lower or lower == "n" or "count" in lower:
-        return "n"
+        return "arr_len"
     return "7"
 
 
@@ -476,13 +487,13 @@ def build_harness(scalar_source: str, scalar_function: str, candidate_code: str,
 
             if p.is_const:
                 decls.append(f"{c_type} {p.name}[{config.array_len}];")
-                setup.append(f"{fill_fn}({p.name}, n, &seed);")
+                setup.append(f"{fill_fn}({p.name}, arr_len, &seed);")
                 scalar_args.append(p.name)
                 vector_args.append(p.name)
             else:
                 decls.append(f"{c_type} {p.name}_scalar[{config.array_len}];")
                 decls.append(f"{c_type} {p.name}_vector[{config.array_len}];")
-                setup.append(f"{fill_fn}({p.name}_scalar, n, &seed);")
+                setup.append(f"{fill_fn}({p.name}_scalar, arr_len, &seed);")
                 setup.append(f"memcpy({p.name}_vector, {p.name}_scalar, sizeof({p.name}_scalar));")
                 scalar_args.append(f"{p.name}_scalar")
                 vector_args.append(f"{p.name}_vector")
@@ -490,7 +501,7 @@ def build_harness(scalar_source: str, scalar_function: str, candidate_code: str,
                 compare_lines.append(
                     textwrap.dedent(
                         f"""
-                        for (int i = 0; i < n; ++i) {{
+                        for (int i = 0; i < arr_len; ++i) {{
                             if ({cmp_expr(p.base_type, f"{p.name}_scalar[i]", f"{p.name}_vector[i]")}) {{
                                 fprintf(stderr, "Mismatch in parameter {p.name} on trial %d at index %d\\n", trial, i);
                                 return 2;
@@ -598,7 +609,7 @@ def build_harness(scalar_source: str, scalar_function: str, candidate_code: str,
         }}
 
         int main(void) {{
-            const int n = {config.array_len};
+            const int arr_len = {config.array_len};
             uint32_t seed = {config.random_seed}u;
             {" ".join(decls)}
 

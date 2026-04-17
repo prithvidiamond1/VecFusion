@@ -1,0 +1,58 @@
+#include <stdint.h>
+
+float vectorized_s332(int iterations, int LEN_1D, int t, float* a)
+{
+    int index;
+    float value;
+    float chksum;
+    float ft = (float)t;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        index = -2;
+        value = -1.f;
+
+        // Vectorized search: find first i where a[i] > t
+        // We'll process in chunks of 8 to find the first match
+        int found = 0;
+        int vec_width = 8;
+        int i = 0;
+
+        // Process chunks of 8
+        for (; i <= LEN_1D - vec_width && !found; i += vec_width) {
+            // Check if any element in this chunk satisfies a[i] > t
+            int any = 0;
+            for (int j = 0; j < vec_width; j++) {
+                if (a[i + j] > ft) {
+                    any = 1;
+                    break;
+                }
+            }
+            if (any) {
+                // Find the first one in this chunk
+                for (int j = 0; j < vec_width; j++) {
+                    if (a[i + j] > ft) {
+                        index = i + j;
+                        value = a[i + j];
+                        found = 1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Scalar cleanup tail
+        if (!found) {
+            for (; i < LEN_1D; i++) {
+                if (a[i] > ft) {
+                    index = i;
+                    value = a[i];
+                    found = 1;
+                    break;
+                }
+            }
+        }
+
+        chksum = value + (float)index;
+    }
+    return value;
+}

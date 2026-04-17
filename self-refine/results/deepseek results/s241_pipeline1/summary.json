@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s241_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s241(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < 2 * iterations; nl++) {\n        // The inner loop has a loop-carried dependency through a[i+1] in the b[i] update,\n        // and b[i] is read in the a[i] update then written, so we must be careful.\n        // The dependency: a[i] is computed first, then b[i] uses a[i] and a[i+1].\n        // a[i+1] in b[i] = a[i] * a[i+1] * d[i] refers to the NEW a[i+1] (computed in same iteration i+1).\n        // So b[i] depends on a[i+1] which is computed at i+1 step.\n        // This means there IS a loop-carried dependency: b[i] needs a[i+1] which is computed at i+1.\n        // Therefore we cannot vectorize the b update directly.\n        // However, we can split: first compute all a[], then compute all b[].\n        // Step 1: compute all a[i] = b[i] * c[i] * d[i] for i in [0, LEN_1D-2]\n        // Step 2: compute all b[i] = a[i] * a[i+1] * d[i] for i in [0, LEN_1D-2]\n        // This changes semantics slightly: original uses updated a[i] for b[i] (same i),\n        // and uses a[i+1] from the SAME iteration pass (which would be the new a[i+1]).\n        // In the scalar loop, when computing b[i], a[i] is already the new value (just computed),\n        // and a[i+1] is also the new value (will be computed at i+1, but hasn't been yet at step i).\n        // Wait - at step i, a[i+1] has NOT been updated yet (it's updated at step i+1).\n        // So b[i] = new_a[i] * old_a[i+1] * d[i].\n        // So the split approach: compute all new_a first, then b[i] = new_a[i] * new_a[i+1] * d[i]\n        // would be WRONG because it uses new_a[i+1] instead of old_a[i+1].\n        // Correct split: save old a[], compute new a[], then compute b[] using new_a[i] and old_a[i+1].\n\n        int len = LEN_1D - 1;\n\n        // Save old a values (we need a[i+1] old for b[i])\n        // We'll use a temporary approach: process in chunks\n        // Actually, let's just do it with a temp buffer approach unrolled\n\n        // Unroll by 4 with scalar semantics preserved:\n        // For each i: tmp = a[i+1] (old), a[i] = b[i]*c[i]*d[i], b[i] = a[i]*tmp*d[i]\n        // This is exactly the scalar loop - we can unroll it but not truly vectorize\n        // due to the dependency. Let's unroll by 4.\n\n        int i = 0;\n        for (; i <= len - 4; i += 4) {\n            float tmp0 = a[i+1];\n            float tmp1 = a[i+2];\n            float tmp2 = a[i+3];\n            float tmp3 = a[i+4];\n\n            float na0 = b[i+0] * c[i+0] * d[i+0];\n            float na1 = b[i+1] * c[i+1] * d[i+1];\n            float na2 = b[i+2] * c[i+2] * d[i+2];\n            float na3 = b[i+3] * c[i+3] * d[i+3];\n\n            a[i+0] = na0;\n            a[i+1] = na1;\n            a[i+2] = na2;\n            a[i+3] = na3;\n\n            b[i+0] = na0 * tmp0 * d[i+0];\n            b[i+1] = na1 * tmp1 * d[i+1];\n            b[i+2] = na2 * tmp2 * d[i+2];\n            b[i+3] = na3 * tmp3 * d[i+3];\n        }\n        for (; i < len; i++) {\n            float tmp = a[i+1];\n            a[i] = b[i] * c[i] * d[i];\n            b[i] = a[i] * tmp * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s241_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s241",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s241_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s241_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s241_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

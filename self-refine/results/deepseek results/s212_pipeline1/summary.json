@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s212_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s212(int n, float *a, float *b, float *c, float *d) {\n    // The loop has a dependency: a[i] is written, but a[i+1] is read.\n    // a[i] *= c[i] writes a[i], and b[i] += a[i+1] * d[i] reads a[i+1].\n    // Since we write a[i] and read a[i+1], these are different indices,\n    // so there is no loop-carried dependency on a[] for the b[] update\n    // (the read of a[i+1] uses the UPDATED value from the previous iteration's write).\n    // Wait: iteration i writes a[i] and reads a[i+1].\n    // iteration i+1 writes a[i+1] and reads a[i+2].\n    // So b[i] += a[i+1]*d[i] uses the ORIGINAL a[i+1] (not yet updated by iteration i+1).\n    // This means we need to be careful: we must read a[i+1] before updating a[i+1].\n    // \n    // Strategy: preload a[i+1] values before updating a[i], then use them for b[i].\n    // We can vectorize by:\n    // 1. Load a[1..n-1] (the a[i+1] values) into a temp array or registers\n    // 2. Update a[0..n-2] *= c[0..n-2]\n    // 3. Update b[0..n-2] += temp * d[0..n-2]\n\n    int limit = n - 1;\n    if (limit <= 0) return;\n\n    typedef float float4 __attribute__((vector_size(16)));\n\n    int i = 0;\n    int vec_limit = limit - (limit % 4);\n\n    for (; i < vec_limit; i += 4) {\n        // Load a[i+1], a[i+2], a[i+3], a[i+4] before modifying a[i..i+3]\n        float4 a_next;\n        a_next[0] = a[i + 1];\n        a_next[1] = a[i + 2];\n        a_next[2] = a[i + 3];\n        a_next[3] = a[i + 4];\n\n        float4 ai, ci, bi, di;\n        ai[0] = a[i];     ai[1] = a[i+1]; ai[2] = a[i+2]; ai[3] = a[i+3];\n        ci[0] = c[i];     ci[1] = c[i+1]; ci[2] = c[i+2]; ci[3] = c[i+3];\n        bi[0] = b[i];     bi[1] = b[i+1]; bi[2] = b[i+2]; bi[3] = b[i+3];\n        di[0] = d[i];     di[1] = d[i+1]; di[2] = d[i+2]; di[3] = d[i+3];\n\n        // a[i] *= c[i]\n        float4 ai_new = ai * ci;\n        a[i]   = ai_new[0];\n        a[i+1] = ai_new[1];\n        a[i+2] = ai_new[2];\n        a[i+3] = ai_new[3];\n\n        // b[i] += a[i+1] * d[i]  (using original a[i+1] values)\n        float4 bi_new = bi + a_next * di;\n        b[i]   = bi_new[0];\n        b[i+1] = bi_new[1];\n        b[i+2] = bi_new[2];\n        b[i+3] = bi_new[3];\n    }\n\n    // Scalar tail\n    for (; i < limit; i++) {\n        float a_next_val = a[i + 1];\n        a[i] *= c[i];\n        b[i] += a_next_val * d[i];\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s212_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s212",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s212_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s212_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s212_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

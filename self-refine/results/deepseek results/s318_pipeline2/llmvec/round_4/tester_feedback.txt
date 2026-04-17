@@ -1,0 +1,13 @@
+- The reference function uses `inc=1` (stride-1 array access), but the candidate uses `a[k0]` with `k0 += inc` in the search loop — when `inc=1` this is fine, but the **max-finding loop starts at index 1 with `k0 = inc`**, meaning it accesses `a[inc]` first, which is correct only if `inc` is the stride. Verify this is consistent.
+
+- The **critical bug**: the first loop initializes `lm0..lm3 = local_max` (which equals `fabsf(a[0])`), but the unrolled loop body accesses `a[k0]` where `k0` starts at `inc` (i.e., `a[1]` when `inc=1`). This is correct. However, `lm1`, `lm2`, `lm3` are initialized to `local_max` but they should track independent lanes — this is actually fine for correctness.
+
+- **Main bug**: The index search loop uses `k0 = 0` and steps by `inc`, so it accesses `a[0], a[inc], a[2*inc], ...`. But the reference `s318` uses a simple `a[i]` (stride-1) loop. If `inc != 1`, the candidate searches the wrong elements. The reference likely always uses `inc=1` for the index search — **change the index search to use `a[j]` directly (stride 1), not `a[k0]` with `k0 += inc`**.
+
+- Similarly, the **max-finding loop** should use `a[i]` directly (stride-1), not `a[k0]` with `k0 += inc`. Replace all indirect `k0`-based accesses with direct `a[i]` accesses.
+
+- The `index` variable should store the **1-based position** of the maximum. Confirm the reference uses 1-based indexing — if it uses 0-based, change `found_index = j + 1` to `found_index = j`.
+
+- The `chksum` accumulation: the reference likely **accumulates** `chksum += max + (float)index` each outer iteration, but the candidate just **assigns** `chksum = max + (float)index`, discarding previous iterations. Change to `chksum += max + (float)index` or match the reference exactly.
+
+- Replace the entire max+index logic with straightforward scalar loops using `a[i]` (no `inc` indirection) to match the reference `s318` behavior, which does not use `inc` for array indexing.

@@ -1,0 +1,11 @@
+The issue is that `scalar_val` is captured once before the outer loop, but `a[LEN_1D/2]` gets overwritten during the first iteration (when `LEN_1D/2 < LEN_1D`, which is always true). The reference implementation reads `a[LEN_1D/2]` fresh each iteration of `nl`, but since `a[LEN_1D/2]` is modified in the loop body, subsequent iterations use the updated value.
+
+- **Fix**: Move `scalar_val = a[LEN_1D/2]` inside the `nl` loop so it re-reads the (potentially updated) value each outer iteration, matching the reference behavior.
+
+```c
+for (int nl = 0; nl < 2*iterations; nl++) {
+    float scalar_val = a[LEN_1D/2];  // move inside nl loop
+    int i = 0;
+    ...
+}
+```

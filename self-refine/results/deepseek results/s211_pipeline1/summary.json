@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s211_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s211(int iterations, int LEN_1D, float*a, float*b, float*c, float*d, float*e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Note: b[i] depends on b[i+1] and b[i-1] in the same iteration,\n        // but since a[i] uses b[i-1] (old value) and b[i] uses b[i+1] (old value),\n        // and b[i] is written after a[i] is computed, we need to be careful.\n        // The loop reads b[i-1] for a[i] and b[i+1] for b[i].\n        // Since b[i] is updated in order i=1,2,..., b[i+1] hasn't been updated yet\n        // when we compute b[i], so we can vectorize if we save old b values first.\n        \n        int len = LEN_1D - 2; // number of iterations: i from 1 to LEN_1D-2\n        if (len <= 0) continue;\n        \n        // We need old b values since b is both read and written.\n        // b[i] reads b[i-1] (already written if i>1 in scalar) and b[i+1] (not yet written).\n        // Wait - in scalar: a[i] = b[i-1] + c[i]*d[i], then b[i] = b[i+1] - e[i]*d[i]\n        // When computing i=2: a[2] = b[1] (already updated at i=1) + c[2]*d[2]\n        // So there IS a loop-carried dependency through b[i-1] for a[i].\n        // This means we cannot simply vectorize without saving old b.\n        // We'll copy b to a temp buffer first, then vectorize.\n        \n        // Use a local temp copy of b for the old values\n        // To avoid VLA issues with large sizes, we'll just do scalar with unrolling\n        // but structured for vectorization where possible.\n        \n        // Since b[i-1] used in a[i] depends on b updated at i-1, we must use\n        // a temporary copy of b. Let's do it with a simple approach:\n        // save b[1..LEN_1D-2] old values, then vectorize.\n        \n        // Allocate temp on stack only if small, otherwise just do scalar unroll\n        // For correctness, let's just do 4-wide unroll with scalar semantics preserved\n        // by processing sequentially (the dependency prevents true SIMD here for a[i]).\n        \n        // Actually let's just unroll 4x scalar - the b[i-1] dependency makes true\n        // vectorization of a[i] incorrect without a temp copy.\n        \n        int i = 1;\n        for (; i <= LEN_1D - 5; i += 4) {\n            float a0 = b[i-1]   + c[i]   * d[i];\n            float b0 = b[i+1]   - e[i]   * d[i];\n            float a1 = b0       + c[i+1] * d[i+1];  // b[i] = b0 (just updated)\n            float b1 = b[i+2]   - e[i+1] * d[i+1];\n            float a2 = b1       + c[i+2] * d[i+2];\n            float b2 = b[i+3]   - e[i+2] * d[i+2];\n            float a3 = b2       + c[i+3] * d[i+3];\n            float b3 = b[i+4]   - e[i+3] * d[i+3];\n            a[i]   = a0; b[i]   = b0;\n            a[i+1] = a1; b[i+1] = b1;\n            a[i+2] = a2; b[i+2] = b2;\n            a[i+3] = a3; b[i+3] = b3;\n        }\n        for (; i < LEN_1D - 1; i++) {\n            a[i] = b[i-1] + c[i] * d[i];\n            b[i] = b[i+1] - e[i] * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s211_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s211",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s211_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s211_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s211_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

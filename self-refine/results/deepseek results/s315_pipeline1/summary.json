@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s315_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <float.h>\n\nfloat vectorized_s315(int iterations, int LEN_1D, float* a)\n{\n    for (int i = 0; i < LEN_1D; i++)\n        a[i] = (i * 7) % LEN_1D;\n\n    float x, chksum;\n    int index;\n    for (int nl = 0; nl < iterations; nl++) {\n        // Vectorized max-finding with 4-wide unroll\n        float max0 = -FLT_MAX, max1 = -FLT_MAX, max2 = -FLT_MAX, max3 = -FLT_MAX;\n        int idx0 = 0, idx1 = 0, idx2 = 0, idx3 = 0;\n\n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 4);\n        for (; i < limit; i += 4) {\n            float v0 = a[i+0];\n            float v1 = a[i+1];\n            float v2 = a[i+2];\n            float v3 = a[i+3];\n            if (v0 > max0) { max0 = v0; idx0 = i+0; }\n            if (v1 > max1) { max1 = v1; idx1 = i+1; }\n            if (v2 > max2) { max2 = v2; idx2 = i+2; }\n            if (v3 > max3) { max3 = v3; idx3 = i+3; }\n        }\n        // Scalar tail\n        for (; i < LEN_1D; i++) {\n            if (a[i] > max0) { max0 = a[i]; idx0 = i; }\n        }\n\n        // Reduce across 4 lanes\n        x = max0; index = idx0;\n        if (max1 > x) { x = max1; index = idx1; }\n        if (max2 > x) { x = max2; index = idx2; }\n        if (max3 > x) { x = max3; index = idx3; }\n\n        chksum = x + (float)index;\n    }\n    return index + x + 1;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s315_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s315",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s315_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s315_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s315_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

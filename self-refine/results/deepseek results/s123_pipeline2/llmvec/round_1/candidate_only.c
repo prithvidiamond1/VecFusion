@@ -1,0 +1,87 @@
+#include <stdint.h>
+#include <string.h>
+
+void vectorized_s123(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    int n = LEN_1D / 2;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // Precompute de[i] = d[i] * e[i], unrolled 4x
+        float de[n];
+        int i = 0;
+        for (; i <= n - 4; i += 4) {
+            de[i+0] = d[i+0] * e[i+0];
+            de[i+1] = d[i+1] * e[i+1];
+            de[i+2] = d[i+2] * e[i+2];
+            de[i+3] = d[i+3] * e[i+3];
+        }
+        for (; i < n; i++) {
+            de[i] = d[i] * e[i];
+        }
+
+        // Compute b_plus_de[i] = b[i] + de[i], unrolled 4x
+        float b_plus_de[n];
+        i = 0;
+        for (; i <= n - 4; i += 4) {
+            b_plus_de[i+0] = b[i+0] + de[i+0];
+            b_plus_de[i+1] = b[i+1] + de[i+1];
+            b_plus_de[i+2] = b[i+2] + de[i+2];
+            b_plus_de[i+3] = b[i+3] + de[i+3];
+        }
+        for (; i < n; i++) {
+            b_plus_de[i] = b[i] + de[i];
+        }
+
+        // Compute c_plus_de[i] and mask[i], unrolled 4x
+        float c_plus_de[n];
+        int mask[n];
+        i = 0;
+        for (; i <= n - 4; i += 4) {
+            mask[i+0] = (c[i+0] > 0.0f) ? 1 : 0;
+            mask[i+1] = (c[i+1] > 0.0f) ? 1 : 0;
+            mask[i+2] = (c[i+2] > 0.0f) ? 1 : 0;
+            mask[i+3] = (c[i+3] > 0.0f) ? 1 : 0;
+            c_plus_de[i+0] = c[i+0] + de[i+0];
+            c_plus_de[i+1] = c[i+1] + de[i+1];
+            c_plus_de[i+2] = c[i+2] + de[i+2];
+            c_plus_de[i+3] = c[i+3] + de[i+3];
+        }
+        for (; i < n; i++) {
+            mask[i] = (c[i] > 0.0f) ? 1 : 0;
+            c_plus_de[i] = c[i] + de[i];
+        }
+
+        // Prefix sum for indices (sequential due to dependency)
+        int indices[n];
+        if (n > 0) {
+            indices[0] = 0;
+            for (i = 1; i < n; i++) {
+                indices[i] = indices[i-1] + 1 + mask[i-1];
+            }
+        }
+
+        // First write pass: always write b_plus_de, unrolled 4x
+        i = 0;
+        for (; i <= n - 4; i += 4) {
+            a[indices[i+0]] = b_plus_de[i+0];
+            a[indices[i+1]] = b_plus_de[i+1];
+            a[indices[i+2]] = b_plus_de[i+2];
+            a[indices[i+3]] = b_plus_de[i+3];
+        }
+        for (; i < n; i++) {
+            a[indices[i]] = b_plus_de[i];
+        }
+
+        // Second write pass: conditional writes for c_plus_de, unrolled 4x
+        i = 0;
+        for (; i <= n - 4; i += 4) {
+            if (mask[i+0]) a[indices[i+0] + 1] = c_plus_de[i+0];
+            if (mask[i+1]) a[indices[i+1] + 1] = c_plus_de[i+1];
+            if (mask[i+2]) a[indices[i+2] + 1] = c_plus_de[i+2];
+            if (mask[i+3]) a[indices[i+3] + 1] = c_plus_de[i+3];
+        }
+        for (; i < n; i++) {
+            if (mask[i]) a[indices[i] + 1] = c_plus_de[i];
+        }
+    }
+}

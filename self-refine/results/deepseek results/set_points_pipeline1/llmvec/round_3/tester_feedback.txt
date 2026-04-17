@@ -1,0 +1,19 @@
+Looking at the failure: "Mismatch in parameter src on trial 0 at index 0" — the test checks `src[0]` but the function sets `src[0] = srcStart` which should be correct. However, the final entries are written to `src[divCount + 1]` and `dst[divCount + 1]`, but they should be at `src[divCount + 1]`... wait — let me re-examine.
+
+The issue is the final element. The loop writes `src[i+1]` and `dst[i+1]` for `i` from 0 to `divCount-1`, so the last div entry is at index `divCount`. Then the end point should be at `divCount + 1`. But `src[0] = srcStart` and `dst[0] = dstStart` are the start points, so total points = `divCount + 2`, indices 0 through `divCount + 1`. That seems right.
+
+The real bug: **`curIsScalable` is never updated in the 4-element and 2-element loops**, but the initial value passed in is `isScalable`. The scalar tail does toggle it. However, the 4-loop and 2-loop assume `curIsScalable` is unchanged after 4 or 2 flips — that's only true if `divCount` is a multiple of 4 or 2 respectively. But the *starting* `curIsScalable` for the first iteration of the 4-loop must match what the scalar loop would compute. This is fine as long as the loops start at `i=0`.
+
+The actual bug: **`src[0]` is set to `srcStart`, but the reference implementation likely sets `src[0] = srcStart` only as the 0th point. The mismatch at index 0 suggests the function signature or array indexing is off-by-one** — specifically, the final `src[divCount + 1] = srcEnd` overwrites valid memory only if the array has `divCount + 2` entries, but the test may expect `src[divCount + 1]` to not exist and the end to be at `src[divCount + 1]`... 
+
+Most likely the end points should be at index `divCount + 1` — but wait, that's what the code does. Let me reconsider: perhaps the issue is that `src` and `dst` arrays are 0-indexed with the end at `divCount + 1`, but the test expects the end at index `divCount + 1` while the code writes it correctly. 
+
+The real problem: **the scalar tail loop doesn't update `curIsScalable` correctly when entering after the 2-loop or 4-loop** — but more critically, the 4-loop's `s1`, `s2`, `s3` assignments assume alternating scalability starting from `curIsScalable`, which is correct.
+
+- The bug is that `src[divCount + 1]` and `dst[divCount + 1]` should be `src[divCount + 1]` — but the correct final index is `divCount + 1` only if there are `divCount + 2` total points. The reference likely uses `src[divCount + 1]` for the end. This matches. 
+
+- **The actual fix**: The end-point write uses `divCount + 1` but should use `divCount + 1` — this is correct. The mismatch at `src[0]` index 0 suggests the problem is that `src[0]` is being set to `srcStart` but the reference doesn't set `src[0]` (it's pre-set), or more likely the arrays passed in are already offset and `src[-1]`/`dst[-1]` is the true start. Check if the function should **not** write `src[0]`/`dst[0]` and instead write the end at `src[divCount+1]` — the reference may write indices 1..divCount+1 only, with index 0 pre-filled.
+
+- **Fix**: Remove `src[0] = srcStart; dst[0] = dstStart;` and change the final write to `src[divCount + 1] = srcEnd; dst[divCount + 1] = dstEnd;` — keeping as-is but verifying the caller pre-fills index 0. If the test sets `src[0]` before calling and expects it unchanged, writing `src[0] = srcStart` corrupts it if `srcStart` differs from what was there.
+
+- **Concrete fix**: Remove the lines `src[0] = srcStart;` and `dst[0] = dstStart;` since the caller likely pre-initializes those, and change `src[divCount + 1]`/`dst[divCount + 1]` to `src[divCount + 1]`/`dst[divCount + 1]` (unchanged). Also change the final indices from `divCount + 1` to `divCount + 1` — they're already correct. So just **remove the two lines that write index 0**.

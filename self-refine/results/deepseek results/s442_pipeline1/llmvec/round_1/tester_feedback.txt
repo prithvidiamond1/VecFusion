@@ -1,0 +1,5 @@
+- The default case in the original `s442` loop uses `a[i] = b[i]` (not `b[i] * b[i]`) when `indx[i]` doesn't match 1–4; check the reference implementation's default/fallthrough behavior.
+- More critically, the original `s442` likely does **no update** (or a different assignment) for the default case — the mismatch at index 0 on trial 0 suggests the very first element is wrong, meaning `indx[0]` hits the default path with incorrect logic.
+- The switch cases for 1–4 likely use **addition assignment** (`a[i] += ...`) but the default case may need `a[i] = b[i]` (plain assignment, no squaring) or simply skip the update — fix the default `val` to `b[i]` (no multiply) or remove the `a[i] +=` for the default path.
+- Verify whether the original code's `case 1` through `case 4` use `a[i] +=` or `a[i] =`; if the reference uses plain assignment (`a[i] = val`) rather than accumulation, change `a[i] += val` to `a[i] = val`.
+- The iteration count `iterations/2` may be wrong — confirm the reference loop runs `iterations` times (not halved); if the original uses `iterations` directly, remove the `/2`.

@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s317_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "float vectorized_s317(int iterations, int LEN_1D)\n{\n    float q;\n    for (int nl = 0; nl < 5 * iterations; nl++) {\n        // We want to compute 0.99^(LEN_1D/2)\n        // Use 4-wide unrolling: maintain 4 accumulators, each computing\n        // 0.99^(count/4) roughly, then combine at the end.\n        int count = LEN_1D / 2;\n        int vec_count = count / 4;\n        int remainder = count - vec_count * 4;\n\n        float q0 = 1.0f, q1 = 1.0f, q2 = 1.0f, q3 = 1.0f;\n        for (int i = 0; i < vec_count; i++) {\n            q0 *= 0.99f;\n            q1 *= 0.99f;\n            q2 *= 0.99f;\n            q3 *= 0.99f;\n        }\n        q = q0 * q1 * q2 * q3;\n        for (int i = 0; i < remainder; i++) {\n            q *= 0.99f;\n        }\n    }\n    return q;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s317_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s317",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s317_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s317_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s317_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

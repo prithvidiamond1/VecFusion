@@ -1,0 +1,88 @@
+#include <math.h>
+#include <stdint.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc) {
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        // First loop: compute max absolute value
+        // Unroll by 4 for vector-friendly code
+        float local_max = max;
+
+        // We can't easily vectorize with arbitrary inc stride,
+        // but we can unroll to help the compiler
+        int i = 1;
+        int k0 = k;
+
+        // Unrolled loop (4x unroll)
+        float lm0 = local_max, lm1 = local_max, lm2 = local_max, lm3 = local_max;
+        int limit = 1 + ((LEN_1D - 1) / 4) * 4;
+        for (; i + 3 < LEN_1D; i += 4) {
+            float av0 = fabsf(a[k0]);
+            float av1 = fabsf(a[k0 + inc]);
+            float av2 = fabsf(a[k0 + 2*inc]);
+            float av3 = fabsf(a[k0 + 3*inc]);
+            lm0 = (av0 > lm0) ? av0 : lm0;
+            lm1 = (av1 > lm1) ? av1 : lm1;
+            lm2 = (av2 > lm2) ? av2 : lm2;
+            lm3 = (av3 > lm3) ? av3 : lm3;
+            k0 += 4 * inc;
+        }
+        // Merge partial maxes
+        lm0 = (lm1 > lm0) ? lm1 : lm0;
+        lm2 = (lm3 > lm2) ? lm3 : lm2;
+        local_max = (lm2 > lm0) ? lm2 : lm0;
+
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k0]);
+            local_max = (abs_val > local_max) ? abs_val : local_max;
+            k0 += inc;
+        }
+
+        // Reset k for second pass
+        k = inc;
+
+        // Second loop: find first index where value equals max
+        int found_index = 0;
+        // Unrolled version - but must preserve first-found semantics
+        // We'll do a simple unrolled loop collecting candidates
+        i = 1;
+        k0 = k;
+
+        // Unroll by 4, collect minimum index where abs == local_max
+        for (; i + 3 < LEN_1D; i += 4) {
+            float av0 = fabsf(a[k0]);
+            float av1 = fabsf(a[k0 + inc]);
+            float av2 = fabsf(a[k0 + 2*inc]);
+            float av3 = fabsf(a[k0 + 3*inc]);
+            int c0 = (av0 == local_max) && (found_index == 0);
+            found_index = c0 ? i : found_index;
+            int c1 = (av1 == local_max) && (found_index == 0);
+            found_index = c1 ? (i+1) : found_index;
+            int c2 = (av2 == local_max) && (found_index == 0);
+            found_index = c2 ? (i+2) : found_index;
+            int c3 = (av3 == local_max) && (found_index == 0);
+            found_index = c3 ? (i+3) : found_index;
+            k0 += 4 * inc;
+        }
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k0]);
+            int cond = (abs_val == local_max) && (found_index == 0);
+            found_index = cond ? i : found_index;
+            k0 += inc;
+        }
+
+        // Update final values
+        max = local_max;
+        index = found_index;
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}

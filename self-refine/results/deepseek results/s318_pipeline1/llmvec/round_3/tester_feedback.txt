@@ -1,0 +1,13 @@
+Looking at the issue: the function returns `max + (float)index + 1` but the reference likely returns `chksum` or `max + (float)index` without the `+1`.
+
+Also, examining the logic more carefully:
+
+- The original s318 is an idiom for finding the index of the maximum absolute value (like ISAMAX). The return value should match the reference implementation.
+- The `+1` at the end is incorrect — remove it and return `chksum` (which is set to `max + (float)index` at the end of the loop).
+
+Fixes needed:
+
+- **Remove the `+1`** from the return statement: change `return max + (float)index + 1;` to `return chksum;` (since `chksum = max + (float)index` is already computed in the loop).
+- **Verify the initial `k` advancement**: `k` starts at 0, then `k += inc` before the loop, so `a[k]` in the loop body starts at `a[inc]` (index 1). This is correct since index 0 is handled before the loop.
+- **The `end4` boundary**: `end4 = LEN_1D - 3` means the 4-wide loop runs while `i < LEN_1D - 3`, i.e., up to `i = LEN_1D - 4`, processing indices `i, i+1, i+2, i+3` up to `LEN_1D - 1`. This is correct.
+- **Return `chksum`** instead of recomputing `max + (float)index + 1`.

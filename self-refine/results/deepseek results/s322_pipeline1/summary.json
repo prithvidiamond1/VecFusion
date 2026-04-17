@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s322_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s322(int iterations, int LEN_1D, float* a, float *b, float* c)\n{\n    // This loop has a loop-carried dependency through a[i] (reads a[i-1] and a[i-2])\n    // so true vectorization of the inner loop is not safe.\n    // We provide an unrolled but semantically correct version.\n    for (int nl = 0; nl < iterations/2; nl++) {\n        int i = 2;\n        // Unroll by 4, but since there's a loop-carried dependency,\n        // we must process sequentially. Unroll manually for ILP hints.\n        for (; i + 3 < LEN_1D; i += 4) {\n            float a0 = a[i]   + a[i-1]   * b[i]   + a[i-2]   * c[i];\n            a[i] = a0;\n            float a1 = a[i+1] + a[i]     * b[i+1] + a[i-1]   * c[i+1];\n            a[i+1] = a1;\n            float a2 = a[i+2] + a[i+1]   * b[i+2] + a[i]     * c[i+2];\n            a[i+2] = a2;\n            float a3 = a[i+3] + a[i+2]   * b[i+3] + a[i+1]   * c[i+3];\n            a[i+3] = a3;\n        }\n        // Scalar cleanup\n        for (; i < LEN_1D; i++) {\n            a[i] = a[i] + a[i-1] * b[i] + a[i-2] * c[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s322_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s322",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s322_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s322_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s322_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+#include <stdint.h>
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.f;
+        // The loop has a carried dependency on s (conditional update),
+        // so we must process it sequentially for correctness.
+        // However, once s is determined, b[i] and e[i] can be computed
+        // with vectorization. We split into two passes.
+
+        // Pass 1: compute s (sequential due to dependency)
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > 0.f) {
+                s = d[i] * d[i];
+            }
+        }
+
+        // Pass 2: compute b[i] and e[i] using the final s
+        // This pass is fully vectorizable since s is now a constant
+        float s1 = s + 1.f;
+        float* aa0 = aa[0];
+
+        int i = 0;
+        // Unroll by 8 for SIMD-friendly code
+        for (; i <= 256 - 8; i += 8) {
+            b[i+0] = s * c[i+0] + d[i+0];
+            b[i+1] = s * c[i+1] + d[i+1];
+            b[i+2] = s * c[i+2] + d[i+2];
+            b[i+3] = s * c[i+3] + d[i+3];
+            b[i+4] = s * c[i+4] + d[i+4];
+            b[i+5] = s * c[i+5] + d[i+5];
+            b[i+6] = s * c[i+6] + d[i+6];
+            b[i+7] = s * c[i+7] + d[i+7];
+
+            e[i+0] = s1 * aa0[i+0];
+            e[i+1] = s1 * aa0[i+1];
+            e[i+2] = s1 * aa0[i+2];
+            e[i+3] = s1 * aa0[i+3];
+            e[i+4] = s1 * aa0[i+4];
+            e[i+5] = s1 * aa0[i+5];
+            e[i+6] = s1 * aa0[i+6];
+            e[i+7] = s1 * aa0[i+7];
+        }
+        // Scalar tail
+        for (; i < 256; ++i) {
+            b[i] = s * c[i] + d[i];
+            e[i] = s1 * aa0[i];
+        }
+    }
+}

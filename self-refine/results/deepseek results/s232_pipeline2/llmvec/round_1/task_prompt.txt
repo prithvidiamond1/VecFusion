@@ -1,0 +1,24 @@
+Vectorize the scalar C function `s232` below.
+
+        Scalar source:
+        ```c
+        void s232(int iterations, float aa[256][256], float bb[256][256]) {
+    int outer_iters = 100 * (iterations / 256);
+
+    for (int nl = 0; nl < outer_iters; nl++) {
+        for (int j = 1; j < 256; j++) {
+            // Process first element separately
+            float prev = aa[j][0] * aa[j][0] + bb[j][1];
+            aa[j][1] = prev;
+
+            // Main loop with explicit scalar temporary
+            for (int i = 2; i <= j; i++) {
+                prev = prev * prev + bb[j][i];
+                aa[j][i] = prev;
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s232`.

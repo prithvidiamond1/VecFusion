@@ -1,0 +1,49 @@
+#include <stdint.h>
+
+void vectorized_s161(int n, float *a, float *c, float a_update, float c_update, int cond) {
+    float cond_f = (float)(cond != 0);
+    float not_cond_f = (float)(cond == 0);
+
+    // Precompute scalar multipliers
+    float a_cond = cond_f;
+    float a_not_cond = not_cond_f;
+    float c_cond = cond_f;
+    float c_not_cond = not_cond_f;
+
+    // Precompute constant contribution for a
+    float a_const = a_not_cond * a_update;
+    // Precompute constant contribution for c
+    float c_const = c_cond * c_update;
+
+    typedef float float4 __attribute__((vector_size(16)));
+
+    float4 va_const = {a_const, a_const, a_const, a_const};
+    float4 va_cond  = {a_cond,  a_cond,  a_cond,  a_cond};
+    float4 vc_const = {c_const, c_const, c_const, c_const};
+    float4 vc_not_cond = {c_not_cond, c_not_cond, c_not_cond, c_not_cond};
+
+    int i = 0;
+    int limit = n - 3;
+    for (; i < limit; i += 4) {
+        float4 ai, ci1;
+
+        // Load a[i..i+3]
+        __builtin_memcpy(&ai, &a[i], sizeof(float4));
+        // Load c[i+1..i+4]
+        __builtin_memcpy(&ci1, &c[i+1], sizeof(float4));
+
+        // a[i] = (!cond) * a_update + cond * a[i]
+        float4 new_a = va_const + va_cond * ai;
+        // c[i+1] = cond * c_update + (!cond) * c[i+1]
+        float4 new_c = vc_const + vc_not_cond * ci1;
+
+        __builtin_memcpy(&a[i], &new_a, sizeof(float4));
+        __builtin_memcpy(&c[i+1], &new_c, sizeof(float4));
+    }
+
+    // Scalar tail
+    for (; i < n; i++) {
+        a[i]   = a_not_cond * a_update + a_cond * a[i];
+        c[i+1] = c_cond * c_update + c_not_cond * c[i+1];
+    }
+}

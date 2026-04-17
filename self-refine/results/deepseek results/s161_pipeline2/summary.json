@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s161_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "a[i] = (!cond) * a_update + cond * a[i];\nc[i+1] = cond * c_update + (!cond) * c[i+1];",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s161_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s161_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s161_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: Could not locate signature for s161",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s161_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "s161",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s161_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s161(int iterations, int LEN_1D, float* a, float* b,float*c, float*d,float*e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        for (int i = 0; i < LEN_1D-1; ++i) {\n            if (b[i] < (float)0.) {\n                goto L20;\n            }\n            a[i] = c[i] + d[i] * e[i];\n            goto L10;\nL20:\n            c[i+1] = a[i] + d[i] * d[i];\nL10:\n            ;\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s161_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

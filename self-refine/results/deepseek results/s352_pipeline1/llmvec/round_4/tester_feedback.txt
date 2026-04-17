@@ -1,0 +1,15 @@
+- The function returns `dot` after the outer loop, but `dot` is a local variable reset to `0.0f` at the start of each `nl` iteration. After the last iteration it holds the correct value, so the return is fine — the real issue is the **reduction result is wrong**: `dot` is initialized to `0.0f` then overwritten by `sum0+sum1+sum2+sum3`, but the tail loop adds to `dot` correctly. However, `sum0..sum3` are declared **inside the outer loop body but outside the inner loop**, yet they are **not reset to 0 at the start of each `nl` iteration** — they accumulate across outer iterations because they are re-declared each time. Wait, they are re-declared each iteration so they are reset. The actual bug: `dot = 0.0f` is set but then immediately **overwritten** by `dot = sum0 + sum1 + sum2 + sum3` without including the previous `dot = 0.0f` — this is actually correct. 
+
+- The real bug: the unrolled partial sums `sum0..sum3` are initialized to `0.0f` correctly each outer iteration, but **`dot` is set to `0.0f` and then completely replaced** by `dot = sum0+sum1+sum2+sum3`. The tail then adds to `dot`. This logic is correct. The mismatch must come from **floating-point reassociation** changing results vs. the reference scalar loop.
+
+- The reference implementation likely does a simple sequential dot product `dot += a[i]*b[i]`. The unrolled version with 4 independent accumulators produces a **different floating-point result** due to reordering of additions, causing the return value mismatch.
+
+- **Fix**: Remove the manual unrolling and use a single accumulator matching the reference's sequential order:
+  ```c
+  dot = 0.0f;
+  for (int i = 0; i < LEN_1D; i++)
+      dot += a[i] * b[i];
+  ```
+- This matches the reference scalar loop exactly and will pass the numerical comparison check.
+- The compiler can still auto-vectorize a simple reduction loop with `-ffast-math` or similar flags if needed, but correctness against the reference requires matching accumulation order.
+- Remove the manual 4-way unroll entirely; let the compiler handle vectorization of the straightforward loop.

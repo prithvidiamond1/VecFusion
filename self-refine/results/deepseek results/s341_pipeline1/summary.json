@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s341_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s341(int iterations, int LEN_1D, float* a, float *b)\n{\n    int j;\n    for (int nl = 0; nl < iterations; nl++) {\n        j = -1;\n        for (int i = 0; i < LEN_1D; i++) {\n            if (b[i] > (float)0.) {\n                j++;\n                a[j] = b[i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s341_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s341",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s341_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s341_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s341_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

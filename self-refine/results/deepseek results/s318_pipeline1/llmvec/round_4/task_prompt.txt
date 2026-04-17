@@ -1,0 +1,99 @@
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations,int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            if (fabsf(a[k]) <= max) {
+                goto L5;
+            }
+            index = i;
+            max = fabsf(a[k]);
+L5:
+            k += inc;
+        }
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    chksum = 0.0f;
+    max = 0.0f;
+    index = 0;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        float cur_max = max;
+        int cur_idx = 0;
+
+        int i = 1;
+        int end4 = LEN_1D - 3;
+
+        for (; i < end4; i += 4) {
+            float v0 = fabsf(a[k]);
+            float v1 = fabsf(a[k + inc]);
+            float v2 = fabsf(a[k + 2*inc]);
+            float v3 = fabsf(a[k + 3*inc]);
+
+            if (v0 > cur_max) { cur_max = v0; cur_idx = i; }
+            if (v1 > cur_max) { cur_max = v1; cur_idx = i+1; }
+            if (v2 > cur_max) { cur_max = v2; cur_idx = i+2; }
+            if (v3 > cur_max) { cur_max = v3; cur_idx = i+3; }
+
+            k += 4*inc;
+        }
+
+        for (; i < LEN_1D; i++) {
+            float v = fabsf(a[k]);
+            if (v > cur_max) {
+                cur_max = v;
+                cur_idx = i;
+            }
+            k += inc;
+        }
+
+        max = cur_max;
+        index = cur_idx;
+
+        chksum = max + (float)index;
+    }
+    return max + (float)index + 1;
+}
+        ```
+
+        Tester feedback:
+        Looking at the issue: the function returns `max + (float)index + 1` but the reference likely returns `chksum` or `max + (float)index` without the `+1`.
+
+Also, examining the logic more carefully:
+
+- The original s318 is an idiom for finding the index of the maximum absolute value (like ISAMAX). The return value should match the reference implementation.
+- The `+1` at the end is incorrect — remove it and return `chksum` (which is set to `max + (float)index` at the end of the loop).
+
+Fixes needed:
+
+- **Remove the `+1`** from the return statement: change `return max + (float)index + 1;` to `return chksum;` (since `chksum = max + (float)index` is already computed in the loop).
+- **Verify the initial `k` advancement**: `k` starts at 0, then `k += inc` before the loop, so `a[k]` in the loop body starts at `a[inc]` (index 1). This is correct since index 0 is handled before the loop.
+- **The `end4` boundary**: `end4 = LEN_1D - 3` means the 4-wide loop runs while `i < LEN_1D - 3`, i.e., up to `i = LEN_1D - 4`, processing indices `i, i+1, i+2, i+3` up to `LEN_1D - 1`. This is correct.
+- **Return `chksum`** instead of recomputing `max + (float)index + 1`.
+
+        Return a corrected candidate function named `vectorized_s318`.

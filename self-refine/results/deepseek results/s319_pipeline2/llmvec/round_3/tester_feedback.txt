@@ -1,0 +1,5 @@
+The test is failing because the computed `sum` doesn't match the reference. Looking at the original `s319` pattern, the sum should only accumulate `a[i]` (i.e., `c[i] + d[i]`), not both `a[i]` and `b[i]`.
+
+- **Root cause**: `vsum += vtmp_a + vtmp_b` accumulates both `vtmp_a` (c+d) and `vtmp_b` (c+e) into the sum, but the reference loop only sums `a[i] = c[i] + d[i]`.
+- **Fix vectorized loop**: Change `vsum += vtmp_a + vtmp_b;` to `vsum += vtmp_a;`
+- **Fix scalar tail loop**: Change `sum += tmp_a; sum += tmp_b;` to just `sum += tmp_a;` (remove `sum += tmp_b;`)

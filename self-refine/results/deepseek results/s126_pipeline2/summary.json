@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s126_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s126_opt(int iterations, float bb[256][256], float cc[256][256], float * flat_2d_array)\n{\n    int k;\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        k = 1;\n        // Process each column independently\n        for (int i = 0; i < 256; i++) {\n            // Compute all products for this column first\n            float products[256];\n            for (int j = 1; j < 256; j++) {\n                products[j] = flat_2d_array[k-1] * cc[j][i];\n                k++;\n            }\n            k++; // Extra increment after each column\n            \n            // Now update bb column with simple forward dependency\n            for (int j = 1; j < 256; j++) {\n                bb[j][i] = bb[j-1][i] + products[j];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s126_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s126_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s126_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nvoid vectorized_s126(int iterations, float bb[256][256], float cc[256][256], float * flat_2d_array)\n{\n    int k;\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        k = 1;\n        for (int i = 0; i < 256; i++) {\n            float products[256];\n\n            // Compute products for j=1..255\n            // k starts at current value, we use flat_2d_array[k-1] for j=1..255\n            // Unroll in groups of 8 for vectorization hint\n            int base_k = k - 1; // index into flat_2d_array\n            int j = 1;\n            for (; j <= 252; j += 4) {\n                products[j]   = flat_2d_array[base_k + (j-1)]   * cc[j][i];\n                products[j+1] = flat_2d_array[base_k + (j)]     * cc[j+1][i];\n                products[j+2] = flat_2d_array[base_k + (j+1)]   * cc[j+2][i];\n                products[j+3] = flat_2d_array[base_k + (j+2)]   * cc[j+3][i];\n            }\n            for (; j < 256; j++) {\n                products[j] = flat_2d_array[base_k + (j-1)] * cc[j][i];\n            }\n\n            k += 255; // advanced by 255 (j went from 1 to 255 inclusive)\n            k++;      // extra increment after each column\n\n            // Forward dependency scan - must be scalar\n            for (int j = 1; j < 256; j++) {\n                bb[j][i] = bb[j-1][i] + products[j];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s126_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s126",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s126_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s126_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s126_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

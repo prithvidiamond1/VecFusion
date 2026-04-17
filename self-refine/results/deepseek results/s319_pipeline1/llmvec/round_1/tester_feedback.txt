@@ -1,0 +1,7 @@
+- The scalar remainder loop adds `a[i]` and `b[i]` to `sum` correctly, but the vectorized loop accumulates `va` (= `a[i]`) and `vb` (= `b[i]`) into `vsum0`/`vsum1` — this is correct in isolation.
+- The bug is that `sum` is reset to `0.0f` at the top of the outer loop but the final `sum = s0 + s1` **overwrites** the accumulated value rather than starting fresh — actually that part is fine since `sum` was just reset.
+- The real issue: the original scalar loop computes `sum += a[i]; sum += b[i]` where `a[i] = c[i]+d[i]` and `b[i] = c[i]+e[i]`. The vectorized path accumulates `va` (c+d) into `vsum0` and `vb` (c+e) into `vsum1`, then sets `sum = s0 + s1`. This matches. But check the **original reference**: `s319` sums only `a[i]` (not `b[i]`), or only `b[i]`, depending on the benchmark. The candidate sums both `a[i]` and `b[i]` — verify the reference only sums one array.
+- Most likely fix: the reference `s319` only accumulates `a[i]` into `sum` (not `b[i]`). Remove `vsum1`/`s1` accumulation and remove `sum += b[i]` from the scalar tail, keeping only `sum += a[i]`.
+- Change `sum = s0 + s1` → `sum = s0` and remove `vsum1 += vb` and `s1`/`vsum1` entirely.
+- In the scalar tail, remove `sum += b[i]`, keeping only `sum += a[i]`.
+- Keep `b[i] = c[i] + e[i]` assignment but do not add it to `sum`.

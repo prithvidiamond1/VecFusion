@@ -1,0 +1,3 @@
+- The function returns `sum` from the **last iteration** of the outer `nl` loop, but the reference implementation accumulates `sum` only once (or returns the value from a single pass). The outer loop resets `sum = 0.0f` each iteration, so only the final iteration's `sum` is returned — this is likely correct structurally, but check whether the reference uses `iterations` or `2 * iterations` as the loop bound. The loop bound should be `iterations`, not `2 * iterations`.
+
+- Change `for (int nl = 0; nl < 2 * iterations; nl++)` to `for (int nl = 0; nl < iterations; nl++)` — the doubling of iterations causes extra computation that diverges from the reference result.

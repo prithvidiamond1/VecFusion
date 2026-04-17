@@ -1,0 +1,15 @@
+Looking at the failure:
+
+- The original loop goes **backward** (`i = LEN_1D-2` down to `0`), meaning `a[i+1] = a[i] + b[i]` where each `a[i]` read is the **original** value (not yet overwritten, since we write `a[i+1]` and next iteration reads `a[i-1]`).
+- The candidate's "unrolled by 8" block runs **forward** but introduces a **chain dependency**: `a[j+2] = a[j+1] + b[j+1]` uses the just-written `a[j+1]`, not the original. This is wrong — it creates a prefix-sum instead of the original semantics.
+- The correct semantics: each `a[i+1] = a[i] + b[i]` uses the **original** `a[i]` (before any update in this `nl` iteration). The backward traversal ensures this because writes go to higher indices while reads come from lower indices that haven't been written yet.
+- Fix: **do not chain** the unrolled writes. Each `a[j+1]` must be computed from the **original** `a[j]`, not from a previously written value. Since the backward loop reads original values, simply implement it as a straightforward backward loop (or forward loop reading original values without chaining):
+
+```c
+for (int i = LEN_1D - 2; i >= 0; i--) {
+    a[i + 1] = a[i] + b[i];
+}
+```
+
+- Remove the broken 8-way chained unroll entirely — it changes the computation semantics.
+- The `temp = a[0]` / `a[0] = temp` save/restore is also unnecessary since the backward loop never writes to `a[0]`; remove it to avoid confusion (though it's not the cause of the mismatch).

@@ -1,0 +1,40 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s352_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\nfloat vectorized_s352(int iterations, int LEN_1D, float* a, float* b)\n{\n    float dot;\n    for (int nl = 0; nl < 8 * iterations; nl++) {\n        dot = 0.0f;\n        int i = 0;\n        /* Unroll by 4 for vectorization-friendly code */\n        float sum0 = 0.0f, sum1 = 0.0f, sum2 = 0.0f, sum3 = 0.0f;\n        for (; i <= LEN_1D - 4; i += 4) {\n            sum0 += a[i]     * b[i];\n            sum1 += a[i + 1] * b[i + 1];\n            sum2 += a[i + 2] * b[i + 2];\n            sum3 += a[i + 3] * b[i + 3];\n        }\n        dot = sum0 + sum1 + sum2 + sum3;\n        /* Scalar cleanup tail */\n        for (; i < LEN_1D; i++) {\n            dot += a[i] * b[i];\n        }\n    }\n    return dot;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s352_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s352",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s352_pipeline1/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s352_opt(int iterations,int LEN_1D, float* a, float *b)\n{\n    float dot;\n    for (int nl = 0; nl < 8*iterations; nl++) {\n        dot = 0.0f;\n        int i = 0;\n        \n        // Main vectorizable loop - independent partial sums\n        for (; i < LEN_1D; i += 5) {\n            float sum0 = a[i] * b[i];\n            float sum1 = a[i + 1] * b[i + 1];\n            float sum2 = a[i + 2] * b[i + 2];\n            float sum3 = a[i + 3] * b[i + 3];\n            float sum4 = a[i + 4] * b[i + 4];\n            \n            // Preserve original addition order exactly\n            dot = ((dot + sum0) + sum1) + sum2;\n            dot = (dot + sum3) + sum4;\n        }\n    }\n    return dot;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s352_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s352_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s352_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

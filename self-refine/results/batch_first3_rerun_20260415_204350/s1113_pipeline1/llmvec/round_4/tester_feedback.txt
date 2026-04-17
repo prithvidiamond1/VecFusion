@@ -1,8 +1,0 @@
-- The test expects `a[LEN_1D/2]` to be read **before** any writes to `a[i]` in the inner loop, but since `i` will eventually equal `LEN_1D/2`, the write at that index overwrites `a[LEN_1D/2]` mid-loop — however the current code already reads `mid` before the loop, so that is correct.
-- The real issue is the **outer loop iteration count**: the reference likely runs `iterations` times, not `2*iterations`. Change `2*iterations` back to `iterations`.
-
-```c
-for (int nl = 0; nl < iterations; nl++) {
-```
-
-- This causes `a` to be updated twice as many times as the reference, producing a different final value of `a[65]` (and all other indices), which matches the reported mismatch.

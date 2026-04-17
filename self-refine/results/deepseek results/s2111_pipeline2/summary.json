@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s2111_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "for (int j = 1; j < 256; j++) {\n    for (int i = 1; i < 256; i++) {\n        aa[j][i] = (aa[j][i-1] + aa[j-1][i]) / 1.9;\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s2111_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s2111_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s2111_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: Could not locate signature for s2111",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s2111_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "s2111",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s2111_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s2111(int iterations,float aa[256][256])\n{\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        for (int j = 1; j < 256; j++) {\n            for (int i = 1; i < 256; i++) {\n                aa[j][i] = (aa[j][i-1] + aa[j-1][i])/1.9;\n            }\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s2111_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+Revise your candidate for `s1244` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s1244(int iterations, int LEN_1D, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < LEN_1D-1; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i]*b[i] + c[i];
+            d[i] = a[i] + a[i+1];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+void vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)
+{
+    typedef float float4 __attribute__((vector_size(16)));
+
+    int vec_len = (LEN_1D - 1);
+    int vec_count = vec_len / 4;
+    int remainder = vec_len % 4;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // First pass: compute a[i] for i in [0, LEN_1D-1)
+        int i = 0;
+        for (; i < vec_count * 4; i += 4) {
+            float4 bi, ci, ai;
+            __builtin_memcpy(&bi, b + i, sizeof(float4));
+            __builtin_memcpy(&ci, c + i, sizeof(float4));
+            ai = bi + ci * ci + bi * bi + ci;
+            __builtin_memcpy(a + i, &ai, sizeof(float4));
+        }
+        for (; i < vec_len; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];
+        }
+        // Also compute a[LEN_1D-1] since d[LEN_1D-2] needs a[LEN_1D-1]
+        {
+            int idx = LEN_1D - 1;
+            a[idx] = b[idx] + c[idx] * c[idx] + b[idx] * b[idx] + c[idx];
+        }
+
+        // Second pass: compute d[i] = a[i] + a[i+1] for i in [0, LEN_1D-1)
+        i = 0;
+        for (; i < vec_count * 4; i += 4) {
+            float4 ai, ai1, di;
+            __builtin_memcpy(&ai, a + i, sizeof(float4));
+            __builtin_memcpy(&ai1, a + i + 1, sizeof(float4));
+            di = ai + ai1;
+            __builtin_memcpy(d + i, &di, sizeof(float4));
+        }
+        for (; i < vec_len; i++) {
+            d[i] = a[i] + a[i + 1];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The mismatch at index 127 (which is `LEN_1D-1` when `LEN_1D=128`) indicates the second pass is writing `d[i]` values that overwrite `a[i]` values, OR the first pass's `vec_count * 4` range doesn't cover index 127 (i.e., `vec_len = LEN_1D-1 = 127`, so indices 0..126 are computed in the first pass, but index 127 is computed separately — that part looks correct).
+
+- The real issue: `vec_count = 127 / 4 = 31`, so `vec_count * 4 = 124`. The vectorized second pass writes `d[124..127]` using `__builtin_memcpy(d + 124, &di, sizeof(float4))`, which writes 4 floats at indices 124,125,126,127. But `d[127]` corresponds to `a[127] + a[128]` — index 128 is out of bounds for `LEN_1D=128` (valid indices 0..127). This is an out-of-bounds read of `a[128]`.
+
+- More critically: the vectorized second pass at `i=124` reads `a[125..128]` via `__builtin_memcpy(&ai1, a + 125, sizeof(float4))` — `a[128]` is out of bounds, causing undefined behavior and likely corrupting `a[127]`.
+
+- Fix: reduce the second pass vector loop to only run when `i + 4 < vec_len` (i.e., `i + 5 <= vec_len`), so `vec_count2 = (vec_len - 1) / 4` to ensure `a[i+1]` through `a[i+4]` are all valid. Specifically, change `vec_count` for the second pass to `(vec_len - 1) / 4`.
+
+- Concretely, before the second pass add: `int vec_count2 = (vec_len - 1) / 4;` and use `vec_count2` in the second loop's bound instead of `vec_count`, then let the scalar remainder loop handle the rest up to `vec_len`.
+
+- Also verify the scalar remainder of the second pass: `for (; i < vec_len; i++) { d[i] = a[i] + a[i+1]; }` — when `i` goes up to `vec_len-1 = 126`, it accesses `a[127]` which is valid (computed in the extra step). This is correct.
+
+- Summary of fix: in the second pass, replace `vec_count` with `(vec_len - 1) / 4` so the SIMD loop never reads `a[i+1..i+4]` out of bounds.
+
+        Return a corrected candidate function named `vectorized_s1244`.

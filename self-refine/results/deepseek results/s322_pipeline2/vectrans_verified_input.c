@@ -1,0 +1,15 @@
+void s322(int iterations, int LEN_1D, float* a, float* b, float* c)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        float a_i_minus_2 = a[0];
+        float a_i_minus_1 = a[1];
+        
+        for (int i = 2; i < LEN_1D; i++) {
+            float a_i = a[i];
+            float result = a_i + a_i_minus_1 * b[i] + a_i_minus_2 * c[i];
+            a_i_minus_2 = a_i_minus_1;
+            a_i_minus_1 = result;
+            a[i] = result;
+        }
+    }
+}

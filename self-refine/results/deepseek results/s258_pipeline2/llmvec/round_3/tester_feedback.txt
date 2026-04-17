@@ -1,0 +1,13 @@
+The first loop computes `s` incorrectly. The original `s258` kernel updates `s` only when `a[i] > b[i]` (or similar condition involving both arrays), but here the condition only checks `a[i] > 0.0f` and uses `d[i]*d[i]` — this may not match the reference. More critically:
+
+- **The condition in the first loop is wrong.** The reference loop for s258 typically does: `if (a[i] > b[i]) s = d[i] * d[i];` — fix the condition to compare `a[i] > b[i]` instead of `a[i] > 0.0f`.
+
+- **The `s_array` intermediate is unnecessary complexity** — but the real bug is the wrong predicate causing `s` to differ from the reference, which then propagates to `b[i]` and `e[i]` outputs, explaining the mismatch at index 0.
+
+- **Fix**: Change `if (a[i] > 0.0f)` to `if (a[i] > b[i])` in the first loop (use whatever the correct reference condition is for s258 — typically `a[i] > b[i]`).
+
+- **Also verify** what `s` is initialized to and what expression updates it. In many s258 variants the update is `s += d[i] * d[i]` (accumulation) not assignment — check whether it should be `s = d[i] * d[i]` or `s += d[i] * d[i]`.
+
+- **The `e[i]` computation** uses `aa[0][i]` but the reference likely uses `aa[i][0]` or a different index — verify the `aa` indexing matches the original loop nest.
+
+- **The `b[i]` formula** `s * c[i] + d[i]` should be double-checked against the reference; it may be `s * c[i]` without the `+ d[i]` term, or use `e[i]` instead.

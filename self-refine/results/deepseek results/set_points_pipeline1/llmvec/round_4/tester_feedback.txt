@@ -1,0 +1,19 @@
+Looking at the failure: "Mismatch in parameter src on trial 0 at index 0" — the test checks `src[0]` but the code sets `src[0] = srcStart` which should be correct. However, the final element is written to `src[divCount + 1]` and `dst[divCount + 1]`, but it should be `src[divCount + 1]`... wait — let me re-examine the indexing.
+
+The issue is the final entries. With `divCount` divs, we have `divCount + 2` total points (indices 0 through divCount+1). But the last point should be at index `divCount + 1`. That seems right.
+
+The real problem: **`src[0]` is set to `srcStart` but the test expects something different at index 0** — actually the abort (exit code -6 = SIGABRT) with "Mismatch at index 0" suggests a buffer overrun or the initial `src[0]`/`dst[0]` assignment is wrong.
+
+Looking more carefully: the original scalar loop writes `src[i+1]` for `i` from 0..divCount-1, plus `src[0]=srcStart` and `src[divCount+1]=srcEnd`. But in the vectorized 4-loop, when `i=0`, it writes `src[1]..src[4]` — that's correct. The issue is **`src[0]` is set before the loop but the test may expect it not to be set**, or more likely the problem is the **last two entries use wrong index**.
+
+- The last point should be at index `divCount + 1` — but wait, counting: index 0, then indices 1..divCount for the divs, then index divCount+1 for the end. That's `divCount + 2` entries total. This seems correct.
+
+The actual bug: **`curIsScalable` is never updated in the 4-loop and 2-loop**, so when `divCount % 4 != 0` or `divCount % 2 != 0`, the scalar tail uses the wrong `curIsScalable`. But more critically, the 4-loop assumes `curIsScalable` is unchanged after 4 iterations — **this is only true if the initial `isScalable` parity is preserved**, which it is. However the 2-loop also doesn't flip, which is correct.
+
+The real index-0 mismatch: the test likely calls with `divCount=0`, making the loops skip entirely, and then writes `src[1] = srcEnd` but the reference writes `src[1] = srcEnd` too... 
+
+**The actual bug**: `src[divCount + 1]` should be `src[divCount + 1]` — but when `divCount=0`, that's `src[1]`, which is fine. The problem is `src[0] = srcStart` — the reference implementation likely does **not** set `src[0]`; it only sets `src[i+1]` starting from `i=0`.
+
+- **Remove `src[0] = srcStart;` and `dst[0] = dstStart;`** — the reference scalar loop only writes `src[i+1]` and `dst[i+1]` for `i` in `[0, divCount)`, plus the final `src[divCount+1]`/`dst[divCount+1]`. Index 0 is never written by the original.
+- Change `src[divCount + 1] = srcEnd;` to `src[divCount + 1] = srcEnd;` — keep as-is, but verify the last-point index: it should be `divCount + 1` only if the array is 0-indexed with `divCount+2` slots. If the reference uses `divCount+1` as the last index (i.e., total `divCount+2` points at indices 0..divCount+1), this is correct — **but remove the explicit `src[0]`/`dst[0]` writes**.
+- After removing those two lines, `curSrc` and `curDst` still initialize correctly from `srcStart`/`dstStart` for delta computation without writing to index 0.

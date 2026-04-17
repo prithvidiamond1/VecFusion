@@ -1,0 +1,38 @@
+float s318(int iterations, int LEN_1D, float* a, int inc) {
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        
+        // First loop: compute max absolute value (vectorizable reduction)
+        float local_max = max;
+        for (int i = 1; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k]);
+            local_max = (abs_val > local_max) ? abs_val : local_max;
+            k += inc;
+        }
+        
+        // Reset k for second pass
+        k = inc;
+        
+        // Second loop: find first index where value equals max
+        // Use temporary variable to store candidate index, then assign after loop
+        int found_index = 0;
+        for (int i = 1; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k]);
+            // Use comparison without branching
+            int cond = (abs_val == local_max) && (found_index == 0);
+            found_index = cond ? i : found_index;
+            k += inc;
+        }
+        
+        // Update final values
+        max = local_max;
+        index = found_index;
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}

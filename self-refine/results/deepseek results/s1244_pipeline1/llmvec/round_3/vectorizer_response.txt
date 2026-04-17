@@ -1,0 +1,51 @@
+```c
+#include <stdint.h>
+#include <string.h>
+
+void vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)
+{
+    typedef float float4 __attribute__((vector_size(16)));
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // First pass: compute a[i] for i in [1, LEN_1D] (1-indexed, i.e., indices 1..LEN_1D)
+        // That means a[1] through a[LEN_1D]
+        int start = 1;
+        int end_a = LEN_1D; // inclusive
+        int count_a = end_a - start + 1; // = LEN_1D
+        int vec_count_a = count_a / 4;
+
+        int i = start;
+        for (int v = 0; v < vec_count_a; v++, i += 4) {
+            float4 bi, ci, ai;
+            __builtin_memcpy(&bi, b + i, sizeof(float4));
+            __builtin_memcpy(&ci, c + i, sizeof(float4));
+            ai = bi + ci * ci + bi * bi + ci;
+            __builtin_memcpy(a + i, &ai, sizeof(float4));
+        }
+        for (; i <= end_a; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];
+        }
+
+        // Second pass: compute d[i] = a[i] + a[i+1] for i in [1, LEN_1D-1] (1-indexed)
+        int end_d = LEN_1D - 1; // inclusive
+        int count_d = end_d - start + 1; // = LEN_1D - 1
+        // For vectorized load of a[i+1..i+4], we need i+4 <= LEN_1D, i.e., i <= LEN_1D-4
+        // So vec_count_d = count_d / 4, but we must ensure a[i+4] is valid (i+4 <= LEN_1D)
+        // i starts at 1, last vectorized i = 1 + (vec_count_d-1)*4
+        // need 1 + (vec_count_d-1)*4 + 4 <= LEN_1D => vec_count_d*4 <= LEN_1D - 1 = count_d
+        int vec_count_d = count_d / 4;
+
+        i = start;
+        for (int v = 0; v < vec_count_d; v++, i += 4) {
+            float4 ai, ai1, di;
+            __builtin_memcpy(&ai, a + i, sizeof(float4));
+            __builtin_memcpy(&ai1, a + i + 1, sizeof(float4));
+            di = ai + ai1;
+            __builtin_memcpy(d + i, &di, sizeof(float4));
+        }
+        for (; i <= end_d; i++) {
+            d[i] = a[i] + a[i + 1];
+        }
+    }
+}
+```

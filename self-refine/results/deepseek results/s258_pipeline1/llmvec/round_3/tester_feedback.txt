@@ -1,0 +1,12 @@
+- The scalar loop carries a dependency through `s` (it's updated conditionally and used in subsequent iterations), so the vectorized version must preserve this sequential behavior — but the real issue is the **reference implementation uses a different update rule**: `s` should accumulate the **last** `d[i]*d[i]` where `a[i] > 0`, which requires sequential scan.
+- The current code already has `vectorize(disable)` and runs sequentially, so the logic itself must be wrong. Check: the reference likely initializes `s = 0` **outside** the `nl` loop (i.e., `s` persists across outer iterations), not reset each `nl` iteration.
+- **Fix**: Move `s = 0.f;` to before the `nl` loop (initialize once), so `s` carries over between outer iterations:
+  ```c
+  float s = 0.f;
+  for (int nl = 0; nl < iterations; nl++) {
+      for (int i = 0; i < 256; ++i) { ... }
+  }
+  ```
+- The mismatch at index 0 on trial 0 strongly suggests `s` has the wrong initial value at the start of the first (or subsequent) outer iteration — moving initialization outside fixes this.
+- Keep the `#pragma clang loop vectorize(disable)` on the inner loop since the cross-iteration dependency on `s` prevents safe vectorization.
+- No other changes needed to `b[i]` or `e[i]` computations.

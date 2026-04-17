@@ -1,0 +1,30 @@
+void vectorized_s221(int iterations, int LEN_1D, float*a, float*b, float*c, float*d)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        // The inner loop has a loop-carried dependency in b[i] = b[i-1] + ...
+        // so we cannot vectorize the b update. We can vectorize the a update
+        // and keep b sequential.
+        
+        // First pass: vectorize a[i] += c[i] * d[i]
+        int i = 1;
+        
+        // Vector width of 4 floats
+        int vec_end = 1 + ((LEN_1D - 1) / 4) * 4;
+        
+        for (; i < vec_end; i += 4) {
+            a[i]   += c[i]   * d[i];
+            a[i+1] += c[i+1] * d[i+1];
+            a[i+2] += c[i+2] * d[i+2];
+            a[i+3] += c[i+3] * d[i+3];
+        }
+        // Scalar cleanup for a
+        for (; i < LEN_1D; i++) {
+            a[i] += c[i] * d[i];
+        }
+        
+        // Second pass: b[i] = b[i-1] + a[i] + d[i] (sequential, loop-carried dep)
+        for (i = 1; i < LEN_1D; i++) {
+            b[i] = b[i-1] + a[i] + d[i];
+        }
+    }
+}

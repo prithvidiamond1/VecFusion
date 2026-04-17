@@ -1,0 +1,53 @@
+Candidate code:
+```c
+#include <stdint.h>
+#include <string.h>
+
+void vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)
+{
+    typedef float float4 __attribute__((vector_size(16)));
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // First pass: compute a[i] for i in [0, LEN_1D-1]
+        int start = 0;
+        int end_a = LEN_1D - 1; // inclusive
+        int count_a = end_a - start + 1; // = LEN_1D
+        int vec_count_a = count_a / 4;
+
+        int i = start;
+        for (int v = 0; v < vec_count_a; v++, i += 4) {
+            float4 bi, ci, ai;
+            __builtin_memcpy(&bi, b + i, sizeof(float4));
+            __builtin_memcpy(&ci, c + i, sizeof(float4));
+            ai = bi + ci * ci + bi * bi + ci;
+            __builtin_memcpy(a + i, &ai, sizeof(float4));
+        }
+        for (; i <= end_a; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];
+        }
+
+        // Second pass: compute d[i] = a[i] + a[i+1] for i in [0, LEN_1D-2]
+        int end_d = LEN_1D - 2; // inclusive
+        int count_d = end_d - start + 1; // = LEN_1D - 1
+        int vec_count_d = count_d / 4;
+
+        i = start;
+        for (int v = 0; v < vec_count_d; v++, i += 4) {
+            float4 ai, ai1, di;
+            __builtin_memcpy(&ai, a + i, sizeof(float4));
+            __builtin_memcpy(&ai1, a + i + 1, sizeof(float4));
+            di = ai + ai1;
+            __builtin_memcpy(d + i, &di, sizeof(float4));
+        }
+        for (; i <= end_d; i++) {
+            d[i] = a[i] + a[i + 1];
+        }
+    }
+}
+```
+
+External compile/test report:
+Compile succeeded for round 4.
+Exit code: 2
+stderr:
+Mismatch in parameter a on trial 0 at index 127

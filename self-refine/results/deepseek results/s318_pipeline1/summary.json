@@ -1,0 +1,40 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s318_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <math.h>\n\nfloat vectorized_s318(int iterations, int LEN_1D, float* a, int inc)\n{\n    int k, index;\n    float max, chksum;\n    chksum = 0.0f;\n    max = 0.0f;\n    index = 0;\n    for (int nl = 0; nl < iterations/2; nl++) {\n        k = 0;\n        index = 0;\n        max = fabsf(a[0]);\n        k += inc;\n\n        float cur_max = max;\n        int cur_idx = 0;\n\n        int i = 1;\n        int end4 = LEN_1D - 3;\n\n        for (; i < end4; i += 4) {\n            float v0 = fabsf(a[k]);\n            float v1 = fabsf(a[k + inc]);\n            float v2 = fabsf(a[k + 2*inc]);\n            float v3 = fabsf(a[k + 3*inc]);\n\n            if (v0 > cur_max) { cur_max = v0; cur_idx = i; }\n            if (v1 > cur_max) { cur_max = v1; cur_idx = i+1; }\n            if (v2 > cur_max) { cur_max = v2; cur_idx = i+2; }\n            if (v3 > cur_max) { cur_max = v3; cur_idx = i+3; }\n\n            k += 4*inc;\n        }\n\n        for (; i < LEN_1D; i++) {\n            float v = fabsf(a[k]);\n            if (v > cur_max) {\n                cur_max = v;\n                cur_idx = i;\n            }\n            k += inc;\n        }\n\n        max = cur_max;\n        index = cur_idx;\n\n        chksum = max + (float)index;\n    }\n    return chksum;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s318_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s318",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s318_pipeline1/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s318_opt(int iterations, int LEN_1D, float* a, int inc) {\n    int k, index;\n    float max, chksum;\n    \n    for (int nl = 0; nl < iterations/2; nl++) {\n        k = 0;\n        index = 0;\n        max = fabsf(a[0]);\n        k += inc;\n        \n        // Split the loop: first handle the comparison values\n        float max_val = max;\n        int max_index = index;\n        \n        // Process all elements to find maximum absolute value\n        for (int i = 1; i < LEN_1D; i++) {\n            float current_abs = fabsf(a[k]);\n            // Store comparison result\n            int is_greater = (current_abs > max_val);\n            // Update using arithmetic to avoid branching\n            max_val = is_greater ? current_abs : max_val;\n            k += inc;\n        }\n        \n        // Second pass: find the first index where value equals max_val\n        k = inc; // Reset to first element\n        for (int i = 1; i < LEN_1D; i++) {\n            float current_abs = fabsf(a[k]);\n            if (current_abs == max_val) {\n                max_index = i;\n                break; // Found first occurrence\n            }\n            k += inc;\n        }\n        \n        max = max_val;\n        index = max_index;\n        chksum = max + (float)index;\n    }\n    return max + index + 1;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s318_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s318_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s318_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

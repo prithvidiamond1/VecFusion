@@ -1,0 +1,13 @@
+The candidate incorrectly skips the `a[i] += b[i]*c[i]` and `a[i] -= b[i]*c[i]` updates. Even though they cancel algebraically, the original code performs both operations and the test checks the final state of `a[]` after all iterations — the intermediate writes may matter, or the assumption about cancellation is wrong in context.
+
+- **Fix**: Restore both the `a[i] += b[i]*c[i]` and `a[i] -= b[i]*c[i]` loops inside the `nl` loop. Do not omit them.
+- The `a[]` array is being checked by the test harness and must reflect the correct values after execution; skipping the updates causes a mismatch at index 1.
+- The `e[]` recurrence loop is correct as-is (scalar, loop-carried dependency).
+- The corrected inner body should be:
+  ```c
+  for (int i = 0; i < LEN_1D; i++) a[i] += b[i] * c[i];
+  for (int i = 1; i < LEN_1D; i++) e[i] = e[i-1] * e[i-1];
+  for (int i = 0; i < LEN_1D; i++) a[i] -= b[i] * c[i];
+  ```
+- The first and third loops (`a[]` updates) are vectorizable with SIMD since they have no loop-carried dependencies.
+- Do not apply the "net-zero cancellation" optimization — the test validates intermediate/final array state strictly.

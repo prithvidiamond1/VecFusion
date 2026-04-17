@@ -1,0 +1,26 @@
+Looking at the code, the main issues are:
+
+- **The unrolled index-finding loop is broken**: it has redundant `i += 4; i -= 4; k0 -= 4*inc; k0 += 4*inc` lines that cancel out, but more critically, when a match is found mid-unroll (e.g., `av1`, `av2`, `av3`), `k0` hasn't been advanced yet, so the index calculation is correct but `k0` is stale — this is fine since we break. However, when **no match is found** in the unrolled block, `k0` is only advanced once at the end (the last `k0 += 4*inc` after the cancellations), meaning `k0` advances by `4*inc` per iteration correctly. But then the fallback **restarts from `k0 = inc`**, re-scanning from element 1, which is redundant but correct — except it may find a **different** index than the original algorithm expects.
+
+- **Root cause of mismatch**: The original `s318` uses a simple sequential scan with a single `k` variable stepping by `inc`. The first loop finds `max`, the second finds the **first** index. The fallback correctly rescans from scratch, so the index found should be correct. The real bug is that the **unrolled search loop double-advances `k0`** (the two `k0 += 4*inc` lines net to `+8*inc` per iteration instead of `+4*inc`), so when it exits without finding, the fallback correctly restarts — but if it **does** find in the unrolled block, `k0` wasn't advanced for that group, which is fine since we break.
+
+- **The unrolled search loop increments `i` by 4 twice** per iteration (loop increment + the `i += 4; i -= 4` net-zero pair is fine, but the structure is confusing and the `break` after finding skips the `k0 += 4*inc` at the bottom, leaving `k0` pointing to the start of the group — this is irrelevant since we break).
+
+- **Simplest fix**: Remove the broken unrolled search loop entirely and just use the scalar fallback loop for finding the index. The scalar fallback is correct and already handles all cases.
+
+```c
+        // Find first index where abs value equals local_max
+        int found_index = 0;
+        k0 = 0;
+        for (int j = 0; j < LEN_1D; j++) {
+            if (fabsf(a[k0]) == local_max) {
+                found_index = j;
+                break;
+            }
+            k0 += inc;
+        }
+```
+
+- **Remove** the entire broken unrolled index-finding block (the `found_index = -1` section through the `if (found_index < 0)` fallback) and replace with the simple loop above.
+- **Also fix the first loop**: `k` starts at `inc` after `k += inc`, but `k0 = k = inc`, and element 0 is checked separately with `a[0]`. The unrolled max loop starts at `i=1, k0=inc` — this is correct.
+- **Ensure `iterations/2` matches the reference**: if the reference uses `iterations` not `iterations/2`, change back to `iterations`.

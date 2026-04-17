@@ -1,0 +1,18 @@
+The test is comparing against a reference implementation of `s258`. Looking at the mismatch, the issue is in the **first loop's logic**: the original `s258` benchmark uses `s` as a scalar that gets conditionally updated and then used for `b[i]` and `e[i]` at the **same iteration** — but the reference likely computes `b[i]` and `e[i]` using the value of `s` **after** the conditional update at index `i`, not a pre-stored array.
+
+However, the deeper issue is what the reference `s258` actually does. The standard `s258` loop is:
+
+```c
+for (i = 0; i < n; i++) {
+    if (a[i] > 0.0f) s = d[i] * d[i];
+    b[i] = s * c[i] + d[i];
+    e[i] = (s + 1.0f) * aa[0][i];
+}
+```
+
+The candidate's two-pass approach (store `s` into `s_array`, then use it) is correct in principle, but the **mismatch in parameter `a`** suggests the function signature or parameter order doesn't match what the test harness expects.
+
+- The test reports "Mismatch in parameter `a`" — the harness is checking output array `a`, but the reference writes to `b` and `e`, not `a`. This means the **function signature parameter order is wrong**: the harness likely expects `(iterations, a, b, c, d, e, aa)` where `a` is an **output** (mapped to `b` in the reference), or the order is shuffled.
+- Check the reference signature: `s258(float *a, float *b, float *c, float *d, float *e, float aa[][256])` — the harness likely calls with `a` as the first output array. Your function should write to `a[i]` (not `b[i]`) as the primary output, or reorder parameters to match.
+- Most likely fix: swap `a` and `b` roles — write `a[i] = s * c[i] + d[i]` and `b[i] = (s+1)*aa[0][i]`, or reorder the parameter list to match the reference exactly.
+- Verify the exact reference signature and reorder `float* a, float* b, ...` in your function to match, ensuring the conditional reads from the correct input array and writes to the correct output arrays.

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/AllPointsEq_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "bool AllPointsEq_opt(const int pts[], int count) {\n    if (count <= 1) return true;\n    \n    const int first = pts[0];\n    int i = 1;\n    \n    // Vectorization-friendly main loop: accumulate mismatches\n    int any_mismatch = 0;\n    for (; i + 3 < count; i += 4) {\n        any_mismatch |= (first != pts[i]);\n        any_mismatch |= (first != pts[i+1]);\n        any_mismatch |= (first != pts[i+2]);\n        any_mismatch |= (first != pts[i+3]);\n    }\n    \n    // Early exit after vectorized portion\n    if (any_mismatch) return false;\n    \n    // Cleanup loop for remaining elements\n    for (; i < count; ++i) {\n        if (first != pts[i]) {\n            return false;\n        }\n    }\n    \n    return true;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/AllPointsEq_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/AllPointsEq_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/AllPointsEq_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdbool.h>\n#include <stdint.h>\n\ntypedef int v4si __attribute__((vector_size(16)));\n\nbool vectorized_AllPointsEq(const int pts[], int count) {\n    if (count <= 1) return true;\n\n    const int first = pts[0];\n    int i = 1;\n\n    // Build a vector of 'first' repeated 4 times\n    v4si vfirst = {first, first, first, first};\n    v4si vmismatch = {0, 0, 0, 0};\n\n    // Vectorized main loop: process 4 elements at a time\n    for (; i + 3 < count; i += 4) {\n        v4si vpts;\n        __builtin_memcpy(&vpts, &pts[i], sizeof(v4si));\n        // Compare: result is -1 (all bits set) where equal, 0 where not equal\n        v4si vcmp = (vfirst != vpts);\n        vmismatch |= vcmp;\n    }\n\n    // Check if any mismatch was found in vectorized portion\n    // vmismatch elements are non-zero if there was a mismatch\n    if (vmismatch[0] | vmismatch[1] | vmismatch[2] | vmismatch[3]) {\n        return false;\n    }\n\n    // Scalar cleanup tail for remaining elements\n    for (; i < count; ++i) {\n        if (first != pts[i]) {\n            return false;\n        }\n    }\n\n    return true;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/AllPointsEq_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "AllPointsEq",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/AllPointsEq_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/AllPointsEq_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/AllPointsEq_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

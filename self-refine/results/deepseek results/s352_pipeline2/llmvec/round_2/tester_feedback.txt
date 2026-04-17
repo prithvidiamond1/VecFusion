@@ -1,0 +1,15 @@
+The issue is that the scalar tail loop accumulates into `dot` (which starts at 0.0f each outer iteration), but then the partial sums are added to `dot` afterward — so the tail elements are included correctly. However, the problem is the **order of operations**: `dot` is reset to `0.0f` at the start of each outer iteration, the tail loop adds into `dot`, then the partial sums are added to `dot`. This logic is actually correct structurally.
+
+The real bug: the **second cleanup loop** (groups of 5) accumulates into `dot0`–`dot4`, which are then combined into `dot` at the end — that's fine. But wait — the scalar tail loop uses `dot += a[i]*b[i]` starting from `dot = 0.0f`, which is correct.
+
+The actual problem: **the reference implementation likely does not reset `dot` between outer iterations** (i.e., it accumulates across `nl` iterations), but this candidate resets `dot = 0.0f` at the top of each `nl` iteration. Check the reference — `s352` typically returns the dot product computed only in the last iteration, but the reset is correct for that. 
+
+More likely the real bug: the **second cleanup loop** uses stride-5 unrolling into `dot0`–`dot4`, but these variables were already partially accumulated in the main loop. The indices `i+1`, `i+2`, etc. in the cleanup loop are correct. Let me reconsider — the actual issue is likely **floating-point reduction order** mismatch vs reference.
+
+The simplest fix that matches the reference scalar behavior:
+
+- **Remove all unrolling and partial sums**; replace with a single simple scalar loop: `for (i = 0; i < LEN_1D; i++) dot += a[i] * b[i];` — this matches the reference exactly and avoids any floating-point reordering mismatch.
+- The outer `dot = 0.0f` reset inside the `nl` loop is correct (keep it).
+- Remove `dot0`–`dot19` and all unrolled loops entirely.
+- Remove the second cleanup loop and scalar tail loop.
+- The final `return dot;` is correct as-is.

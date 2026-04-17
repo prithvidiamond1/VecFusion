@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s1161_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s1161_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Process all i: compute both potential results\n        for (int i = 0; i < LEN_1D-1; ++i) {\n            float d_sq = d[i] * d[i];\n            float de = d[i] * e[i];\n            \n            // Compute both branch results\n            float a_new = c[i] + de;\n            float b_new = a[i] + d_sq;\n            \n            // Mask-based selection without branching\n            int cond = c[i] < 0.0f;\n            a[i] = cond ? a[i] : a_new;      // Only update a if c[i] >= 0\n            b[i] = cond ? b_new : b[i];      // Only update b if c[i] < 0\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s1161_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s1161_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s1161_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s1161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        int i = 0;\n        int limit = LEN_1D - 1;\n\n#if defined(__clang__) || defined(__GNUC__)\n        typedef float float4 __attribute__((vector_size(16)));\n        typedef int   int4   __attribute__((vector_size(16)));\n\n        int limit4 = limit - (limit % 4);\n        for (; i < limit4; i += 4) {\n            float4 ci, di, ei, ai, bi;\n\n            // Load 4 elements\n            __builtin_memcpy(&ci, c + i, 16);\n            __builtin_memcpy(&di, d + i, 16);\n            __builtin_memcpy(&ei, e + i, 16);\n            __builtin_memcpy(&ai, a + i, 16);\n            __builtin_memcpy(&bi, b + i, 16);\n\n            float4 zero = {0.0f, 0.0f, 0.0f, 0.0f};\n\n            float4 d_sq = di * di;\n            float4 de   = di * ei;\n\n            float4 a_new = ci + de;\n            float4 b_new = ai + d_sq;\n\n            // cond = c[i] < 0.0f  (all-ones if true, all-zeros if false)\n            int4 cond = (int4)(ci < zero);\n\n            // a[i] = cond ? a[i] : a_new  => select a_new when cond==0\n            // b[i] = cond ? b_new : b[i]  => select b_new when cond!=0\n            // Using bitwise blend: result = (cond & true_val) | (~cond & false_val)\n            int4 ai_int    = (int4)ai;\n            int4 bi_int    = (int4)bi;\n            int4 a_new_int = (int4)a_new;\n            int4 b_new_int = (int4)b_new;\n\n            // a[i] = cond ? a[i] : a_new\n            int4 a_result = (cond & ai_int) | (~cond & a_new_int);\n            // b[i] = cond ? b_new : b[i]\n            int4 b_result = (cond & b_new_int) | (~cond & bi_int);\n\n            float4 a_out = (float4)a_result;\n            float4 b_out = (float4)b_result;\n\n            __builtin_memcpy(a + i, &a_out, 16);\n            __builtin_memcpy(b + i, &b_out, 16);\n        }\n#endif\n\n        // Scalar cleanup tail\n        for (; i < limit; i++) {\n            float d_sq = d[i] * d[i];\n            float de   = d[i] * e[i];\n\n            float a_new = c[i] + de;\n            float b_new = a[i] + d_sq;\n\n            int cond = c[i] < 0.0f;\n            a[i] = cond ? a[i] : a_new;\n            b[i] = cond ? b_new : b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s1161_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s1161",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s1161_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s1161_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s1161_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

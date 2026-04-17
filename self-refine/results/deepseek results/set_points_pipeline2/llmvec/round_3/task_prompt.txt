@@ -1,0 +1,170 @@
+Revise your candidate for `set_points` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed,
+                    int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,
+                    bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    float normal_scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    float shrink_scale = dstLen / ((float) srcFixed);
+
+    int use_normal = srcFixed <= dstLen;
+    scale = use_normal ? normal_scale : shrink_scale;
+
+    src[0] = srcStart;
+    dst[0] = dstStart;
+
+    // Pre-calculate all src[i+1] and srcDelta values
+    for (int i = 0; i < divCount; i++) {
+        src[i + 1] = divs[i];
+    }
+
+    // Calculate all dstDelta values without dependencies
+    float dstDelta[divCount];
+    int current_scalable = isScalable;
+
+    for (int i = 0; i < divCount; i++) {
+        int srcDelta = src[i + 1] - src[i];
+
+        if (use_normal) {
+            dstDelta[i] = current_scalable ? scale * srcDelta : srcDelta;
+        } else {
+            dstDelta[i] = current_scalable ? 0.0f : scale * srcDelta;
+        }
+
+        current_scalable = !current_scalable;
+    }
+
+    // Sequential accumulation for dst[i+1]
+    for (int i = 0; i < divCount; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+
+    src[divCount + 1] = srcEnd;
+    dst[divCount + 1] = dstEnd;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdbool.h>
+#include <stdint.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed,
+                           int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,
+                           bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float normal_scale = (dstLen - ((float)srcFixed)) / ((float)srcScalable);
+    float shrink_scale = dstLen / ((float)srcFixed);
+
+    int use_normal = srcFixed <= dstLen;
+    float scale = use_normal ? normal_scale : shrink_scale;
+
+    dst[0] = dstStart;
+
+    // Write src[1..divCount] from divs
+    for (int i = 0; i < divCount; i++) {
+        src[i + 1] = divs[i];
+    }
+
+    // Calculate all dstDelta values
+    float dstDelta[divCount > 0 ? divCount : 1];
+
+    int scalable_even = (int)isScalable;
+    int scalable_odd  = (int)(!isScalable);
+
+    if (use_normal) {
+        int i = 0;
+        for (; i <= divCount - 4; i += 4) {
+            int prev0 = (i == 0) ? srcStart : divs[i - 1];
+            int prev1 = divs[i];
+            int prev2 = divs[i + 1];
+            int prev3 = divs[i + 2];
+
+            int srcDelta0 = divs[i]     - prev0;
+            int srcDelta1 = divs[i + 1] - prev1;
+            int srcDelta2 = divs[i + 2] - prev2;
+            int srcDelta3 = divs[i + 3] - prev3;
+
+            int s0 = (i % 2 == 0) ? scalable_even : scalable_odd;
+            int s1 = !s0;
+            int s2 = s0;
+            int s3 = s1;
+
+            dstDelta[i]     = s0 ? scale * (float)srcDelta0 : (float)srcDelta0;
+            dstDelta[i + 1] = s1 ? scale * (float)srcDelta1 : (float)srcDelta1;
+            dstDelta[i + 2] = s2 ? scale * (float)srcDelta2 : (float)srcDelta2;
+            dstDelta[i + 3] = s3 ? scale * (float)srcDelta3 : (float)srcDelta3;
+        }
+        int current_scalable = (i % 2 == 0) ? scalable_even : scalable_odd;
+        for (; i < divCount; i++) {
+            int prev = (i == 0) ? srcStart : divs[i - 1];
+            int srcDelta = divs[i] - prev;
+            dstDelta[i] = current_scalable ? scale * (float)srcDelta : (float)srcDelta;
+            current_scalable = !current_scalable;
+        }
+    } else {
+        int i = 0;
+        for (; i <= divCount - 4; i += 4) {
+            int prev0 = (i == 0) ? srcStart : divs[i - 1];
+            int prev1 = divs[i];
+            int prev2 = divs[i + 1];
+            int prev3 = divs[i + 2];
+
+            int srcDelta0 = divs[i]     - prev0;
+            int srcDelta1 = divs[i + 1] - prev1;
+            int srcDelta2 = divs[i + 2] - prev2;
+            int srcDelta3 = divs[i + 3] - prev3;
+
+            int s0 = (i % 2 == 0) ? scalable_even : scalable_odd;
+            int s1 = !s0;
+            int s2 = s0;
+            int s3 = s1;
+
+            dstDelta[i]     = s0 ? 0.0f : scale * (float)srcDelta0;
+            dstDelta[i + 1] = s1 ? 0.0f : scale * (float)srcDelta1;
+            dstDelta[i + 2] = s2 ? 0.0f : scale * (float)srcDelta2;
+            dstDelta[i + 3] = s3 ? 0.0f : scale * (float)srcDelta3;
+        }
+        int current_scalable = (i % 2 == 0) ? scalable_even : scalable_odd;
+        for (; i < divCount; i++) {
+            int prev = (i == 0) ? srcStart : divs[i - 1];
+            int srcDelta = divs[i] - prev;
+            dstDelta[i] = current_scalable ? 0.0f : scale * (float)srcDelta;
+            current_scalable = !current_scalable;
+        }
+    }
+
+    // Sequential accumulation for dst[i+1]
+    for (int i = 0; i < divCount; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+
+    src[divCount + 1] = srcEnd;
+    dst[divCount + 1] = dstEnd;
+}
+        ```
+
+        Tester feedback:
+        Looking at the failure: the test reports a mismatch in parameter `src` at index 0 on trial 0. The function is writing into `src` (which appears to be an output array), but the logic is wrong.
+
+The original intent is that `src` stores the source pixel positions: `src[0] = srcStart`, then `src[1..divCount] = divs[0..divCount-1]`, then `src[divCount+1] = srcEnd`. The candidate is missing `src[0] = srcStart`.
+
+Key fixes needed:
+
+- **Add `src[0] = srcStart;`** — the candidate never sets `src[0]`, but the test expects it. This is the direct cause of "mismatch in src at index 0".
+
+- **The `use_normal` branch dstDelta logic is wrong**: when `use_normal` is true (normal scale), scalable segments should be multiplied by `scale` and fixed segments kept as-is (`(float)srcDelta`). But when `use_normal` is false (shrink), scalable segments should be zeroed (`0.0f`) and fixed segments scaled by `shrink_scale`. The current code has the `else` branch zeroing scalable segments correctly, but the `use_normal` branch applies `scale` to scalable and identity to fixed — that part looks correct. Double-check the shrink branch: fixed segments should use `scale * srcDelta` (not zero scalable), so the `else` branch has the scalable/fixed logic inverted relative to what `isScalable` means per segment.
+
+- **The `else` branch has inverted scalable logic**: `dstDelta[i] = s0 ? 0.0f : scale * srcDelta0` — this zeros scalable segments and scales fixed ones. It should be the opposite: zero scalable, scale fixed. Actually re-reading: `s0` is 1 when the segment IS scalable, so zeroing when `s0=1` is correct for shrink. This looks right. The `use_normal` branch should apply `scale` when scalable (`s0=1`) and identity when fixed — that also looks correct.
+
+- **The single concrete fix**: add `src[0] = srcStart;` immediately after `dst[0] = dstStart;`.
+
+```c
+dst[0] = dstStart;
+src[0] = srcStart;  // ADD THIS LINE
+```
+
+        Return a corrected candidate function named `vectorized_set_points`.

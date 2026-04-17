@@ -1,0 +1,156 @@
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations, int LEN_1D, float* a, int inc) {
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        // First loop: compute max absolute value (vectorizable reduction)
+        float local_max = max;
+        for (int i = 1; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k]);
+            local_max = (abs_val > local_max) ? abs_val : local_max;
+            k += inc;
+        }
+
+        // Reset k for second pass
+        k = inc;
+
+        // Second loop: find first index where value equals max
+        // Use temporary variable to store candidate index, then assign after loop
+        int found_index = 0;
+        for (int i = 1; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k]);
+            // Use comparison without branching
+            int cond = (abs_val == local_max) && (found_index == 0);
+            found_index = cond ? i : found_index;
+            k += inc;
+        }
+
+        // Update final values
+        max = local_max;
+        index = found_index;
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+#include <stdint.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc) {
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        // First loop: compute max absolute value
+        // Unroll by 4 for vector-friendly code
+        float local_max = max;
+
+        // We can't easily vectorize with arbitrary inc stride,
+        // but we can unroll to help the compiler
+        int i = 1;
+        int k0 = k;
+
+        // Unrolled loop (4x unroll)
+        float lm0 = local_max, lm1 = local_max, lm2 = local_max, lm3 = local_max;
+        int limit = 1 + ((LEN_1D - 1) / 4) * 4;
+        for (; i + 3 < LEN_1D; i += 4) {
+            float av0 = fabsf(a[k0]);
+            float av1 = fabsf(a[k0 + inc]);
+            float av2 = fabsf(a[k0 + 2*inc]);
+            float av3 = fabsf(a[k0 + 3*inc]);
+            lm0 = (av0 > lm0) ? av0 : lm0;
+            lm1 = (av1 > lm1) ? av1 : lm1;
+            lm2 = (av2 > lm2) ? av2 : lm2;
+            lm3 = (av3 > lm3) ? av3 : lm3;
+            k0 += 4 * inc;
+        }
+        // Merge partial maxes
+        lm0 = (lm1 > lm0) ? lm1 : lm0;
+        lm2 = (lm3 > lm2) ? lm3 : lm2;
+        local_max = (lm2 > lm0) ? lm2 : lm0;
+
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k0]);
+            local_max = (abs_val > local_max) ? abs_val : local_max;
+            k0 += inc;
+        }
+
+        // Reset k for second pass
+        k = inc;
+
+        // Second loop: find first index where value equals max
+        int found_index = 0;
+        // Unrolled version - but must preserve first-found semantics
+        // We'll do a simple unrolled loop collecting candidates
+        i = 1;
+        k0 = k;
+
+        // Unroll by 4, collect minimum index where abs == local_max
+        for (; i + 3 < LEN_1D; i += 4) {
+            float av0 = fabsf(a[k0]);
+            float av1 = fabsf(a[k0 + inc]);
+            float av2 = fabsf(a[k0 + 2*inc]);
+            float av3 = fabsf(a[k0 + 3*inc]);
+            int c0 = (av0 == local_max) && (found_index == 0);
+            found_index = c0 ? i : found_index;
+            int c1 = (av1 == local_max) && (found_index == 0);
+            found_index = c1 ? (i+1) : found_index;
+            int c2 = (av2 == local_max) && (found_index == 0);
+            found_index = c2 ? (i+2) : found_index;
+            int c3 = (av3 == local_max) && (found_index == 0);
+            found_index = c3 ? (i+3) : found_index;
+            k0 += 4 * inc;
+        }
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k0]);
+            int cond = (abs_val == local_max) && (found_index == 0);
+            found_index = cond ? i : found_index;
+            k0 += inc;
+        }
+
+        // Update final values
+        max = local_max;
+        index = found_index;
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Tester feedback:
+        The function returns `max + index + 1` but `max` and `index` are local variables that are only updated inside the loop body. After the loop ends, they hold the last iteration's values — but the real issue is that `max` and `index` are declared at the top and the `return` uses them correctly in principle. Let me look more carefully.
+
+The actual bugs:
+
+- **`index` is never set from `found_index` when `found_index == 0`**: If the maximum is at position 0 (i.e., `a[0]`), `found_index` stays 0 and `index = found_index` gives 0, which is correct. But the second pass starts at `i=1, k0=inc`, so it **never checks `a[0]`**. If `a[0]` has the max, `found_index` remains 0 and `index=0` — this part is actually fine.
+
+- **The second pass uses `k = inc` but the first pass already advanced `k` to `inc` after initialization** — the second pass correctly resets `k0 = k = inc`, starting at index 1. However, **`a[0]` is never checked in the second pass**, so if `a[0]` is the unique maximum, `found_index` stays 0 and `index=0`. That is correct.
+
+- **The unrolled second pass accesses `a[k0 + inc]`, `a[k0 + 2*inc]`, `a[k0 + 3*inc]` but `k0` already points to element `i`** — so `a[k0+inc]` corresponds to element `i+1`, which is correct for the values but **the index tracking is right**.
+
+- **Root cause**: The second loop checks `found_index == 0` as a proxy for "not found yet", but **index 0 is a valid found index** (element 0). If the max is found at `i=1` first, `found_index` becomes 1, which is correct. But if the max first occurs at `i=0` (element 0), the second loop never sets `found_index`, leaving it 0 — this is accidentally correct.
+
+- **Real bug**: `local_max` is initialized to `fabsf(a[0])` but the **first pass unrolled loop starts `k0 = k = inc`** (element 1), yet `lm0..lm3` are all initialized to `local_max`. This is correct.
+
+- **Actual failure**: The variable `limit` is computed but **never used** — harmless. More critically, the **`return` statement uses `max` and `index` which are declared as uninitialized locals** if `iterations/2 == 0`. But the real issue: **`return max + index + 1`** — `index` is an `int` added to a `float`. The reference likely returns `(float)(index+1) + max` or similar. Change the return to match: `return chksum;` since `chksum = max + (float)index` and the reference likely returns `chksum + 1.f` or just `chksum`.
+
+- **Fix**: Change `return max + index + 1;` to `return chksum;` (or `return max + (float)index + 1.f;` if +1 is intended), and ensure `chksum` is initialized before the loop (e.g., `chksum = 0.f;`) so it has a defined value if the loop doesn't execute.
+
+        Return a corrected candidate function named `vectorized_s318`.

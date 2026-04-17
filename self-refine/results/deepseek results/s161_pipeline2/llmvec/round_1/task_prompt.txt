@@ -1,0 +1,9 @@
+Vectorize the scalar C function `s161` below.
+
+        Scalar source:
+        ```c
+        a[i] = (!cond) * a_update + cond * a[i];
+c[i+1] = cond * c_update + (!cond) * c[i+1];
+        ```
+
+        Produce a candidate function named `vectorized_s161`.

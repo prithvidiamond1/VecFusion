@@ -1,0 +1,58 @@
+void vectorized_s244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        // This loop has a loop-carried dependency through a[i+1] and b[i],
+        // so we cannot vectorize across iterations of the inner loop.
+        // We unroll manually but keep the sequential dependency intact.
+        int i = 0;
+        // Unroll by 4, but since there's a dependency chain (b[i] feeds into a[i+1]
+        // which is used in the next iteration), we must process sequentially.
+        // We unroll to help the compiler pipeline the scalar operations.
+        int limit = LEN_1D - 1;
+        int limit4 = limit - (limit % 4);
+
+        for (i = 0; i < limit4; i += 4) {
+            float bi0, bi1, bi2, bi3;
+            float ai0, ai1, ai2, ai3, ai4;
+
+            // iteration i
+            ai0 = b[i] + c[i] * d[i];
+            bi0 = c[i] + b[i];
+            ai1 = bi0 + a[i+1] * d[i];
+            a[i] = ai0;
+            b[i] = bi0;
+            a[i+1] = ai1;
+
+            // iteration i+1
+            ai1 = b[i+1] + c[i+1] * d[i+1];
+            bi1 = c[i+1] + b[i+1];
+            ai2 = bi1 + a[i+2] * d[i+1];
+            a[i+1] = ai1;
+            b[i+1] = bi1;
+            a[i+2] = ai2;
+
+            // iteration i+2
+            ai2 = b[i+2] + c[i+2] * d[i+2];
+            bi2 = c[i+2] + b[i+2];
+            ai3 = bi2 + a[i+3] * d[i+2];
+            a[i+2] = ai2;
+            b[i+2] = bi2;
+            a[i+3] = ai3;
+
+            // iteration i+3
+            ai3 = b[i+3] + c[i+3] * d[i+3];
+            bi3 = c[i+3] + b[i+3];
+            ai4 = bi3 + a[i+4] * d[i+3];
+            a[i+3] = ai3;
+            b[i+3] = bi3;
+            a[i+4] = ai4;
+        }
+
+        // scalar cleanup
+        for (; i < limit; i++) {
+            a[i] = b[i] + c[i] * d[i];
+            b[i] = c[i] + b[i];
+            a[i+1] = b[i] + a[i+1] * d[i];
+        }
+    }
+}

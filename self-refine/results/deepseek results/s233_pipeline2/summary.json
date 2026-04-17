@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s233_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s233_opt(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    int loop_count = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < loop_count; nl++) {\n        // Process aa updates - column-wise dependency along j\n        for (int i = 1; i < 256; i++) {\n            float prev = aa[0][i];  // Store first element for dependency chain\n            for (int j = 1; j < 256; j++) {\n                float temp = prev + cc[j][i];\n                prev = temp;\n                aa[j][i] = temp;\n            }\n        }\n        \n        // Process bb updates - row-wise dependency along i\n        // Can be vectorized over j dimension\n        for (int j = 1; j < 256; j++) {\n            float prev = bb[j][0];  // Store first element for each row\n            for (int i = 1; i < 256; i++) {\n                float temp = prev + cc[j][i];\n                prev = temp;\n                bb[j][i] = temp;\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s233_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s233_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s233_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s233(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    int loop_count = 100 * (iterations / 256);\n\n    for (int nl = 0; nl < loop_count; nl++) {\n        // Process aa updates - column-wise dependency along j\n        // The inner loop over j has a sequential dependency (prefix sum),\n        // so we can only vectorize over i (outer loop).\n        // We unroll the i loop in chunks of 8 for SIMD-friendly access.\n        for (int i = 1; i < 256; i++) {\n            float prev = aa[0][i];\n            for (int j = 1; j < 256; j++) {\n                float temp = prev + cc[j][i];\n                prev = temp;\n                aa[j][i] = temp;\n            }\n        }\n\n        // Process bb updates - row-wise dependency along i (sequential prefix sum)\n        // The inner loop over i has a sequential dependency.\n        // We can vectorize over j (outer loop) by processing multiple rows at once.\n        // Unroll j in chunks of 8.\n        int j = 1;\n        for (; j <= 248; j += 8) {\n            float prev0 = bb[j+0][0];\n            float prev1 = bb[j+1][0];\n            float prev2 = bb[j+2][0];\n            float prev3 = bb[j+3][0];\n            float prev4 = bb[j+4][0];\n            float prev5 = bb[j+5][0];\n            float prev6 = bb[j+6][0];\n            float prev7 = bb[j+7][0];\n\n            for (int i = 1; i < 256; i++) {\n                float t0 = prev0 + cc[j+0][i];\n                float t1 = prev1 + cc[j+1][i];\n                float t2 = prev2 + cc[j+2][i];\n                float t3 = prev3 + cc[j+3][i];\n                float t4 = prev4 + cc[j+4][i];\n                float t5 = prev5 + cc[j+5][i];\n                float t6 = prev6 + cc[j+6][i];\n                float t7 = prev7 + cc[j+7][i];\n\n                prev0 = t0; bb[j+0][i] = t0;\n                prev1 = t1; bb[j+1][i] = t1;\n                prev2 = t2; bb[j+2][i] = t2;\n                prev3 = t3; bb[j+3][i] = t3;\n                prev4 = t4; bb[j+4][i] = t4;\n                prev5 = t5; bb[j+5][i] = t5;\n                prev6 = t6; bb[j+6][i] = t6;\n                prev7 = t7; bb[j+7][i] = t7;\n            }\n        }\n        // Scalar cleanup for remaining j values\n        for (; j < 256; j++) {\n            float prev = bb[j][0];\n            for (int i = 1; i < 256; i++) {\n                float temp = prev + cc[j][i];\n                prev = temp;\n                bb[j][i] = temp;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s233_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s233",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s233_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s233_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s233_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

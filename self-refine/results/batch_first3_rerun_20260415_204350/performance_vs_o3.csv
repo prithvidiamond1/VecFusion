@@ -1,7 +1,0 @@
-test,pipeline,final_stage,o3_seconds,pipeline_seconds,speedup_vs_o3
-AllPointsEq,pipeline1,llm_vectorizer,0.023903,0.019971,1.19688548395173
-AllPointsEq,pipeline2,llm_vectorizer,0.023846,0.021741,1.0968216733360932
-s1113,pipeline1,vectrans,0.015222,0.003448,4.414733178654292
-s1113,pipeline2,llm_vectorizer,0.01521,0.00751,2.025299600532623
-s112,pipeline1,llm_vectorizer,0.004603,0.00712,0.6464887640449439
-s112,pipeline2,llm_vectorizer,0.005424,0.02,0.2712

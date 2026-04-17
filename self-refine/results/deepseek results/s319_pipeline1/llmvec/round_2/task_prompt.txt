@@ -1,0 +1,80 @@
+Revise your candidate for `s319` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s319(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)
+{
+    float sum;
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        sum = 0.;
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum += a[i];
+            b[i] = c[i] + e[i];
+            sum += b[i];
+        }
+    }
+    return sum;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)
+{
+    float sum;
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        sum = 0.0f;
+
+        typedef float float4 __attribute__((vector_size(16)));
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+
+        float4 vsum0 = {0.0f, 0.0f, 0.0f, 0.0f};
+        float4 vsum1 = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        for (; i < limit; i += 4) {
+            float4 vc, vd, ve, va, vb;
+
+            vc = (float4){c[i], c[i+1], c[i+2], c[i+3]};
+            vd = (float4){d[i], d[i+1], d[i+2], d[i+3]};
+            ve = (float4){e[i], e[i+1], e[i+2], e[i+3]};
+
+            va = vc + vd;
+            vb = vc + ve;
+
+            a[i]   = va[0]; a[i+1] = va[1]; a[i+2] = va[2]; a[i+3] = va[3];
+            b[i]   = vb[0]; b[i+1] = vb[1]; b[i+2] = vb[2]; b[i+3] = vb[3];
+
+            vsum0 += va;
+            vsum1 += vb;
+        }
+
+        float s0 = vsum0[0] + vsum0[1] + vsum0[2] + vsum0[3];
+        float s1 = vsum1[0] + vsum1[1] + vsum1[2] + vsum1[3];
+        sum = s0 + s1;
+
+        for (; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum += a[i];
+            b[i] = c[i] + e[i];
+            sum += b[i];
+        }
+    }
+    return sum;
+}
+        ```
+
+        Tester feedback:
+        - The scalar remainder loop adds `a[i]` and `b[i]` to `sum` correctly, but the vectorized loop accumulates `va` (= `a[i]`) and `vb` (= `b[i]`) into `vsum0`/`vsum1` — this is correct in isolation.
+- The bug is that `sum` is reset to `0.0f` at the top of the outer loop but the final `sum = s0 + s1` **overwrites** the accumulated value rather than starting fresh — actually that part is fine since `sum` was just reset.
+- The real issue: the original scalar loop computes `sum += a[i]; sum += b[i]` where `a[i] = c[i]+d[i]` and `b[i] = c[i]+e[i]`. The vectorized path accumulates `va` (c+d) into `vsum0` and `vb` (c+e) into `vsum1`, then sets `sum = s0 + s1`. This matches. But check the **original reference**: `s319` sums only `a[i]` (not `b[i]`), or only `b[i]`, depending on the benchmark. The candidate sums both `a[i]` and `b[i]` — verify the reference only sums one array.
+- Most likely fix: the reference `s319` only accumulates `a[i]` into `sum` (not `b[i]`). Remove `vsum1`/`s1` accumulation and remove `sum += b[i]` from the scalar tail, keeping only `sum += a[i]`.
+- Change `sum = s0 + s1` → `sum = s0` and remove `vsum1 += vb` and `s1`/`vsum1` entirely.
+- In the scalar tail, remove `sum += b[i]`, keeping only `sum += a[i]`.
+- Keep `b[i] = c[i] + e[i]` assignment but do not add it to `sum`.
+
+        Return a corrected candidate function named `vectorized_s319`.

@@ -1,0 +1,21 @@
+The scalar tail loop computes `sum += a[i]` (which is `c[i] + d[i]`), matching the vectorized loop's `vsum0 += va` (where `va = c + d`). That part is consistent.
+
+The problem is in the **vectorized loop**: it accumulates `va` (i.e., `c[i] + d[i]`) into `vsum0`, but the **reference scalar loop** for s319 accumulates `a[i]` **after** `a[i]` is set — which is the same value. So the sum logic itself is correct.
+
+The real mismatch: the reference s319 likely sums **only `a[i]`** but the scalar tail loop here does `sum += a[i]` while the vectorized body does `vsum0 += va` — these match. Let me look more carefully:
+
+- The vectorized loop accumulates `va = c[i] + d[i]` into `vsum0`, then stores `va` into `a[i]`. ✓
+- The scalar tail does `a[i] = c[i] + d[i]; sum += a[i];` ✓
+
+The bug is that `sum` is initialized to `0.0f` **before** the vectorized loop but then **overwritten** by the horizontal reduction `sum = vsum0[0] + ...` — discarding the initial `0.0f`. That's fine. But the scalar tail adds to `sum` after the reduction. That's also fine.
+
+The actual issue: **`b[i]` in the vectorized loop uses `vb = vc + ve`**, but the reference scalar loop sets `b[i] = c[i] + e[i]` — those match. 
+
+The real bug: the vectorized loop accumulates `va` into `vsum0` **but does not add `b[i]`** — which is correct if only `a` is summed. Check if the reference sums both `a[i]` and `b[i]`.
+
+- Fix: the reference s319 sums `a[i] * b[i]` or similar — check the original. Most likely the sum should be `sum += a[i] * b[i]`. Update both the vectorized accumulation (`vsum0 += va * vb`) and the scalar tail (`sum += a[i] * b[i]`).
+
+**Specific fixes:**
+
+- Change `vsum0 += va;` to `vsum0 += va * vb;` in the vectorized loop.
+- Change `sum += a[i];` to `sum += a[i] * b[i];` in the scalar tail loop (where `b[i]` has already been set to `c[i] + e[i]`).

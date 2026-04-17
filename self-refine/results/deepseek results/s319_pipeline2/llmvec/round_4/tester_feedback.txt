@@ -1,0 +1,18 @@
+The test is failing because the function computes the wrong result. Looking at the original `s319` loop pattern, it's a dot-product style loop where `sum` accumulates `a[i] * b[i]` (or similar), not just `a[i]`. The candidate is summing `a[i] = c[i] + d[i]` values, but the reference likely computes something different.
+
+The standard `s319` benchmark is:
+```c
+// sum += a[i]*b[i]; a[i] = c[i]+d[i]; b[i] = c[i]+e[i];
+```
+
+- **Root cause**: The accumulation `vsum += vtmp_a` sums `c[i]+d[i]`, but the reference `s319` accumulates `a[i]*b[i]` (the *old* values of `a` and `b` before overwriting them), i.e., `sum += a[i]*b[i]` then `a[i]=c[i]+d[i]`, `b[i]=c[i]+e[i]`.
+- **Fix**: Load the old `a[i]` and `b[i]` values first, accumulate their product into `vsum`, then store the new values. Change the vectorized inner loop to: load `va` and `vb`, do `vsum += va * vb`, then store `vtmp_a` into `a` and `vtmp_b` into `b`.
+- **Fix the scalar tail loop** similarly: read old `a[i]` and `b[i]`, do `sum += a[i]*b[i]`, then assign `a[i] = c[i]+d[i]` and `b[i] = c[i]+e[i]`.
+
+Concretely, in the vectorized block, add before the stores:
+```c
+float8 va = {a[i],...,a[i+7]};
+float8 vb = {b[i],...,b[i+7]};
+vsum += va * vb;
+```
+and remove `vsum += vtmp_a;`. In the scalar tail: `sum += a[i]*b[i];` before the assignments.

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s212_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s212_opt(int n, float *a, float *b, float *c, float *d) {\n    // Store original a[i+1] values before modifying a[i]\n    for (int i = 0; i < n - 1; i++) {\n        float a_next_original = a[i + 1];\n        a[i] *= c[i];\n        b[i] += a_next_original * d[i];\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s212_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s212_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s212_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s212(int n, float *a, float *b, float *c, float *d) {\n    // We need to read a[i+1] before modifying a[i].\n    // Since a[i+1] is read as original before a[i] is written,\n    // and a[i] = a[i] * c[i], a[i+1] original is just a[i+1] before any modification.\n    // We can preload a[1..n-1] into a temporary buffer, then do vectorized ops.\n\n    int limit = n - 1;\n    if (limit <= 0) return;\n\n    // Allocate a temporary array to hold original a[i+1] values\n    // Use a local VLA or static buffer approach\n    // To keep it simple and vectorizable, use a shifted pointer approach:\n    // a_next[i] = a[i+1] for i in [0, limit)\n    // We read all a[i+1] first (they are original since we haven't modified anything yet\n    // for i=0: a[1] original, then a[0] *= c[0]\n    // for i=1: a[2] original, then a[1] *= c[1]\n    // So a[i+1] is always original at the time we read it in scalar loop.\n    // But if we vectorize, a[i] *= c[i] for all i first, then a[i+1] would be modified.\n    // So we must read a[i+1] = a[i+1] before any writes.\n\n    // Strategy: read a[1..n-1] into temp, then vectorize.\n    float temp[limit];\n\n    // Load original a[i+1] values\n    int i = 0;\n\n    // Vectorized load using 4-wide unroll\n    for (i = 0; i <= limit - 4; i += 4) {\n        temp[i]     = a[i + 1];\n        temp[i + 1] = a[i + 2];\n        temp[i + 2] = a[i + 3];\n        temp[i + 3] = a[i + 4];\n    }\n    for (; i < limit; i++) {\n        temp[i] = a[i + 1];\n    }\n\n    // Now vectorize the main computation\n    // a[i] *= c[i]\n    // b[i] += temp[i] * d[i]\n    i = 0;\n    for (i = 0; i <= limit - 8; i += 8) {\n        a[i]     *= c[i];\n        a[i + 1] *= c[i + 1];\n        a[i + 2] *= c[i + 2];\n        a[i + 3] *= c[i + 3];\n        a[i + 4] *= c[i + 4];\n        a[i + 5] *= c[i + 5];\n        a[i + 6] *= c[i + 6];\n        a[i + 7] *= c[i + 7];\n\n        b[i]     += temp[i]     * d[i];\n        b[i + 1] += temp[i + 1] * d[i + 1];\n        b[i + 2] += temp[i + 2] * d[i + 2];\n        b[i + 3] += temp[i + 3] * d[i + 3];\n        b[i + 4] += temp[i + 4] * d[i + 4];\n        b[i + 5] += temp[i + 5] * d[i + 5];\n        b[i + 6] += temp[i + 6] * d[i + 6];\n        b[i + 7] += temp[i + 7] * d[i + 7];\n    }\n    for (; i < limit; i++) {\n        a[i] *= c[i];\n        b[i] += temp[i] * d[i];\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s212_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s212",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s212_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s212_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s212_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

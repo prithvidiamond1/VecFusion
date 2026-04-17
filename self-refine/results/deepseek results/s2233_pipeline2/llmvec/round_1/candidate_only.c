@@ -1,0 +1,53 @@
+#include <stdint.h>
+
+void vectorized_s2233(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+{
+    int loop_count = 100 * (iterations / 256);
+
+    for (int nl = 0; nl < loop_count; nl++) {
+        // Process bb updates: bb[i][j] = bb[i-1][j] + cc[i][j]
+        // For each row i, j dimension can be vectorized (no j dependency)
+        for (int i = 1; i < 256; i++) {
+            int j = 1;
+            // Vectorize j loop in chunks of 8
+            for (; j <= 255 - 7; j += 8) {
+                bb[i][j+0] = bb[i-1][j+0] + cc[i][j+0];
+                bb[i][j+1] = bb[i-1][j+1] + cc[i][j+1];
+                bb[i][j+2] = bb[i-1][j+2] + cc[i][j+2];
+                bb[i][j+3] = bb[i-1][j+3] + cc[i][j+3];
+                bb[i][j+4] = bb[i-1][j+4] + cc[i][j+4];
+                bb[i][j+5] = bb[i-1][j+5] + cc[i][j+5];
+                bb[i][j+6] = bb[i-1][j+6] + cc[i][j+6];
+                bb[i][j+7] = bb[i-1][j+7] + cc[i][j+7];
+            }
+            // Scalar tail
+            for (; j < 256; j++) {
+                bb[i][j] = bb[i-1][j] + cc[i][j];
+            }
+        }
+
+        // Process aa updates: aa[j][i] = aa[j-1][i] + cc[j][i]
+        // For each column i, j has a sequential recurrence (aa[j] depends on aa[j-1])
+        // Cannot vectorize j loop due to recurrence.
+        // However, we can vectorize over i (columns) for each j step.
+        // Restructure: for each j, update all i columns simultaneously.
+        for (int j = 1; j < 256; j++) {
+            int i = 1;
+            // Vectorize i loop in chunks of 8
+            for (; i <= 255 - 7; i += 8) {
+                aa[j][i+0] = aa[j-1][i+0] + cc[j][i+0];
+                aa[j][i+1] = aa[j-1][i+1] + cc[j][i+1];
+                aa[j][i+2] = aa[j-1][i+2] + cc[j][i+2];
+                aa[j][i+3] = aa[j-1][i+3] + cc[j][i+3];
+                aa[j][i+4] = aa[j-1][i+4] + cc[j][i+4];
+                aa[j][i+5] = aa[j-1][i+5] + cc[j][i+5];
+                aa[j][i+6] = aa[j-1][i+6] + cc[j][i+6];
+                aa[j][i+7] = aa[j-1][i+7] + cc[j][i+7];
+            }
+            // Scalar tail
+            for (; i < 256; i++) {
+                aa[j][i] = aa[j-1][i] + cc[j][i];
+            }
+        }
+    }
+}

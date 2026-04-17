@@ -1,0 +1,54 @@
+#include <stddef.h>
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s_array[256];
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = 0.0f;
+
+        /* First loop: sequential dependency on s, condition a[i] > b[i] */
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > b[i]) {
+                s = d[i] * d[i];
+            }
+            s_array[i] = s;
+        }
+
+        /* Second loop: no cross-iteration dependency, unrolled for vectorization */
+        int i = 0;
+        for (; i <= 256 - 8; i += 8) {
+            float s0 = s_array[i+0];
+            float s1 = s_array[i+1];
+            float s2 = s_array[i+2];
+            float s3 = s_array[i+3];
+            float s4 = s_array[i+4];
+            float s5 = s_array[i+5];
+            float s6 = s_array[i+6];
+            float s7 = s_array[i+7];
+
+            b[i+0] = s0 * c[i+0] + d[i+0];
+            b[i+1] = s1 * c[i+1] + d[i+1];
+            b[i+2] = s2 * c[i+2] + d[i+2];
+            b[i+3] = s3 * c[i+3] + d[i+3];
+            b[i+4] = s4 * c[i+4] + d[i+4];
+            b[i+5] = s5 * c[i+5] + d[i+5];
+            b[i+6] = s6 * c[i+6] + d[i+6];
+            b[i+7] = s7 * c[i+7] + d[i+7];
+
+            e[i+0] = (s0 + 1.0f) * aa[0][i+0];
+            e[i+1] = (s1 + 1.0f) * aa[0][i+1];
+            e[i+2] = (s2 + 1.0f) * aa[0][i+2];
+            e[i+3] = (s3 + 1.0f) * aa[0][i+3];
+            e[i+4] = (s4 + 1.0f) * aa[0][i+4];
+            e[i+5] = (s5 + 1.0f) * aa[0][i+5];
+            e[i+6] = (s6 + 1.0f) * aa[0][i+6];
+            e[i+7] = (s7 + 1.0f) * aa[0][i+7];
+        }
+        for (; i < 256; ++i) {
+            float sv = s_array[i];
+            b[i] = sv * c[i] + d[i];
+            e[i] = (sv + 1.0f) * aa[0][i];
+        }
+    }
+}

@@ -1,0 +1,6 @@
+- The reference implementation uses 0-based indexing (indices 0 to LEN_1D-1), but the candidate uses 1-based indexing (indices 1 to LEN_1D), causing `a[0]` to never be written and `a[LEN_1D]` to be written out of bounds.
+- Change `start = 1` to `start = 0` and `end_a = LEN_1D` to `end_a = LEN_1D - 1` so the first pass covers indices 0 through LEN_1D-1.
+- Change `end_d = LEN_1D - 1` to `end_d = LEN_1D - 2` so the second pass covers indices 0 through LEN_1D-2 (since `d[i] = a[i] + a[i+1]` requires `i+1 <= LEN_1D-1`).
+- With `start = 0` and `count_a = LEN_1D`, `vec_count_a = LEN_1D / 4` is correct.
+- With `start = 0` and `count_d = LEN_1D - 1`, `vec_count_d = (LEN_1D - 1) / 4` is correct.
+- No other logic changes are needed; the vector arithmetic and scalar fallback loops are otherwise correct.

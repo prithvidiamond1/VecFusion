@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s232_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s232_opt(int iterations, float aa[256][256], float bb[256][256]) {\n    int outer_iters = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_iters; nl++) {\n        for (int j = 1; j < 256; j++) {\n            // Process first element separately\n            float prev = aa[j][0] * aa[j][0] + bb[j][1];\n            aa[j][1] = prev;\n            \n            // Main loop with explicit scalar temporary\n            for (int i = 2; i <= j; i++) {\n                prev = prev * prev + bb[j][i];\n                aa[j][i] = prev;\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s232_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s232_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s232_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s232(int iterations, float aa[256][256], float bb[256][256]) {\n    int outer_iters = 100 * (iterations / 256);\n\n    for (int nl = 0; nl < outer_iters; nl++) {\n        // Process j in groups of 4 for ILP, but each j has different bounds\n        // so we handle the triangular recurrence per-j\n        int j = 1;\n        for (; j <= 252; j += 4) {\n            int j0 = j, j1 = j+1, j2 = j+2, j3 = j+3;\n\n            float prev0 = aa[j0][0] * aa[j0][0] + bb[j0][1];\n            float prev1 = aa[j1][0] * aa[j1][0] + bb[j1][1];\n            float prev2 = aa[j2][0] * aa[j2][0] + bb[j2][1];\n            float prev3 = aa[j3][0] * aa[j3][0] + bb[j3][1];\n\n            aa[j0][1] = prev0;\n            aa[j1][1] = prev1;\n            aa[j2][1] = prev2;\n            aa[j3][1] = prev3;\n\n            // j0 loop: i from 2 to j0\n            for (int i = 2; i <= j0; i++) {\n                prev0 = prev0 * prev0 + bb[j0][i];\n                aa[j0][i] = prev0;\n            }\n            // j1 loop: i from 2 to j1\n            // reuse prev0 result for i <= j0, then continue\n            // Actually each j is independent, reset prev from aa\n            prev1 = aa[j1][1];\n            for (int i = 2; i <= j1; i++) {\n                prev1 = prev1 * prev1 + bb[j1][i];\n                aa[j1][i] = prev1;\n            }\n            prev2 = aa[j2][1];\n            for (int i = 2; i <= j2; i++) {\n                prev2 = prev2 * prev2 + bb[j2][i];\n                aa[j2][i] = prev2;\n            }\n            prev3 = aa[j3][1];\n            for (int i = 2; i <= j3; i++) {\n                prev3 = prev3 * prev3 + bb[j3][i];\n                aa[j3][i] = prev3;\n            }\n        }\n        // Scalar cleanup for remaining j values\n        for (; j < 256; j++) {\n            float prev = aa[j][0] * aa[j][0] + bb[j][1];\n            aa[j][1] = prev;\n            for (int i = 2; i <= j; i++) {\n                prev = prev * prev + bb[j][i];\n                aa[j][i] = prev;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s232_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s232",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s232_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s232_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s232_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

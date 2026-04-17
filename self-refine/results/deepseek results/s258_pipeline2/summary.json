@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s258_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s258_opt(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])\n{\n    float s_array[256];\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        float s = 0.0f;\n        \n        // First loop: compute all s values with dependency preserved\n        for (int i = 0; i < 256; ++i) {\n            if (a[i] > 0.0f) {\n                s = d[i] * d[i];\n            }\n            s_array[i] = s;\n        }\n        \n        // Second loop: compute b and e using precomputed s values\n        // This loop has no dependencies and can be vectorized\n        for (int i = 0; i < 256; ++i) {\n            float s_val = s_array[i];\n            b[i] = s_val * c[i] + d[i];\n            e[i] = (s_val + 1.0f) * aa[0][i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s258_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s258_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s258_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])\n{\n    float s_array[256];\n\n    for (int nl = 0; nl < iterations; nl++) {\n        float s = 0.0f;\n\n        /* First loop: sequential dependency on s, condition a[i] > b[i] */\n        for (int i = 0; i < 256; ++i) {\n            if (a[i] > b[i]) {\n                s = d[i] * d[i];\n            }\n            s_array[i] = s;\n        }\n\n        /* Second loop: no cross-iteration dependency, unrolled for vectorization */\n        int i = 0;\n        for (; i <= 256 - 8; i += 8) {\n            float s0 = s_array[i+0];\n            float s1 = s_array[i+1];\n            float s2 = s_array[i+2];\n            float s3 = s_array[i+3];\n            float s4 = s_array[i+4];\n            float s5 = s_array[i+5];\n            float s6 = s_array[i+6];\n            float s7 = s_array[i+7];\n\n            b[i+0] = s0 * c[i+0] + d[i+0];\n            b[i+1] = s1 * c[i+1] + d[i+1];\n            b[i+2] = s2 * c[i+2] + d[i+2];\n            b[i+3] = s3 * c[i+3] + d[i+3];\n            b[i+4] = s4 * c[i+4] + d[i+4];\n            b[i+5] = s5 * c[i+5] + d[i+5];\n            b[i+6] = s6 * c[i+6] + d[i+6];\n            b[i+7] = s7 * c[i+7] + d[i+7];\n\n            e[i+0] = (s0 + 1.0f) * aa[0][i+0];\n            e[i+1] = (s1 + 1.0f) * aa[0][i+1];\n            e[i+2] = (s2 + 1.0f) * aa[0][i+2];\n            e[i+3] = (s3 + 1.0f) * aa[0][i+3];\n            e[i+4] = (s4 + 1.0f) * aa[0][i+4];\n            e[i+5] = (s5 + 1.0f) * aa[0][i+5];\n            e[i+6] = (s6 + 1.0f) * aa[0][i+6];\n            e[i+7] = (s7 + 1.0f) * aa[0][i+7];\n        }\n        for (; i < 256; ++i) {\n            float sv = s_array[i];\n            b[i] = sv * c[i] + d[i];\n            e[i] = (sv + 1.0f) * aa[0][i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s258_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s258",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s258_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s258(int iterations, float* a,float* b,float* c, float* d,float* e, float aa[256][256])\n{\n    float s;\n    for (int nl = 0; nl < iterations; nl++) {\n        s = 0.;\n        for (int i = 0; i < 256; ++i) {\n            if (a[i] > 0.) {\n                s = d[i] * d[i];\n            }\n            b[i] = s * c[i] + d[i];\n            e[i] = (s + (float)1.) * aa[0][i];\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s258_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

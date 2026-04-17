@@ -1,0 +1,42 @@
+#include <stdint.h>
+#include <float.h>
+
+float vectorized_s315(int iterations, int LEN_1D, float* a)
+{
+    for (int i = 0; i < LEN_1D; i++)
+        a[i] = (i * 7) % LEN_1D;
+
+    float x, chksum;
+    int index;
+    for (int nl = 0; nl < iterations; nl++) {
+        // Vectorized max-finding with 4-wide unroll
+        float max0 = -FLT_MAX, max1 = -FLT_MAX, max2 = -FLT_MAX, max3 = -FLT_MAX;
+        int idx0 = 0, idx1 = 0, idx2 = 0, idx3 = 0;
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+        for (; i < limit; i += 4) {
+            float v0 = a[i+0];
+            float v1 = a[i+1];
+            float v2 = a[i+2];
+            float v3 = a[i+3];
+            if (v0 > max0) { max0 = v0; idx0 = i+0; }
+            if (v1 > max1) { max1 = v1; idx1 = i+1; }
+            if (v2 > max2) { max2 = v2; idx2 = i+2; }
+            if (v3 > max3) { max3 = v3; idx3 = i+3; }
+        }
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            if (a[i] > max0) { max0 = a[i]; idx0 = i; }
+        }
+
+        // Reduce across 4 lanes
+        x = max0; index = idx0;
+        if (max1 > x) { x = max1; index = idx1; }
+        if (max2 > x) { x = max2; index = idx2; }
+        if (max3 > x) { x = max3; index = idx3; }
+
+        chksum = x + (float)index;
+    }
+    return index + x + 1;
+}

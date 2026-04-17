@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s341_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s341_opt(int iterations, int LEN_1D, float* a, float* b) {\n    for (int nl = 0; nl < iterations; nl++) {\n        int j = -1;\n        // First loop: compute prefix sum of positive elements\n        int prefix[LEN_1D];\n        for (int i = 0; i < LEN_1D; i++) {\n            prefix[i] = (b[i] > (float)0.) ? 1 : 0;\n            if (i > 0) {\n                prefix[i] += prefix[i-1];\n            }\n        }\n        \n        // Second loop: parallel copy using computed indices\n        for (int i = 0; i < LEN_1D; i++) {\n            if (b[i] > (float)0.) {\n                a[prefix[i]-1] = b[i];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s341_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s341_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s341_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s341(int iterations, int LEN_1D, float* a, float* b) {\n    for (int nl = 0; nl < iterations; nl++) {\n        // Allocate prefix array on stack if small, otherwise use a local approach\n        // We'll use a VLA for generality\n        int prefix[LEN_1D];\n\n        // Vectorize the prefix mask computation (parallel part)\n        // Step 1: compute the indicator values in parallel\n        int i;\n        // Unroll by 8 for vector-friendly code\n        int limit8 = (LEN_1D / 8) * 8;\n        for (i = 0; i < limit8; i += 8) {\n            prefix[i+0] = (b[i+0] > 0.0f) ? 1 : 0;\n            prefix[i+1] = (b[i+1] > 0.0f) ? 1 : 0;\n            prefix[i+2] = (b[i+2] > 0.0f) ? 1 : 0;\n            prefix[i+3] = (b[i+3] > 0.0f) ? 1 : 0;\n            prefix[i+4] = (b[i+4] > 0.0f) ? 1 : 0;\n            prefix[i+5] = (b[i+5] > 0.0f) ? 1 : 0;\n            prefix[i+6] = (b[i+6] > 0.0f) ? 1 : 0;\n            prefix[i+7] = (b[i+7] > 0.0f) ? 1 : 0;\n        }\n        for (; i < LEN_1D; i++) {\n            prefix[i] = (b[i] > 0.0f) ? 1 : 0;\n        }\n\n        // Step 2: sequential prefix sum (inherently sequential)\n        for (i = 1; i < LEN_1D; i++) {\n            prefix[i] += prefix[i-1];\n        }\n\n        // Step 3: scatter - unroll by 8\n        for (i = 0; i < limit8; i += 8) {\n            if (b[i+0] > 0.0f) a[prefix[i+0]-1] = b[i+0];\n            if (b[i+1] > 0.0f) a[prefix[i+1]-1] = b[i+1];\n            if (b[i+2] > 0.0f) a[prefix[i+2]-1] = b[i+2];\n            if (b[i+3] > 0.0f) a[prefix[i+3]-1] = b[i+3];\n            if (b[i+4] > 0.0f) a[prefix[i+4]-1] = b[i+4];\n            if (b[i+5] > 0.0f) a[prefix[i+5]-1] = b[i+5];\n            if (b[i+6] > 0.0f) a[prefix[i+6]-1] = b[i+6];\n            if (b[i+7] > 0.0f) a[prefix[i+7]-1] = b[i+7];\n        }\n        for (; i < LEN_1D; i++) {\n            if (b[i] > 0.0f) a[prefix[i]-1] = b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s341_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s341",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s341_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s341_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s341_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+The test is checking that the output matches a reference implementation. Looking at the original loop (s258), the key issue is what the reference computes:
+
+- The reference likely computes `b[i] = s * c[i] + d[i]` where `s` carries forward the **last** value set by the conditional, but the candidate stores `s_array[i]` which captures `s` **after** the update at index `i`. This part seems correct.
+
+- The mismatch is in parameter `a` — the candidate never writes to `a[]`, but the reference likely does. The original s258 benchmark probably also updates `a[i]` inside the loop.
+
+- The reference benchmark `s258` likely computes `a[i] = b[i]` or similar assignment to `a` that the candidate is missing entirely.
+
+- Check the original: the second loop should also assign `a[i] = b[i]` (or `a[i] = s * c[i] + d[i]`), which the candidate omits.
+
+**Fixes needed:**
+
+- Add `a[i] = b[i]` (or the equivalent expression) in the second loop body for both the unrolled block and the scalar tail, since the reference writes to `a[]`.
+- In the unrolled block, add: `a[i+0] = b[i+0]; ... a[i+7] = b[i+7];`
+- In the scalar tail, add: `a[i] = b[i];`
+- Verify the exact assignment — it may be `a[i] = s * c[i] + d[i]` directly rather than reading back `b[i]`, but either is equivalent here since `b[i]` was just written.
+- Do not change the first loop (the sequential `s` accumulation logic appears correct).
+- The `e[]` computation using `aa[0][i]` should be verified against the reference — it may need to use a different row index or the full `aa` array differently, but fix `a[]` first.

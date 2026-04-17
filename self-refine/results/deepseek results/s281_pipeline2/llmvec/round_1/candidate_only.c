@@ -1,0 +1,72 @@
+#include <stdint.h>
+
+#ifndef LEN_1D
+#define LEN_1D 32000
+#endif
+
+void vectorized_s281(float *a, float *b, float *c) {
+    // The loop has a dependency: a[LEN_1D-i-1] is read while a[i] is written.
+    // For i < LEN_1D/2, the read index (LEN_1D-i-1) > i, so reads are from
+    // the "upper" half while writes go to the "lower" half — no overlap until
+    // i reaches LEN_1D/2. We must be careful: once i >= LEN_1D/2, the read
+    // index < i, meaning we'd read already-written values.
+    // So we split: first half can be vectorized (reads from untouched upper half),
+    // second half must be scalar (reads from already-written lower half).
+
+    // Precompute x values for the first half using original a values
+    // (since a[LEN_1D-i-1] for i in [0, LEN_1D/2) are in the upper half,
+    //  which hasn't been written yet)
+
+    int half = LEN_1D / 2;
+
+    // Vectorized first half
+    typedef float float4 __attribute__((vector_size(16)));
+    int vec_len = (half / 4) * 4;
+
+    for (int i = 0; i < vec_len; i += 4) {
+        // Read from upper half (not yet written)
+        float a0 = a[LEN_1D - i - 1];
+        float a1 = a[LEN_1D - i - 2];
+        float a2 = a[LEN_1D - i - 3];
+        float a3 = a[LEN_1D - i - 4];
+
+        float b0 = b[i];
+        float b1 = b[i+1];
+        float b2 = b[i+2];
+        float b3 = b[i+3];
+
+        float c0 = c[i];
+        float c1 = c[i+1];
+        float c2 = c[i+2];
+        float c3 = c[i+3];
+
+        float x0 = a0 + b0 * c0;
+        float x1 = a1 + b1 * c1;
+        float x2 = a2 + b2 * c2;
+        float x3 = a3 + b3 * c3;
+
+        a[i]   = x0 - 1.0f;
+        a[i+1] = x1 - 1.0f;
+        a[i+2] = x2 - 1.0f;
+        a[i+3] = x3 - 1.0f;
+
+        b[i]   = x0;
+        b[i+1] = x1;
+        b[i+2] = x2;
+        b[i+3] = x3;
+    }
+
+    // Scalar cleanup for first half remainder
+    for (int i = vec_len; i < half; i++) {
+        float x = a[LEN_1D - i - 1] + b[i] * c[i];
+        a[i] = x - 1.0f;
+        b[i] = x;
+    }
+
+    // Scalar second half (reads from already-written region, must be sequential)
+    for (int i = half; i < LEN_1D; i++) {
+        float x = a[LEN_1D - i - 1] + b[i] * c[i];
+        a[i] = x - 1.0f;
+        b[i] = x;
+    }
+}

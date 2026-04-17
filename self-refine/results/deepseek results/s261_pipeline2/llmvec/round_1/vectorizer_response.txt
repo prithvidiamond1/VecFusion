@@ -1,0 +1,48 @@
+```c
+#include <stddef.h>
+
+void vectorized_s261(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    float temp_t[LEN_1D];
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // First loop: temp_t[i] = a[i] + b[i], vectorized
+        int i = 1;
+        int n = LEN_1D - 1; // number of elements from index 1
+
+        // Unroll by 4
+        for (; i <= LEN_1D - 4; i += 4) {
+            temp_t[i]   = a[i]   + b[i];
+            temp_t[i+1] = a[i+1] + b[i+1];
+            temp_t[i+2] = a[i+2] + b[i+2];
+            temp_t[i+3] = a[i+3] + b[i+3];
+        }
+        for (; i < LEN_1D; i++) {
+            temp_t[i] = a[i] + b[i];
+        }
+
+        // Second loop: c[i] = c[i] * d[i], vectorized
+        i = 1;
+        for (; i <= LEN_1D - 4; i += 4) {
+            c[i]   = c[i]   * d[i];
+            c[i+1] = c[i+1] * d[i+1];
+            c[i+2] = c[i+2] * d[i+2];
+            c[i+3] = c[i+3] * d[i+3];
+        }
+        for (; i < LEN_1D; i++) {
+            c[i] = c[i] * d[i];
+        }
+
+        // Third loop: a[i] = temp_t[i] + c[i-1], vectorized
+        i = 1;
+        for (; i <= LEN_1D - 4; i += 4) {
+            a[i]   = temp_t[i]   + c[i-1];
+            a[i+1] = temp_t[i+1] + c[i];
+            a[i+2] = temp_t[i+2] + c[i+1];
+            a[i+3] = temp_t[i+3] + c[i+2];
+        }
+        for (; i < LEN_1D; i++) {
+            a[i] = temp_t[i] + c[i-1];
+        }
+    }
+}
+```

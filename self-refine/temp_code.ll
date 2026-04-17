@@ -4,329 +4,324 @@ target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:
 target triple = "arm64-apple-macosx15.0.0"
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind ssp memory(argmem: readwrite) uwtable(sync)
-define void @_Z14set_points_optPfPiPKiiiiiiffb(ptr nocapture noundef writeonly %0, ptr nocapture noundef initializes((0, 4)) %1, ptr nocapture noundef readonly %2, i32 noundef %3, i32 noundef %4, i32 noundef %5, i32 noundef %6, i32 noundef %7, float noundef nofpclass(nan inf) %8, float noundef nofpclass(nan inf) %9, i1 noundef zeroext %10) local_unnamed_addr #0 !dbg !9 {
+define void @_Z14set_points_optPfPiPKiiiiiiffb(ptr nocapture noundef writeonly initializes((0, 4)) %0, ptr nocapture noundef initializes((0, 4)) %1, ptr nocapture noundef readonly %2, i32 noundef %3, i32 noundef %4, i32 noundef %5, i32 noundef %6, i32 noundef %7, float noundef nofpclass(nan inf) %8, float noundef nofpclass(nan inf) %9, i1 noundef zeroext %10) local_unnamed_addr #0 !dbg !9 {
   %12 = ptrtoint ptr %2 to i64, !dbg !12
   %13 = ptrtoint ptr %1 to i64, !dbg !12
   %14 = fsub fast float %9, %8, !dbg !12
   %15 = sitofp i32 %4 to float, !dbg !13
-  %16 = fcmp fast ult float %14, %15, !dbg !14
-  br i1 %16, label %21, label %17, !dbg !15
+  %16 = fsub fast float %14, %15, !dbg !14
+  %17 = sitofp i32 %5 to float, !dbg !15
+  %18 = fcmp fast ult float %14, %15, !dbg !16
+  store i32 %6, ptr %1, align 4, !dbg !17, !tbaa !18
+  store float %8, ptr %0, align 4, !dbg !22, !tbaa !23
+  %19 = icmp sgt i32 %3, 0, !dbg !25
+  br i1 %19, label %20, label %237, !dbg !26
 
-17:                                               ; preds = %11
-  %18 = fsub fast float %14, %15, !dbg !16
-  %19 = sitofp i32 %5 to float, !dbg !17
-  %20 = fdiv fast float %18, %19, !dbg !18
-  br label %23, !dbg !19
+20:                                               ; preds = %11
+  %21 = zext nneg i32 %3 to i64, !dbg !25
+  %22 = icmp ult i32 %3, 4, !dbg !26
+  br i1 %22, label %23, label %25, !dbg !26
 
-21:                                               ; preds = %11
-  %22 = fdiv fast float %14, %15, !dbg !20
-  br label %23
+23:                                               ; preds = %52, %66, %25, %20
+  %24 = phi i64 [ %32, %52 ], [ 0, %20 ], [ 0, %25 ], [ %57, %66 ]
+  br label %215, !dbg !26
 
-23:                                               ; preds = %21, %17
-  %24 = phi float [ 1.000000e+00, %17 ], [ %22, %21 ], !dbg !21
-  %25 = phi float [ %20, %17 ], [ 0.000000e+00, %21 ], !dbg !21
-  store i32 %6, ptr %1, align 4, !dbg !22, !tbaa !23
-  %26 = icmp sgt i32 %3, 0, !dbg !27
-  br i1 %26, label %31, label %27, !dbg !28
+25:                                               ; preds = %20
+  %26 = add i64 %13, 4, !dbg !26
+  %27 = sub i64 %26, %12, !dbg !26
+  %28 = icmp ult i64 %27, 64, !dbg !26
+  br i1 %28, label %23, label %29, !dbg !26
 
-27:                                               ; preds = %23
-  %28 = add nsw i32 %3, 1, !dbg !29
-  %29 = sext i32 %28 to i64, !dbg !30
-  %30 = getelementptr inbounds i32, ptr %1, i64 %29, !dbg !30
-  store i32 %7, ptr %30, align 4, !dbg !31, !tbaa !23
-  store float %8, ptr %0, align 4, !dbg !32, !tbaa !33
-  br label %225, !dbg !35
+29:                                               ; preds = %25
+  %30 = icmp ult i32 %3, 16, !dbg !26
+  br i1 %30, label %55, label %31, !dbg !26
 
-31:                                               ; preds = %23
-  %32 = zext nneg i32 %3 to i64, !dbg !27
-  %33 = icmp ult i32 %3, 4, !dbg !28
-  br i1 %33, label %34, label %36, !dbg !28
+31:                                               ; preds = %29
+  %32 = and i64 %21, 2147483632, !dbg !26
+  br label %33, !dbg !26
 
-34:                                               ; preds = %63, %77, %36, %31
-  %35 = phi i64 [ %43, %63 ], [ 0, %31 ], [ 0, %36 ], [ %68, %77 ]
-  br label %123, !dbg !28
+33:                                               ; preds = %33, %31
+  %34 = phi i64 [ 0, %31 ], [ %48, %33 ], !dbg !27
+  %35 = getelementptr inbounds nuw i32, ptr %2, i64 %34, !dbg !28
+  %36 = getelementptr inbounds nuw i8, ptr %35, i64 16, !dbg !28
+  %37 = getelementptr inbounds nuw i8, ptr %35, i64 32, !dbg !28
+  %38 = getelementptr inbounds nuw i8, ptr %35, i64 48, !dbg !28
+  %39 = load <4 x i32>, ptr %35, align 4, !dbg !28, !tbaa !18
+  %40 = load <4 x i32>, ptr %36, align 4, !dbg !28, !tbaa !18
+  %41 = load <4 x i32>, ptr %37, align 4, !dbg !28, !tbaa !18
+  %42 = load <4 x i32>, ptr %38, align 4, !dbg !28, !tbaa !18
+  %43 = or disjoint i64 %34, 1, !dbg !27
+  %44 = getelementptr inbounds nuw i32, ptr %1, i64 %43, !dbg !29
+  %45 = getelementptr inbounds nuw i8, ptr %44, i64 16, !dbg !30
+  %46 = getelementptr inbounds nuw i8, ptr %44, i64 32, !dbg !30
+  %47 = getelementptr inbounds nuw i8, ptr %44, i64 48, !dbg !30
+  store <4 x i32> %39, ptr %44, align 4, !dbg !30, !tbaa !18
+  store <4 x i32> %40, ptr %45, align 4, !dbg !30, !tbaa !18
+  store <4 x i32> %41, ptr %46, align 4, !dbg !30, !tbaa !18
+  store <4 x i32> %42, ptr %47, align 4, !dbg !30, !tbaa !18
+  %48 = add nuw i64 %34, 16, !dbg !27
+  %49 = icmp eq i64 %48, %32, !dbg !27
+  br i1 %49, label %50, label %33, !dbg !27, !llvm.loop !31
 
-36:                                               ; preds = %31
-  %37 = add i64 %13, 4, !dbg !28
-  %38 = sub i64 %37, %12, !dbg !28
-  %39 = icmp ult i64 %38, 64, !dbg !28
-  br i1 %39, label %34, label %40, !dbg !28
+50:                                               ; preds = %33
+  %51 = icmp eq i64 %32, %21, !dbg !26
+  br i1 %51, label %68, label %52, !dbg !26
 
-40:                                               ; preds = %36
-  %41 = icmp ult i32 %3, 16, !dbg !28
-  br i1 %41, label %66, label %42, !dbg !28
+52:                                               ; preds = %50
+  %53 = and i64 %21, 12, !dbg !26
+  %54 = icmp eq i64 %53, 0, !dbg !26
+  br i1 %54, label %23, label %55, !dbg !26
 
-42:                                               ; preds = %40
-  %43 = and i64 %32, 2147483632, !dbg !28
-  br label %44, !dbg !28
+55:                                               ; preds = %52, %29
+  %56 = phi i64 [ %32, %52 ], [ 0, %29 ]
+  %57 = and i64 %21, 2147483644, !dbg !26
+  br label %58, !dbg !26
 
-44:                                               ; preds = %44, %42
-  %45 = phi i64 [ 0, %42 ], [ %59, %44 ], !dbg !36
-  %46 = getelementptr inbounds nuw i32, ptr %2, i64 %45, !dbg !37
-  %47 = getelementptr inbounds nuw i8, ptr %46, i64 16, !dbg !37
-  %48 = getelementptr inbounds nuw i8, ptr %46, i64 32, !dbg !37
-  %49 = getelementptr inbounds nuw i8, ptr %46, i64 48, !dbg !37
-  %50 = load <4 x i32>, ptr %46, align 4, !dbg !37, !tbaa !23
-  %51 = load <4 x i32>, ptr %47, align 4, !dbg !37, !tbaa !23
-  %52 = load <4 x i32>, ptr %48, align 4, !dbg !37, !tbaa !23
-  %53 = load <4 x i32>, ptr %49, align 4, !dbg !37, !tbaa !23
-  %54 = or disjoint i64 %45, 1, !dbg !36
-  %55 = getelementptr inbounds nuw i32, ptr %1, i64 %54, !dbg !38
-  %56 = getelementptr inbounds nuw i8, ptr %55, i64 16, !dbg !39
-  %57 = getelementptr inbounds nuw i8, ptr %55, i64 32, !dbg !39
-  %58 = getelementptr inbounds nuw i8, ptr %55, i64 48, !dbg !39
-  store <4 x i32> %50, ptr %55, align 4, !dbg !39, !tbaa !23
-  store <4 x i32> %51, ptr %56, align 4, !dbg !39, !tbaa !23
-  store <4 x i32> %52, ptr %57, align 4, !dbg !39, !tbaa !23
-  store <4 x i32> %53, ptr %58, align 4, !dbg !39, !tbaa !23
-  %59 = add nuw i64 %45, 16, !dbg !36
-  %60 = icmp eq i64 %59, %43, !dbg !36
-  br i1 %60, label %61, label %44, !dbg !36, !llvm.loop !40
+58:                                               ; preds = %58, %55
+  %59 = phi i64 [ %56, %55 ], [ %64, %58 ], !dbg !27
+  %60 = getelementptr inbounds nuw i32, ptr %2, i64 %59, !dbg !28
+  %61 = load <4 x i32>, ptr %60, align 4, !dbg !28, !tbaa !18
+  %62 = or disjoint i64 %59, 1, !dbg !27
+  %63 = getelementptr inbounds nuw i32, ptr %1, i64 %62, !dbg !29
+  store <4 x i32> %61, ptr %63, align 4, !dbg !30, !tbaa !18
+  %64 = add nuw i64 %59, 4, !dbg !27
+  %65 = icmp eq i64 %64, %57, !dbg !27
+  br i1 %65, label %66, label %58, !dbg !27, !llvm.loop !36
 
-61:                                               ; preds = %44
-  %62 = icmp eq i64 %43, %32, !dbg !28
-  br i1 %62, label %79, label %63, !dbg !28
+66:                                               ; preds = %58
+  %67 = icmp eq i64 %57, %21, !dbg !26
+  br i1 %67, label %68, label %23, !dbg !26
 
-63:                                               ; preds = %61
-  %64 = and i64 %32, 12, !dbg !28
-  %65 = icmp eq i64 %64, 0, !dbg !28
-  br i1 %65, label %34, label %66, !dbg !28
+68:                                               ; preds = %215, %66, %50
+  %69 = alloca float, i64 %21, align 4, !dbg !37
+  %70 = icmp ult i32 %3, 16, !dbg !38
+  br i1 %18, label %135, label %71
 
-66:                                               ; preds = %63, %40
-  %67 = phi i64 [ %43, %63 ], [ 0, %40 ]
-  %68 = and i64 %32, 2147483644, !dbg !28
-  br label %69, !dbg !28
+71:                                               ; preds = %68
+  br i1 %70, label %131, label %72, !dbg !38
 
-69:                                               ; preds = %69, %66
-  %70 = phi i64 [ %67, %66 ], [ %75, %69 ], !dbg !36
-  %71 = getelementptr inbounds nuw i32, ptr %2, i64 %70, !dbg !37
-  %72 = load <4 x i32>, ptr %71, align 4, !dbg !37, !tbaa !23
-  %73 = or disjoint i64 %70, 1, !dbg !36
-  %74 = getelementptr inbounds nuw i32, ptr %1, i64 %73, !dbg !38
-  store <4 x i32> %72, ptr %74, align 4, !dbg !39, !tbaa !23
-  %75 = add nuw i64 %70, 4, !dbg !36
-  %76 = icmp eq i64 %75, %68, !dbg !36
-  br i1 %76, label %77, label %69, !dbg !36, !llvm.loop !45
+72:                                               ; preds = %71
+  %73 = and i64 %21, 2147483632, !dbg !38
+  %74 = insertelement <4 x i32> poison, i32 %6, i64 3, !dbg !38
+  %75 = insertelement <4 x i1> poison, i1 %10, i64 0, !dbg !38
+  %76 = shufflevector <4 x i1> %75, <4 x i1> poison, <4 x i32> zeroinitializer, !dbg !38
+  %77 = xor <4 x i1> %76, <i1 false, i1 true, i1 false, i1 true>, !dbg !38
+  %78 = insertelement <4 x float> poison, float %16, i64 0, !dbg !38
+  %79 = shufflevector <4 x float> %78, <4 x float> poison, <4 x i32> zeroinitializer, !dbg !38
+  %80 = insertelement <4 x float> poison, float %17, i64 0, !dbg !38
+  %81 = shufflevector <4 x float> %80, <4 x float> poison, <4 x i32> zeroinitializer, !dbg !38
+  %82 = fdiv fast <4 x float> splat (float 1.000000e+00), %81
+  %83 = fdiv fast <4 x float> splat (float 1.000000e+00), %81
+  %84 = fdiv fast <4 x float> splat (float 1.000000e+00), %81
+  %85 = fdiv fast <4 x float> splat (float 1.000000e+00), %81
+  br label %86, !dbg !38
 
-77:                                               ; preds = %69
-  %78 = icmp eq i64 %68, %32, !dbg !28
-  br i1 %78, label %79, label %34, !dbg !28
+86:                                               ; preds = %86, %72
+  %87 = phi i64 [ 0, %72 ], [ %126, %86 ], !dbg !39
+  %88 = phi <4 x i32> [ %74, %72 ], [ %97, %86 ]
+  %89 = or disjoint i64 %87, 1, !dbg !39
+  %90 = getelementptr inbounds nuw i32, ptr %1, i64 %89, !dbg !40
+  %91 = getelementptr inbounds nuw i8, ptr %90, i64 16, !dbg !40
+  %92 = getelementptr inbounds nuw i8, ptr %90, i64 32, !dbg !40
+  %93 = getelementptr inbounds nuw i8, ptr %90, i64 48, !dbg !40
+  %94 = load <4 x i32>, ptr %90, align 4, !dbg !40, !tbaa !18
+  %95 = load <4 x i32>, ptr %91, align 4, !dbg !40, !tbaa !18
+  %96 = load <4 x i32>, ptr %92, align 4, !dbg !40, !tbaa !18
+  %97 = load <4 x i32>, ptr %93, align 4, !dbg !40, !tbaa !18
+  %98 = shufflevector <4 x i32> %88, <4 x i32> %94, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
+  %99 = shufflevector <4 x i32> %94, <4 x i32> %95, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
+  %100 = shufflevector <4 x i32> %95, <4 x i32> %96, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
+  %101 = shufflevector <4 x i32> %96, <4 x i32> %97, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
+  %102 = sub nsw <4 x i32> %94, %98, !dbg !41
+  %103 = sub nsw <4 x i32> %95, %99, !dbg !41
+  %104 = sub nsw <4 x i32> %96, %100, !dbg !41
+  %105 = sub nsw <4 x i32> %97, %101, !dbg !41
+  %106 = sitofp <4 x i32> %102 to <4 x float>, !dbg !42
+  %107 = sitofp <4 x i32> %103 to <4 x float>, !dbg !42
+  %108 = sitofp <4 x i32> %104 to <4 x float>, !dbg !42
+  %109 = sitofp <4 x i32> %105 to <4 x float>, !dbg !42
+  %110 = fmul fast <4 x float> %79, %106
+  %111 = fmul fast <4 x float> %79, %107
+  %112 = fmul fast <4 x float> %79, %108
+  %113 = fmul fast <4 x float> %79, %109
+  %114 = fmul fast <4 x float> %110, %82
+  %115 = fmul fast <4 x float> %111, %83
+  %116 = fmul fast <4 x float> %112, %84
+  %117 = fmul fast <4 x float> %113, %85
+  %118 = select fast <4 x i1> %77, <4 x float> %114, <4 x float> %106, !dbg !42
+  %119 = select fast <4 x i1> %77, <4 x float> %115, <4 x float> %107, !dbg !42
+  %120 = select fast <4 x i1> %77, <4 x float> %116, <4 x float> %108, !dbg !42
+  %121 = select fast <4 x i1> %77, <4 x float> %117, <4 x float> %109, !dbg !42
+  %122 = getelementptr inbounds nuw float, ptr %69, i64 %87, !dbg !43
+  %123 = getelementptr inbounds nuw i8, ptr %122, i64 16, !dbg !44
+  %124 = getelementptr inbounds nuw i8, ptr %122, i64 32, !dbg !44
+  %125 = getelementptr inbounds nuw i8, ptr %122, i64 48, !dbg !44
+  store <4 x float> %118, ptr %122, align 4, !dbg !44, !tbaa !23
+  store <4 x float> %119, ptr %123, align 4, !dbg !44, !tbaa !23
+  store <4 x float> %120, ptr %124, align 4, !dbg !44, !tbaa !23
+  store <4 x float> %121, ptr %125, align 4, !dbg !44, !tbaa !23
+  %126 = add nuw i64 %87, 16, !dbg !39
+  %127 = icmp eq i64 %126, %73, !dbg !39
+  br i1 %127, label %128, label %86, !dbg !39, !llvm.loop !45
 
-79:                                               ; preds = %123, %77, %61
-  %80 = add nuw nsw i32 %3, 1, !dbg !29
-  %81 = zext nneg i32 %80 to i64, !dbg !30
-  %82 = getelementptr inbounds nuw i32, ptr %1, i64 %81, !dbg !30
-  store i32 %7, ptr %82, align 4, !dbg !31, !tbaa !23
-  %83 = shl nuw nsw i64 %81, 2, !dbg !46
-  %84 = alloca i8, i64 %83, align 8, !dbg !47
-  %85 = zext nneg i32 %3 to i64, !dbg !48
-  %86 = load i32, ptr %1, align 4, !dbg !49, !tbaa !23
-  %87 = icmp ult i32 %3, 16, !dbg !50
-  br i1 %87, label %120, label %88, !dbg !50
+128:                                              ; preds = %86
+  %129 = extractelement <4 x i32> %97, i64 3
+  %130 = icmp eq i64 %73, %21, !dbg !38
+  br i1 %130, label %214, label %131, !dbg !38
 
-88:                                               ; preds = %79
-  %89 = and i64 %32, 2147483632, !dbg !50
-  %90 = insertelement <4 x i32> poison, i32 %86, i64 3, !dbg !50
-  br label %91, !dbg !50
+131:                                              ; preds = %71, %128
+  %132 = phi i32 [ %6, %71 ], [ %129, %128 ]
+  %133 = phi i64 [ 0, %71 ], [ %73, %128 ]
+  %134 = fdiv fast float 1.000000e+00, %17
+  br label %222, !dbg !38
 
-91:                                               ; preds = %91, %88
-  %92 = phi i64 [ 0, %88 ], [ %115, %91 ], !dbg !51
-  %93 = phi <4 x i32> [ %90, %88 ], [ %102, %91 ]
-  %94 = or disjoint i64 %92, 1, !dbg !51
-  %95 = getelementptr inbounds nuw i32, ptr %1, i64 %94, !dbg !52
-  %96 = getelementptr inbounds nuw i8, ptr %95, i64 16, !dbg !52
-  %97 = getelementptr inbounds nuw i8, ptr %95, i64 32, !dbg !52
-  %98 = getelementptr inbounds nuw i8, ptr %95, i64 48, !dbg !52
-  %99 = load <4 x i32>, ptr %95, align 4, !dbg !52, !tbaa !23
-  %100 = load <4 x i32>, ptr %96, align 4, !dbg !52, !tbaa !23
-  %101 = load <4 x i32>, ptr %97, align 4, !dbg !52, !tbaa !23
-  %102 = load <4 x i32>, ptr %98, align 4, !dbg !52, !tbaa !23
-  %103 = shufflevector <4 x i32> %93, <4 x i32> %99, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
-  %104 = shufflevector <4 x i32> %99, <4 x i32> %100, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
-  %105 = shufflevector <4 x i32> %100, <4 x i32> %101, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
-  %106 = shufflevector <4 x i32> %101, <4 x i32> %102, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
-  %107 = sub nsw <4 x i32> %99, %103, !dbg !53
-  %108 = sub nsw <4 x i32> %100, %104, !dbg !53
-  %109 = sub nsw <4 x i32> %101, %105, !dbg !53
-  %110 = sub nsw <4 x i32> %102, %106, !dbg !53
-  %111 = getelementptr inbounds nuw i32, ptr %84, i64 %92, !dbg !54
-  %112 = getelementptr inbounds nuw i8, ptr %111, i64 16, !dbg !55
-  %113 = getelementptr inbounds nuw i8, ptr %111, i64 32, !dbg !55
-  %114 = getelementptr inbounds nuw i8, ptr %111, i64 48, !dbg !55
-  store <4 x i32> %107, ptr %111, align 8, !dbg !55, !tbaa !23
-  store <4 x i32> %108, ptr %112, align 8, !dbg !55, !tbaa !23
-  store <4 x i32> %109, ptr %113, align 8, !dbg !55, !tbaa !23
-  store <4 x i32> %110, ptr %114, align 8, !dbg !55, !tbaa !23
-  %115 = add nuw i64 %92, 16, !dbg !51
-  %116 = icmp eq i64 %115, %89, !dbg !51
-  br i1 %116, label %117, label %91, !dbg !51, !llvm.loop !56
+135:                                              ; preds = %68
+  br i1 %70, label %195, label %136, !dbg !38
 
-117:                                              ; preds = %91
-  %118 = extractelement <4 x i32> %102, i64 3
-  %119 = icmp eq i64 %89, %32, !dbg !50
-  br i1 %119, label %130, label %120, !dbg !50
+136:                                              ; preds = %135
+  %137 = and i64 %21, 2147483632, !dbg !38
+  %138 = insertelement <4 x i32> poison, i32 %6, i64 3, !dbg !38
+  %139 = insertelement <4 x i1> poison, i1 %10, i64 0, !dbg !38
+  %140 = shufflevector <4 x i1> %139, <4 x i1> poison, <4 x i32> zeroinitializer, !dbg !38
+  %141 = xor <4 x i1> %140, <i1 false, i1 true, i1 false, i1 true>, !dbg !38
+  %142 = insertelement <4 x float> poison, float %14, i64 0, !dbg !38
+  %143 = shufflevector <4 x float> %142, <4 x float> poison, <4 x i32> zeroinitializer, !dbg !38
+  %144 = insertelement <4 x float> poison, float %15, i64 0, !dbg !38
+  %145 = shufflevector <4 x float> %144, <4 x float> poison, <4 x i32> zeroinitializer, !dbg !38
+  %146 = fdiv fast <4 x float> splat (float 1.000000e+00), %145
+  %147 = fdiv fast <4 x float> splat (float 1.000000e+00), %145
+  %148 = fdiv fast <4 x float> splat (float 1.000000e+00), %145
+  %149 = fdiv fast <4 x float> splat (float 1.000000e+00), %145
+  br label %150, !dbg !38
 
-120:                                              ; preds = %79, %117
-  %121 = phi i32 [ %86, %79 ], [ %118, %117 ]
-  %122 = phi i64 [ 0, %79 ], [ %89, %117 ]
-  br label %202, !dbg !50
+150:                                              ; preds = %150, %136
+  %151 = phi i64 [ 0, %136 ], [ %190, %150 ], !dbg !39
+  %152 = phi <4 x i32> [ %138, %136 ], [ %161, %150 ]
+  %153 = or disjoint i64 %151, 1, !dbg !39
+  %154 = getelementptr inbounds nuw i32, ptr %1, i64 %153, !dbg !40
+  %155 = getelementptr inbounds nuw i8, ptr %154, i64 16, !dbg !40
+  %156 = getelementptr inbounds nuw i8, ptr %154, i64 32, !dbg !40
+  %157 = getelementptr inbounds nuw i8, ptr %154, i64 48, !dbg !40
+  %158 = load <4 x i32>, ptr %154, align 4, !dbg !40, !tbaa !18
+  %159 = load <4 x i32>, ptr %155, align 4, !dbg !40, !tbaa !18
+  %160 = load <4 x i32>, ptr %156, align 4, !dbg !40, !tbaa !18
+  %161 = load <4 x i32>, ptr %157, align 4, !dbg !40, !tbaa !18
+  %162 = shufflevector <4 x i32> %152, <4 x i32> %158, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
+  %163 = shufflevector <4 x i32> %158, <4 x i32> %159, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
+  %164 = shufflevector <4 x i32> %159, <4 x i32> %160, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
+  %165 = shufflevector <4 x i32> %160, <4 x i32> %161, <4 x i32> <i32 3, i32 4, i32 5, i32 6>
+  %166 = sub nsw <4 x i32> %158, %162, !dbg !41
+  %167 = sub nsw <4 x i32> %159, %163, !dbg !41
+  %168 = sub nsw <4 x i32> %160, %164, !dbg !41
+  %169 = sub nsw <4 x i32> %161, %165, !dbg !41
+  %170 = sitofp <4 x i32> %166 to <4 x float>, !dbg !47
+  %171 = sitofp <4 x i32> %167 to <4 x float>, !dbg !47
+  %172 = sitofp <4 x i32> %168 to <4 x float>, !dbg !47
+  %173 = sitofp <4 x i32> %169 to <4 x float>, !dbg !47
+  %174 = fmul fast <4 x float> %143, %170
+  %175 = fmul fast <4 x float> %143, %171
+  %176 = fmul fast <4 x float> %143, %172
+  %177 = fmul fast <4 x float> %143, %173
+  %178 = fmul fast <4 x float> %174, %146
+  %179 = fmul fast <4 x float> %175, %147
+  %180 = fmul fast <4 x float> %176, %148
+  %181 = fmul fast <4 x float> %177, %149
+  %182 = select fast <4 x i1> %141, <4 x float> zeroinitializer, <4 x float> %178, !dbg !47
+  %183 = select fast <4 x i1> %141, <4 x float> zeroinitializer, <4 x float> %179, !dbg !47
+  %184 = select fast <4 x i1> %141, <4 x float> zeroinitializer, <4 x float> %180, !dbg !47
+  %185 = select fast <4 x i1> %141, <4 x float> zeroinitializer, <4 x float> %181, !dbg !47
+  %186 = getelementptr inbounds nuw float, ptr %69, i64 %151, !dbg !48
+  %187 = getelementptr inbounds nuw i8, ptr %186, i64 16, !dbg !49
+  %188 = getelementptr inbounds nuw i8, ptr %186, i64 32, !dbg !49
+  %189 = getelementptr inbounds nuw i8, ptr %186, i64 48, !dbg !49
+  store <4 x float> %182, ptr %186, align 4, !dbg !49, !tbaa !23
+  store <4 x float> %183, ptr %187, align 4, !dbg !49, !tbaa !23
+  store <4 x float> %184, ptr %188, align 4, !dbg !49, !tbaa !23
+  store <4 x float> %185, ptr %189, align 4, !dbg !49, !tbaa !23
+  %190 = add nuw i64 %151, 16, !dbg !39
+  %191 = icmp eq i64 %190, %137, !dbg !39
+  br i1 %191, label %192, label %150, !dbg !39, !llvm.loop !50
 
-123:                                              ; preds = %34, %123
-  %124 = phi i64 [ %127, %123 ], [ %35, %34 ]
-  %125 = getelementptr inbounds nuw i32, ptr %2, i64 %124, !dbg !37
-  %126 = load i32, ptr %125, align 4, !dbg !37, !tbaa !23
-  %127 = add nuw nsw i64 %124, 1, !dbg !36
-  %128 = getelementptr inbounds nuw i32, ptr %1, i64 %127, !dbg !38
-  store i32 %126, ptr %128, align 4, !dbg !39, !tbaa !23
-  %129 = icmp eq i64 %127, %32, !dbg !27
-  br i1 %129, label %79, label %123, !dbg !28, !llvm.loop !58
+192:                                              ; preds = %150
+  %193 = extractelement <4 x i32> %161, i64 3
+  %194 = icmp eq i64 %137, %21, !dbg !38
+  br i1 %194, label %214, label %195, !dbg !38
 
-130:                                              ; preds = %202, %117
-  %131 = alloca i8, i64 %83, align 8, !dbg !59
-  %132 = zext nneg i32 %3 to i64, !dbg !60
-  %133 = icmp ult i32 %3, 4, !dbg !61
-  br i1 %133, label %134, label %136, !dbg !61
+195:                                              ; preds = %135, %192
+  %196 = phi i32 [ %6, %135 ], [ %193, %192 ]
+  %197 = phi i64 [ 0, %135 ], [ %137, %192 ]
+  %198 = fdiv fast float 1.000000e+00, %15
+  br label %199, !dbg !38
 
-134:                                              ; preds = %177, %200, %130
-  %135 = phi i64 [ %139, %177 ], [ 0, %130 ], [ %182, %200 ]
-  br label %213, !dbg !61
+199:                                              ; preds = %195, %199
+  %200 = phi i32 [ %205, %199 ], [ %196, %195 ], !dbg !51
+  %201 = phi i64 [ %203, %199 ], [ %197, %195 ]
+  %202 = phi i1 [ %212, %199 ], [ %10, %195 ]
+  %203 = add nuw nsw i64 %201, 1, !dbg !39
+  %204 = getelementptr inbounds nuw i32, ptr %1, i64 %203, !dbg !40
+  %205 = load i32, ptr %204, align 4, !dbg !40, !tbaa !18
+  %206 = sub nsw i32 %205, %200, !dbg !41
+  %207 = sitofp i32 %206 to float, !dbg !47
+  %208 = fmul fast float %14, %207
+  %209 = fmul fast float %208, %198
+  %210 = select fast i1 %202, float 0.000000e+00, float %209, !dbg !47
+  %211 = getelementptr inbounds nuw float, ptr %69, i64 %201, !dbg !48
+  store float %210, ptr %211, align 4, !dbg !49, !tbaa !23
+  %212 = xor i1 %202, true, !dbg !52
+  %213 = icmp eq i64 %203, %21, !dbg !53
+  br i1 %213, label %214, label %199, !dbg !38, !llvm.loop !54
 
-136:                                              ; preds = %130
-  %137 = icmp ult i32 %3, 16, !dbg !61
-  br i1 %137, label %180, label %138, !dbg !61
+214:                                              ; preds = %222, %199, %128, %192
+  br label %242, !dbg !55
 
-138:                                              ; preds = %136
-  %139 = and i64 %32, 2147483632, !dbg !61
-  %140 = insertelement <4 x i1> poison, i1 %10, i64 0, !dbg !61
-  %141 = shufflevector <4 x i1> %140, <4 x i1> poison, <4 x i32> zeroinitializer, !dbg !61
-  %142 = xor <4 x i1> %141, <i1 false, i1 true, i1 false, i1 true>, !dbg !61
-  %143 = insertelement <4 x float> poison, float %25, i64 0, !dbg !61
-  %144 = shufflevector <4 x float> %143, <4 x float> poison, <4 x i32> zeroinitializer, !dbg !61
-  %145 = insertelement <4 x float> poison, float %24, i64 0, !dbg !61
-  %146 = shufflevector <4 x float> %145, <4 x float> poison, <4 x i32> zeroinitializer, !dbg !61
-  %147 = select fast <4 x i1> %142, <4 x float> %144, <4 x float> %146
-  %148 = select fast <4 x i1> %142, <4 x float> %144, <4 x float> %146
-  %149 = select fast <4 x i1> %142, <4 x float> %144, <4 x float> %146
-  %150 = select fast <4 x i1> %142, <4 x float> %144, <4 x float> %146
-  br label %151, !dbg !61
+215:                                              ; preds = %23, %215
+  %216 = phi i64 [ %219, %215 ], [ %24, %23 ]
+  %217 = getelementptr inbounds nuw i32, ptr %2, i64 %216, !dbg !28
+  %218 = load i32, ptr %217, align 4, !dbg !28, !tbaa !18
+  %219 = add nuw nsw i64 %216, 1, !dbg !27
+  %220 = getelementptr inbounds nuw i32, ptr %1, i64 %219, !dbg !29
+  store i32 %218, ptr %220, align 4, !dbg !30, !tbaa !18
+  %221 = icmp eq i64 %219, %21, !dbg !25
+  br i1 %221, label %68, label %215, !dbg !26, !llvm.loop !56
 
-151:                                              ; preds = %151, %138
-  %152 = phi i64 [ 0, %138 ], [ %173, %151 ], !dbg !62
-  %153 = getelementptr inbounds nuw i32, ptr %84, i64 %152, !dbg !63
-  %154 = getelementptr inbounds nuw i8, ptr %153, i64 16, !dbg !63
-  %155 = getelementptr inbounds nuw i8, ptr %153, i64 32, !dbg !63
-  %156 = getelementptr inbounds nuw i8, ptr %153, i64 48, !dbg !63
-  %157 = load <4 x i32>, ptr %153, align 8, !dbg !63, !tbaa !23
-  %158 = load <4 x i32>, ptr %154, align 8, !dbg !63, !tbaa !23
-  %159 = load <4 x i32>, ptr %155, align 8, !dbg !63, !tbaa !23
-  %160 = load <4 x i32>, ptr %156, align 8, !dbg !63, !tbaa !23
-  %161 = sitofp <4 x i32> %157 to <4 x float>, !dbg !63
-  %162 = sitofp <4 x i32> %158 to <4 x float>, !dbg !63
-  %163 = sitofp <4 x i32> %159 to <4 x float>, !dbg !63
-  %164 = sitofp <4 x i32> %160 to <4 x float>, !dbg !63
-  %165 = fmul fast <4 x float> %147, %161, !dbg !64
-  %166 = fmul fast <4 x float> %148, %162, !dbg !64
-  %167 = fmul fast <4 x float> %149, %163, !dbg !64
-  %168 = fmul fast <4 x float> %150, %164, !dbg !64
-  %169 = getelementptr inbounds nuw float, ptr %131, i64 %152, !dbg !65
-  %170 = getelementptr inbounds nuw i8, ptr %169, i64 16, !dbg !66
-  %171 = getelementptr inbounds nuw i8, ptr %169, i64 32, !dbg !66
-  %172 = getelementptr inbounds nuw i8, ptr %169, i64 48, !dbg !66
-  store <4 x float> %165, ptr %169, align 8, !dbg !66, !tbaa !33
-  store <4 x float> %166, ptr %170, align 8, !dbg !66, !tbaa !33
-  store <4 x float> %167, ptr %171, align 8, !dbg !66, !tbaa !33
-  store <4 x float> %168, ptr %172, align 8, !dbg !66, !tbaa !33
-  %173 = add nuw i64 %152, 16, !dbg !62
-  %174 = icmp eq i64 %173, %139, !dbg !62
-  br i1 %174, label %175, label %151, !dbg !62, !llvm.loop !67
+222:                                              ; preds = %131, %222
+  %223 = phi i32 [ %228, %222 ], [ %132, %131 ], !dbg !51
+  %224 = phi i64 [ %226, %222 ], [ %133, %131 ]
+  %225 = phi i1 [ %235, %222 ], [ %10, %131 ]
+  %226 = add nuw nsw i64 %224, 1, !dbg !39
+  %227 = getelementptr inbounds nuw i32, ptr %1, i64 %226, !dbg !40
+  %228 = load i32, ptr %227, align 4, !dbg !40, !tbaa !18
+  %229 = sub nsw i32 %228, %223, !dbg !41
+  %230 = sitofp i32 %229 to float, !dbg !42
+  %231 = fmul fast float %16, %230
+  %232 = fmul fast float %231, %134
+  %233 = select fast i1 %225, float %232, float %230, !dbg !42
+  %234 = getelementptr inbounds nuw float, ptr %69, i64 %224, !dbg !43
+  store float %233, ptr %234, align 4, !dbg !44, !tbaa !23
+  %235 = xor i1 %225, true, !dbg !52
+  %236 = icmp eq i64 %226, %21, !dbg !53
+  br i1 %236, label %214, label %222, !dbg !38, !llvm.loop !57
 
-175:                                              ; preds = %151
-  %176 = icmp eq i64 %139, %32, !dbg !61
-  br i1 %176, label %211, label %177, !dbg !61
+237:                                              ; preds = %242, %11
+  %238 = add nsw i32 %3, 1, !dbg !58
+  %239 = sext i32 %238 to i64, !dbg !59
+  %240 = getelementptr inbounds i32, ptr %1, i64 %239, !dbg !59
+  store i32 %7, ptr %240, align 4, !dbg !60, !tbaa !18
+  %241 = getelementptr inbounds float, ptr %0, i64 %239, !dbg !61
+  store float %9, ptr %241, align 4, !dbg !62, !tbaa !23
+  ret void, !dbg !63
 
-177:                                              ; preds = %175
-  %178 = and i64 %32, 12, !dbg !61
-  %179 = icmp eq i64 %178, 0, !dbg !61
-  br i1 %179, label %134, label %180, !dbg !61
-
-180:                                              ; preds = %177, %136
-  %181 = phi i64 [ %139, %177 ], [ 0, %136 ]
-  %182 = and i64 %32, 2147483644, !dbg !61
-  %183 = insertelement <4 x i1> poison, i1 %10, i64 0, !dbg !61
-  %184 = shufflevector <4 x i1> %183, <4 x i1> poison, <4 x i32> zeroinitializer, !dbg !61
-  %185 = xor <4 x i1> %184, <i1 false, i1 true, i1 false, i1 true>, !dbg !61
-  %186 = insertelement <4 x float> poison, float %25, i64 0, !dbg !61
-  %187 = shufflevector <4 x float> %186, <4 x float> poison, <4 x i32> zeroinitializer, !dbg !61
-  %188 = insertelement <4 x float> poison, float %24, i64 0, !dbg !61
-  %189 = shufflevector <4 x float> %188, <4 x float> poison, <4 x i32> zeroinitializer, !dbg !61
-  %190 = select fast <4 x i1> %185, <4 x float> %187, <4 x float> %189
-  br label %191, !dbg !61
-
-191:                                              ; preds = %191, %180
-  %192 = phi i64 [ %181, %180 ], [ %198, %191 ], !dbg !62
-  %193 = getelementptr inbounds nuw i32, ptr %84, i64 %192, !dbg !63
-  %194 = load <4 x i32>, ptr %193, align 8, !dbg !63, !tbaa !23
-  %195 = sitofp <4 x i32> %194 to <4 x float>, !dbg !63
-  %196 = fmul fast <4 x float> %190, %195, !dbg !64
-  %197 = getelementptr inbounds nuw float, ptr %131, i64 %192, !dbg !65
-  store <4 x float> %196, ptr %197, align 8, !dbg !66, !tbaa !33
-  %198 = add nuw i64 %192, 4, !dbg !62
-  %199 = icmp eq i64 %198, %182, !dbg !62
-  br i1 %199, label %200, label %191, !dbg !62, !llvm.loop !69
-
-200:                                              ; preds = %191
-  %201 = icmp eq i64 %182, %32, !dbg !61
-  br i1 %201, label %211, label %134, !dbg !61
-
-202:                                              ; preds = %120, %202
-  %203 = phi i32 [ %207, %202 ], [ %121, %120 ], !dbg !49
-  %204 = phi i64 [ %205, %202 ], [ %122, %120 ]
-  %205 = add nuw nsw i64 %204, 1, !dbg !51
-  %206 = getelementptr inbounds nuw i32, ptr %1, i64 %205, !dbg !52
-  %207 = load i32, ptr %206, align 4, !dbg !52, !tbaa !23
-  %208 = sub nsw i32 %207, %203, !dbg !53
-  %209 = getelementptr inbounds nuw i32, ptr %84, i64 %204, !dbg !54
-  store i32 %208, ptr %209, align 4, !dbg !55, !tbaa !23
-  %210 = icmp eq i64 %205, %85, !dbg !48
-  br i1 %210, label %130, label %202, !dbg !50, !llvm.loop !70
-
-211:                                              ; preds = %213, %200, %175
-  store float %8, ptr %0, align 4, !dbg !32, !tbaa !33
-  %212 = zext nneg i32 %3 to i64, !dbg !71
-  br label %228, !dbg !35
-
-213:                                              ; preds = %134, %213
-  %214 = phi i64 [ %223, %213 ], [ %135, %134 ]
-  %215 = phi i1 [ %222, %213 ], [ %10, %134 ]
-  %216 = select fast i1 %215, float %25, float %24, !dbg !72
-  %217 = getelementptr inbounds nuw i32, ptr %84, i64 %214, !dbg !63
-  %218 = load i32, ptr %217, align 4, !dbg !63, !tbaa !23
-  %219 = sitofp i32 %218 to float, !dbg !63
-  %220 = fmul fast float %216, %219, !dbg !64
-  %221 = getelementptr inbounds nuw float, ptr %131, i64 %214, !dbg !65
-  store float %220, ptr %221, align 4, !dbg !66, !tbaa !33
-  %222 = xor i1 %215, true, !dbg !73
-  %223 = add nuw nsw i64 %214, 1, !dbg !62
-  %224 = icmp eq i64 %223, %132, !dbg !60
-  br i1 %224, label %211, label %213, !dbg !61, !llvm.loop !74
-
-225:                                              ; preds = %228, %27
-  %226 = phi i64 [ %29, %27 ], [ %81, %228 ]
-  %227 = getelementptr inbounds float, ptr %0, i64 %226, !dbg !75
-  store float %9, ptr %227, align 4, !dbg !76, !tbaa !33
-  ret void, !dbg !77
-
-228:                                              ; preds = %211, %228
-  %229 = phi float [ %8, %211 ], [ %233, %228 ], !dbg !78
-  %230 = phi i64 [ 0, %211 ], [ %234, %228 ]
-  %231 = getelementptr inbounds nuw float, ptr %131, i64 %230, !dbg !79
-  %232 = load float, ptr %231, align 4, !dbg !79, !tbaa !33
-  %233 = fadd fast float %232, %229, !dbg !80
-  %234 = add nuw nsw i64 %230, 1, !dbg !81
-  %235 = getelementptr inbounds nuw float, ptr %0, i64 %234, !dbg !82
-  store float %233, ptr %235, align 4, !dbg !83, !tbaa !33
-  %236 = icmp eq i64 %234, %212, !dbg !71
-  br i1 %236, label %225, label %228, !dbg !35, !llvm.loop !84
+242:                                              ; preds = %214, %242
+  %243 = phi float [ %247, %242 ], [ %8, %214 ], !dbg !64
+  %244 = phi i64 [ %248, %242 ], [ 0, %214 ]
+  %245 = getelementptr inbounds nuw float, ptr %69, i64 %244, !dbg !65
+  %246 = load float, ptr %245, align 4, !dbg !65, !tbaa !23
+  %247 = fadd fast float %246, %243, !dbg !66
+  %248 = add nuw nsw i64 %244, 1, !dbg !67
+  %249 = getelementptr inbounds nuw float, ptr %0, i64 %248, !dbg !68
+  store float %247, ptr %249, align 4, !dbg !69, !tbaa !23
+  %250 = icmp eq i64 %248, %21, !dbg !70
+  br i1 %250, label %237, label %242, !dbg !55, !llvm.loop !71
 }
 
 attributes #0 = { mustprogress nofree norecurse nosync nounwind ssp memory(argmem: readwrite) uwtable(sync) "approx-func-fp-math"="true" "frame-pointer"="non-leaf" "no-infs-fp-math"="true" "no-nans-fp-math"="true" "no-signed-zeros-fp-math"="true" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="apple-m1" "target-features"="+aes,+altnzcv,+ccdp,+ccidx,+ccpp,+complxnum,+crc,+dit,+dotprod,+flagm,+fp-armv8,+fp16fml,+fptoint,+fullfp16,+jsconv,+lse,+neon,+pauth,+perfmon,+predres,+ras,+rcpc,+rdm,+sb,+sha2,+sha3,+specrestrict,+ssbs,+v8.1a,+v8.2a,+v8.3a,+v8.4a,+v8a,+zcm,+zcz" "unsafe-fp-math"="true" }
@@ -344,80 +339,67 @@ attributes #0 = { mustprogress nofree norecurse nosync nounwind ssp memory(argme
 !6 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !7, producer: "clang version 20.1.8 (https://github.com/llvm/llvm-project.git 87f0227cb60147a26a1eeb4fb06e3b505e9c7261)", isOptimized: true, runtimeVersion: 0, emissionKind: NoDebug, splitDebugInlining: false, nameTableKind: Apple, sysroot: "/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk", sdk: "MacOSX26.2.sdk")
 !7 = !DIFile(filename: "temp_code.cpp", directory: "/Users/torence/VecTrans/self-refine")
 !8 = !{!"clang version 20.1.8 (https://github.com/llvm/llvm-project.git 87f0227cb60147a26a1eeb4fb06e3b505e9c7261)"}
-!9 = distinct !DISubprogram(name: "set_points_opt", scope: !7, file: !7, line: 7, type: !10, scopeLine: 7, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !6)
+!9 = distinct !DISubprogram(name: "set_points_opt", scope: !7, file: !7, line: 7, type: !10, scopeLine: 9, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !6)
 !10 = !DISubroutineType(types: !11)
 !11 = !{}
-!12 = !DILocation(line: 8, column: 27, scope: !9)
-!13 = !DILocation(line: 10, column: 23, scope: !9)
-!14 = !DILocation(line: 10, column: 32, scope: !9)
-!15 = !DILocation(line: 11, column: 9, scope: !9)
-!16 = !DILocation(line: 12, column: 25, scope: !9)
-!17 = !DILocation(line: 12, column: 58, scope: !9)
-!18 = !DILocation(line: 12, column: 47, scope: !9)
-!19 = !DILocation(line: 13, column: 5, scope: !9)
-!20 = !DILocation(line: 14, column: 24, scope: !9)
-!21 = !DILocation(line: 0, scope: !9)
-!22 = !DILocation(line: 22, column: 12, scope: !9)
+!12 = !DILocation(line: 10, column: 27, scope: !9)
+!13 = !DILocation(line: 12, column: 45, scope: !9)
+!14 = !DILocation(line: 12, column: 34, scope: !9)
+!15 = !DILocation(line: 12, column: 67, scope: !9)
+!16 = !DILocation(line: 15, column: 31, scope: !9)
+!17 = !DILocation(line: 18, column: 12, scope: !9)
+!18 = !{!19, !19, i64 0}
+!19 = !{!"int", !20, i64 0}
+!20 = !{!"omnipotent char", !21, i64 0}
+!21 = !{!"Simple C++ TBAA"}
+!22 = !DILocation(line: 19, column: 12, scope: !9)
 !23 = !{!24, !24, i64 0}
-!24 = !{!"int", !25, i64 0}
-!25 = !{!"omnipotent char", !26, i64 0}
-!26 = !{!"Simple C++ TBAA"}
-!27 = !DILocation(line: 23, column: 23, scope: !9)
-!28 = !DILocation(line: 23, column: 5, scope: !9)
-!29 = !DILocation(line: 26, column: 18, scope: !9)
-!30 = !DILocation(line: 26, column: 5, scope: !9)
-!31 = !DILocation(line: 26, column: 23, scope: !9)
-!32 = !DILocation(line: 44, column: 12, scope: !9)
-!33 = !{!34, !34, i64 0}
-!34 = !{!"float", !25, i64 0}
-!35 = !DILocation(line: 45, column: 5, scope: !9)
-!36 = !DILocation(line: 24, column: 15, scope: !9)
-!37 = !DILocation(line: 24, column: 22, scope: !9)
-!38 = !DILocation(line: 24, column: 9, scope: !9)
-!39 = !DILocation(line: 24, column: 20, scope: !9)
-!40 = distinct !{!40, !28, !41, !42, !43, !44}
-!41 = !DILocation(line: 25, column: 5, scope: !9)
-!42 = !{!"llvm.loop.mustprogress"}
-!43 = !{!"llvm.loop.isvectorized", i32 1}
-!44 = !{!"llvm.loop.unroll.runtime.disable"}
-!45 = distinct !{!45, !28, !41, !42, !43, !44}
-!46 = !DILocation(line: 29, column: 59, scope: !9)
-!47 = !DILocation(line: 29, column: 27, scope: !9)
-!48 = !DILocation(line: 30, column: 23, scope: !9)
-!49 = !DILocation(line: 31, column: 36, scope: !9)
-!50 = !DILocation(line: 30, column: 5, scope: !9)
-!51 = !DILocation(line: 31, column: 29, scope: !9)
-!52 = !DILocation(line: 31, column: 23, scope: !9)
-!53 = !DILocation(line: 31, column: 34, scope: !9)
-!54 = !DILocation(line: 31, column: 9, scope: !9)
-!55 = !DILocation(line: 31, column: 21, scope: !9)
-!56 = distinct !{!56, !50, !57, !42, !43, !44}
-!57 = !DILocation(line: 32, column: 5, scope: !9)
-!58 = distinct !{!58, !28, !41, !42, !43}
-!59 = !DILocation(line: 35, column: 31, scope: !9)
-!60 = !DILocation(line: 37, column: 23, scope: !9)
-!61 = !DILocation(line: 37, column: 5, scope: !9)
-!62 = !DILocation(line: 37, column: 36, scope: !9)
-!63 = !DILocation(line: 39, column: 34, scope: !9)
-!64 = !DILocation(line: 39, column: 25, scope: !9)
-!65 = !DILocation(line: 39, column: 9, scope: !9)
-!66 = !DILocation(line: 39, column: 21, scope: !9)
-!67 = distinct !{!67, !61, !68, !42, !43, !44}
-!68 = !DILocation(line: 41, column: 5, scope: !9)
-!69 = distinct !{!69, !61, !68, !42, !43, !44}
-!70 = distinct !{!70, !50, !57, !42, !44, !43}
-!71 = !DILocation(line: 45, column: 23, scope: !9)
-!72 = !DILocation(line: 38, column: 19, scope: !9)
-!73 = !DILocation(line: 40, column: 23, scope: !9)
-!74 = distinct !{!74, !61, !68, !42, !44, !43}
-!75 = !DILocation(line: 48, column: 5, scope: !9)
-!76 = !DILocation(line: 48, column: 23, scope: !9)
-!77 = !DILocation(line: 49, column: 1, scope: !9)
-!78 = !DILocation(line: 46, column: 22, scope: !9)
-!79 = !DILocation(line: 46, column: 31, scope: !9)
-!80 = !DILocation(line: 46, column: 29, scope: !9)
-!81 = !DILocation(line: 46, column: 15, scope: !9)
-!82 = !DILocation(line: 46, column: 9, scope: !9)
-!83 = !DILocation(line: 46, column: 20, scope: !9)
-!84 = distinct !{!84, !35, !85, !42}
-!85 = !DILocation(line: 47, column: 5, scope: !9)
+!24 = !{!"float", !20, i64 0}
+!25 = !DILocation(line: 22, column: 23, scope: !9)
+!26 = !DILocation(line: 22, column: 5, scope: !9)
+!27 = !DILocation(line: 23, column: 15, scope: !9)
+!28 = !DILocation(line: 23, column: 22, scope: !9)
+!29 = !DILocation(line: 23, column: 9, scope: !9)
+!30 = !DILocation(line: 23, column: 20, scope: !9)
+!31 = distinct !{!31, !26, !32, !33, !34, !35}
+!32 = !DILocation(line: 24, column: 5, scope: !9)
+!33 = !{!"llvm.loop.mustprogress"}
+!34 = !{!"llvm.loop.isvectorized", i32 1}
+!35 = !{!"llvm.loop.unroll.runtime.disable"}
+!36 = distinct !{!36, !26, !32, !33, !34, !35}
+!37 = !DILocation(line: 27, column: 5, scope: !9)
+!38 = !DILocation(line: 30, column: 5, scope: !9)
+!39 = !DILocation(line: 31, column: 30, scope: !9)
+!40 = !DILocation(line: 31, column: 24, scope: !9)
+!41 = !DILocation(line: 31, column: 35, scope: !9)
+!42 = !DILocation(line: 34, column: 27, scope: !9)
+!43 = !DILocation(line: 34, column: 13, scope: !9)
+!44 = !DILocation(line: 34, column: 25, scope: !9)
+!45 = distinct !{!45, !38, !46, !33, !34, !35}
+!46 = !DILocation(line: 40, column: 5, scope: !9)
+!47 = !DILocation(line: 36, column: 27, scope: !9)
+!48 = !DILocation(line: 36, column: 13, scope: !9)
+!49 = !DILocation(line: 36, column: 25, scope: !9)
+!50 = distinct !{!50, !38, !46, !33, !34, !35}
+!51 = !DILocation(line: 31, column: 37, scope: !9)
+!52 = !DILocation(line: 39, column: 28, scope: !9)
+!53 = !DILocation(line: 30, column: 23, scope: !9)
+!54 = distinct !{!54, !38, !46, !33, !35, !34}
+!55 = !DILocation(line: 43, column: 5, scope: !9)
+!56 = distinct !{!56, !26, !32, !33, !34}
+!57 = distinct !{!57, !38, !46, !33, !35, !34}
+!58 = !DILocation(line: 47, column: 18, scope: !9)
+!59 = !DILocation(line: 47, column: 5, scope: !9)
+!60 = !DILocation(line: 47, column: 23, scope: !9)
+!61 = !DILocation(line: 48, column: 5, scope: !9)
+!62 = !DILocation(line: 48, column: 23, scope: !9)
+!63 = !DILocation(line: 49, column: 1, scope: !9)
+!64 = !DILocation(line: 44, column: 22, scope: !9)
+!65 = !DILocation(line: 44, column: 31, scope: !9)
+!66 = !DILocation(line: 44, column: 29, scope: !9)
+!67 = !DILocation(line: 44, column: 15, scope: !9)
+!68 = !DILocation(line: 44, column: 9, scope: !9)
+!69 = !DILocation(line: 44, column: 20, scope: !9)
+!70 = !DILocation(line: 43, column: 23, scope: !9)
+!71 = distinct !{!71, !55, !72, !33}
+!72 = !DILocation(line: 45, column: 5, scope: !9)

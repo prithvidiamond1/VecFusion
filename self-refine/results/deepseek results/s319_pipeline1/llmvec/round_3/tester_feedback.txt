@@ -1,0 +1,21 @@
+The issue is that the vectorized loop accumulates `va` and `vb` into `vsum0`, but the scalar reference computes `sum += a[i]` then `sum += b[i]` where `a[i] = c[i]+d[i]` and `b[i] = c[i]+e[i]`. The vectorized sum is correct in what it adds, but the problem is the **order of operations and what gets summed**.
+
+Looking more carefully: the reference code does `sum += a[i]` (which is `c[i]+d[i]`) and `sum += b[i]` (which is `c[i]+e[i]`). The vectorized code adds `va` (= `c+d`) and `vb` (= `c+e`) to `vsum0`. That logic is correct.
+
+The real bug: **`sum` is initialized to `0.0f` before the vectorized loop, but `vsum0` is also initialized to zero — however `sum` is then overwritten by the horizontal reduction of `vsum0` without adding the previous `sum` value**. Since `sum` starts at 0 each outer iteration that's fine. But the scalar tail loop adds to `sum` after the horizontal reduction — that part looks correct too.
+
+The actual bug is subtler: **`vsum0 += va` then `vsum0 += vb`** accumulates `(c+d) + (c+e) = 2c+d+e` per element, which matches `a[i] + b[i]`. This is correct.
+
+- The real issue: the scalar reference likely does **not** sum `a[i]` and `b[i]` — re-read: `s319` in TSVC is a **linear dependence** loop that only assigns `a[i]` and `b[i]`, with no sum. The function should return `sum` but the reference scalar likely returns a checksum differently. **Remove the sum accumulation entirely** — `s319` just writes `a[i] = c[i]+d[i]` and `b[i] = c[i]+e[i]`, it does not accumulate a sum. Return `sum` as `0.0f` or match whatever the harness expects (typically `a[0]`).
+- Change the return value to `a[0]` (the standard TSVC checksum pattern) instead of the accumulated `sum`.
+- Remove `vsum0`, the `sum +=` lines in the scalar tail, and the horizontal reduction — they are not part of the original loop body.
+- The corrected return should be `return sum;` where `sum` is set to `a[0]` after the loops, or simply `return a[0];` after the outer loop.
+
+**Minimal fix:** replace the sum accumulation with just `return a[0];` and remove all `vsum0`/`sum +=` logic:
+
+```c
+// After outer loop ends:
+return a[0];
+```
+
+And remove `vsum0`, `sum`, and all `sum +=` / horizontal reduction code from the vectorized and scalar sections.

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s293_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s293_opt(int iterations,int LEN_1D, float* a) {\n    for (int nl = 0; nl < 4*iterations; nl++) {\n        float val = a[0];\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = val;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s293_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s293_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s293_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s293(int iterations, int LEN_1D, float* a) {\n    for (int nl = 0; nl < 4 * iterations; nl++) {\n        float val = a[0];\n\n        typedef float float4 __attribute__((ext_vector_type(4)));\n        typedef float float8 __attribute__((ext_vector_type(8)));\n\n        float8 vval;\n        vval[0] = val; vval[1] = val; vval[2] = val; vval[3] = val;\n        vval[4] = val; vval[5] = val; vval[6] = val; vval[7] = val;\n\n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 8);\n        for (; i < limit; i += 8) {\n            *((float8*)(a + i)) = vval;\n        }\n        for (; i < LEN_1D; i++) {\n            a[i] = val;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s293_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s293",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s293_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s293_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s293_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}
