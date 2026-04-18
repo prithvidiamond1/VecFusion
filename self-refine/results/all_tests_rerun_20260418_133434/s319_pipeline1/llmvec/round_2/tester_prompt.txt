@@ -1,0 +1,52 @@
+Candidate code:
+```c
+#include <stdint.h>
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)
+{
+    float sum;
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        sum = 0.0f;
+
+        typedef float float4 __attribute__((vector_size(16)));
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+
+        float4 vsum = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        for (; i < limit; i += 4) {
+            float4 vc, vd, ve, va, vb;
+
+            vc = *(float4 *)(c + i);
+            vd = *(float4 *)(d + i);
+            ve = *(float4 *)(e + i);
+
+            va = vc + vd;
+            vb = vc + ve;
+
+            *(float4 *)(a + i) = va;
+            *(float4 *)(b + i) = vb;
+
+            vsum += va;
+            vsum += vb;
+        }
+
+        sum += vsum[0] + vsum[1] + vsum[2] + vsum[3];
+
+        for (; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum += a[i];
+            b[i] = c[i] + e[i];
+            sum += b[i];
+        }
+    }
+    return sum;
+}
+```
+
+External compile/test report:
+Compile succeeded for round 2.
+Exit code: 2
+stderr:
+Return mismatch on trial 0

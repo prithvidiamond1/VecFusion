@@ -1,0 +1,20 @@
+The test is failing because `src[0]` is being set to `srcStart`, but the reference implementation likely doesn't write to `src[0]` — or more likely the issue is that the vectorized loop's `scaleA`/`scaleB` assignment doesn't track `isScalable` correctly across the unrolled block when the initial `isScalable` state alternates.
+
+Looking more carefully: the unrolled loop assumes `isScalable` starts the block in its original state (even index = `scaleA`, odd = `scaleB`), but after the scalar tail runs and flips `isScalable`, the next unrolled block would use wrong scales. However, the unrolled loop runs first, so that's not the issue.
+
+The real bug: **`src[0]` is written as `srcStart` but `src[0]` should not be written** — the reference likely uses `src` as a read-only input array of division points, and the output is only `dst`. The function signature shows `src` as `int*` (output) and `divs` as `const int*` (input), so writing `src[0] = srcStart` is correct per the design. 
+
+The actual mismatch at `src[0]` index 0 suggests the unrolled loop overwrites `src[i+0]` values that were just set, but reads them back — this is fine. The real problem is:
+
+- **In the unrolled loop, `scaleA` is always used for even sub-iterations, but the initial `isScalable` parity at loop entry `i` may be odd** (if the scalar tail ran 1 or 3 times before, but the scalar tail only runs *after* the unrolled loop, so `i` starts at 0 — parity is always even). This is actually correct.
+
+The actual bug is simpler: **`src[i+0]` in the unrolled loop refers to `src[0]` when `i=0`, which was set to `srcStart`, but `divs[i+0]` is the first division. The delta `src[i+1] - src[i+0]` = `divs[0] - srcStart` which is correct. So the logic seems right.**
+
+Wait — the mismatch is at `src` index 0. The reference probably does **not** write `src[0] = srcStart` at all, treating `src` as purely output for indices 1..divCount+1.
+
+- **Remove `src[0] = srcStart;`** — the reference implementation does not write to `src[0]`; it only writes `src[1]` through `src[divCount+1]`. Writing `src[0]` corrupts whatever was there.
+- In the unrolled loop, `src[i+1] - src[i+0]` reads `src[i]` which was set in the previous iteration (or `src[0]` = `srcStart` for `i=0`). If `src[0]` must not be written, then the delta computation needs to use `divs[i-1]` or track the previous value differently — use a local variable `prevSrc = srcStart` and update it each iteration instead of reading back from `src[i]`.
+- Replace `src[i+0]` reads in delta computations with a tracked `prevSrc` variable, initialized to `srcStart`, updated to `divs[i+3]` at end of each unrolled block.
+- Similarly in the scalar tail, track previous src value in a local rather than reading `src[i]`.
+- Remove `dst[0] = dstStart;` if the reference also doesn't write `dst[0]`, but more likely keep it — focus on `src[0]` first.
+- Keep `src[divCount+1] = srcEnd` and `dst[divCount+1] = dstEnd` as those are likely correct final writes.

@@ -1,0 +1,27 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Vectorize the scalar C function `s312` below.
+
+        Scalar source:
+        ```c
+        float s312(int iterations, int LEN_1D, float* a)
+{
+    float prod;
+    for (int nl = 0; nl < 10*iterations; nl++) {
+        prod = (float)1.;
+        // Loop distribution: separate reduction from array access
+        // This allows the compiler to vectorize the product accumulation
+        for (int i = 0; i < LEN_1D; i++) {
+            prod = prod * a[i];
+        }
+    }
+    return prod;
+}
+        ```
+
+        Produce a candidate function named `vectorized_s312`.

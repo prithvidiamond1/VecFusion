@@ -1,0 +1,25 @@
+#include <string.h>
+
+float vectorized_s312(int iterations, int LEN_1D, float* a)
+{
+    float prod;
+    for (int nl = 0; nl < 10 * iterations; nl++) {
+        // Use 4-wide vector accumulation
+        float acc0 = 1.0f, acc1 = 1.0f, acc2 = 1.0f, acc3 = 1.0f;
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+        for (; i < limit; i += 4) {
+            acc0 *= a[i + 0];
+            acc1 *= a[i + 1];
+            acc2 *= a[i + 2];
+            acc3 *= a[i + 3];
+        }
+        // Scalar tail
+        float tail = 1.0f;
+        for (; i < LEN_1D; i++) {
+            tail *= a[i];
+        }
+        prod = acc0 * acc1 * acc2 * acc3 * tail;
+    }
+    return prod;
+}

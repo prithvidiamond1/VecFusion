@@ -173,6 +173,7 @@ class VecTransAdapter:
             else:
                 os.environ["SDKROOT"] = old_sdkroot
 
+
 class LLMVectorizerAdapter:
     """Call vendored LLM-Vectorizer primitives from inside VecTrans."""
 
@@ -214,7 +215,26 @@ class LLMVectorizerAdapter:
             api_timeout=int(os.environ.get("LLM_VECTORIZER_API_TIMEOUT", "120")),
         )
 
-    def run(self, source_file: Path, scalar_function: str, outdir: Path, max_rounds: int = 4) -> TransformResult:
+    def _pipeline_context_prefix(self, pipeline_context: str) -> str:
+        if pipeline_context == "vectrans_preprocessed":
+            return (
+                "This input code has already been processed by an earlier VecTrans stage.\n"
+                "Assume dependency-breaking and preliminary restructuring may already have been attempted.\n"
+                "Do not aggressively rewrite the code from scratch unless a clear blocker remains.\n"
+                "Preserve the current transformed structure as much as possible.\n"
+                "Focus on cleanup, canonicalization, correctness, and final vectorization.\n"
+                "Avoid introducing unnecessary new dependency-breaking transformations.\n"
+            )
+        return ""
+
+    def run(
+        self,
+        source_file: Path,
+        scalar_function: str,
+        outdir: Path,
+        max_rounds: int = 4,
+        pipeline_context: str = "raw_source",
+    ) -> TransformResult:
         outdir.mkdir(parents=True, exist_ok=True)
         input_snapshot = outdir / "llm_vectorizer_input_snapshot.c"
         input_snapshot.write_text(source_file.read_text())
@@ -225,17 +245,21 @@ class LLMVectorizerAdapter:
             config = self._build_config(module, source_file, scalar_function, outdir, max_rounds)
             scalar_source = module.read_source(config.source_path).strip()
 
+            context_prefix = self._pipeline_context_prefix(pipeline_context)
+            vectorizer_prompt = context_prefix + "\n" + module.make_vectorizer_prompt(config)
+
             try:
                 api_key = module.get_api_key()
             except SystemExit as exc:
                 prompts_path = outdir / "debug_prompts.txt"
+                initial_task = context_prefix + "\n" + module.make_initial_task(config, scalar_source)
                 prompts_path.write_text(
                     "== Vectorizer system prompt ==\n"
-                    + module.make_vectorizer_prompt(config)
+                    + vectorizer_prompt
                     + "\n\n== Tester system prompt ==\n"
                     + module.make_tester_prompt()
                     + "\n\n== Initial task ==\n"
-                    + module.make_initial_task(config, scalar_source)
+                    + initial_task
                     + "\n"
                 )
                 return TransformResult(
@@ -248,10 +272,14 @@ class LLMVectorizerAdapter:
                     ),
                     rounds_used=0,
                     artifact_path=str(prompts_path),
-                    metadata={"scalar_function": scalar_function, "input_snapshot": str(input_snapshot)},
+                    metadata={
+                        "scalar_function": scalar_function,
+                        "input_snapshot": str(input_snapshot),
+                        "pipeline_context": pipeline_context,
+                    },
                 )
 
-            vectorizer = module.new_agent("Vectorizer", module.make_vectorizer_prompt(config), config, api_key)
+            vectorizer = module.new_agent("Vectorizer", vectorizer_prompt, config, api_key)
             tester = module.new_agent("Tester", module.make_tester_prompt(), config, api_key)
 
             last_feedback = ""
@@ -263,9 +291,14 @@ class LLMVectorizerAdapter:
                 round_dir.mkdir(parents=True, exist_ok=True)
 
                 if round_idx == 1:
-                    task = module.make_initial_task(config, scalar_source)
+                    task = context_prefix + "\n" + module.make_initial_task(config, scalar_source)
                 else:
-                    task = module.make_revision_task(last_candidate, last_feedback, scalar_source, config)
+                    task = context_prefix + "\n" + module.make_revision_task(
+                        last_candidate,
+                        last_feedback,
+                        scalar_source,
+                        config,
+                    )
                 (round_dir / "task_prompt.txt").write_text(task)
 
                 response_text = module.ask_agent(vectorizer, task)
@@ -293,6 +326,7 @@ class LLMVectorizerAdapter:
                         metadata={
                             "scalar_function": scalar_function,
                             "input_snapshot": str(input_snapshot),
+                            "pipeline_context": pipeline_context,
                             "harness_path": str(result.candidate_path) if result.candidate_path else "",
                             "binary_path": str(result.binary_path) if result.binary_path else "",
                         },
@@ -314,6 +348,7 @@ class LLMVectorizerAdapter:
                 last_candidate_path.write_text(last_candidate + "\n")
             else:
                 last_candidate_path.write_text("")
+
             last_report = final_result.report if final_result is not None else "No candidate was produced."
             return TransformResult(
                 stage="llm_vectorizer",
@@ -327,6 +362,7 @@ class LLMVectorizerAdapter:
                 metadata={
                     "scalar_function": scalar_function,
                     "input_snapshot": str(input_snapshot),
+                    "pipeline_context": pipeline_context,
                 },
             )
         except Exception as exc:
@@ -338,9 +374,13 @@ class LLMVectorizerAdapter:
                 candidate_code="",
                 summary=f"LLM-Vectorizer adapter failed before producing a candidate: {type(exc).__name__}: {exc}",
                 artifact_path=str(failure_path),
-                metadata={"scalar_function": scalar_function, "input_snapshot": str(input_snapshot)},
+                metadata={
+                    "scalar_function": scalar_function,
+                    "input_snapshot": str(input_snapshot),
+                    "pipeline_context": pipeline_context,
+                },
             )
-        
+
 
 class CompilerBaselineAdapter:
     """Fallback stage that leaves the source unchanged and lets the compiler do the work."""

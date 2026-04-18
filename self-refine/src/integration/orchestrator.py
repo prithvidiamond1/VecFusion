@@ -24,7 +24,12 @@ class PipelineOrchestrator:
         outdir.mkdir(parents=True, exist_ok=True)
         steps: list[TransformResult] = []
 
-        llm_result = self.llmvec.run(source_file, scalar_function, outdir / "llmvec")
+        llm_result = self.llmvec.run(
+            source_file,
+            scalar_function,
+            outdir / "llmvec",
+            pipeline_context="raw_source",
+        )
         steps.append(llm_result)
         if llm_result.ok:
             return self._finalize("pipeline1", llm_result, steps, outdir)
@@ -53,7 +58,12 @@ class PipelineOrchestrator:
             )
             vectrans_code_path.write_text(normalized_code)
 
-            llm_result = self.llmvec.run(vectrans_code_path, scalar_function, outdir / "llmvec")
+            llm_result = self.llmvec.run(
+                vectrans_code_path,
+                scalar_function,
+                outdir / "llmvec",
+                pipeline_context="vectrans_preprocessed",
+            )
             steps.append(llm_result)
             if llm_result.ok:
                 return self._finalize("pipeline2", llm_result, steps, outdir)

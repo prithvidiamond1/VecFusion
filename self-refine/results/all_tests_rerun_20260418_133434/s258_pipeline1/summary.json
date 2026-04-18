@@ -1,0 +1,41 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s258_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])\n{\n    float s;\n    for (int nl = 0; nl < iterations; nl++) {\n        s = 0.f;\n        int i = 0;\n        for (; i + 7 < 256; i += 8) {\n            if (a[i+0] > 0.f) s = d[i+0] * d[i+0];\n            b[i+0] = s * c[i+0] + d[i+0];\n            e[i+0] = (s + 1.f) * aa[0][i+0];\n\n            if (a[i+1] > 0.f) s = d[i+1] * d[i+1];\n            b[i+1] = s * c[i+1] + d[i+1];\n            e[i+1] = (s + 1.f) * aa[0][i+1];\n\n            if (a[i+2] > 0.f) s = d[i+2] * d[i+2];\n            b[i+2] = s * c[i+2] + d[i+2];\n            e[i+2] = (s + 1.f) * aa[0][i+2];\n\n            if (a[i+3] > 0.f) s = d[i+3] * d[i+3];\n            b[i+3] = s * c[i+3] + d[i+3];\n            e[i+3] = (s + 1.f) * aa[0][i+3];\n\n            if (a[i+4] > 0.f) s = d[i+4] * d[i+4];\n            b[i+4] = s * c[i+4] + d[i+4];\n            e[i+4] = (s + 1.f) * aa[0][i+4];\n\n            if (a[i+5] > 0.f) s = d[i+5] * d[i+5];\n            b[i+5] = s * c[i+5] + d[i+5];\n            e[i+5] = (s + 1.f) * aa[0][i+5];\n\n            if (a[i+6] > 0.f) s = d[i+6] * d[i+6];\n            b[i+6] = s * c[i+6] + d[i+6];\n            e[i+6] = (s + 1.f) * aa[0][i+6];\n\n            if (a[i+7] > 0.f) s = d[i+7] * d[i+7];\n            b[i+7] = s * c[i+7] + d[i+7];\n            e[i+7] = (s + 1.f) * aa[0][i+7];\n        }\n        for (; i < 256; ++i) {\n            if (a[i] > 0.f) s = d[i] * d[i];\n            b[i] = s * c[i] + d[i];\n            e[i] = (s + 1.f) * aa[0][i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s258_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s258",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s258_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s258_opt(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {\n    for (int nl = 0; nl < iterations; nl++) {\n        float s = 0.0f;\n        float s_vals[256];\n        \n        // First loop: compute all s values with serial dependency\n        for (int i = 0; i < 256; ++i) {\n            s = (a[i] > 0.0f) ? (d[i] * d[i]) : s;\n            s_vals[i] = s;\n        }\n        \n        // Second loop: vectorizable computations using precomputed s_vals\n        for (int i = 0; i < 256; ++i) {\n            b[i] = s_vals[i] * c[i] + d[i];\n            e[i] = (s_vals[i] + 1.0f) * aa[0][i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s258_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s258_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s258_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

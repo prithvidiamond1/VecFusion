@@ -1,0 +1,17 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Vectorize the scalar C function `AllPointsEq` below.
+
+        Scalar source:
+        ```c
+        bool all_eq = true;
+for (int i = 0; i < count; ++i)
+    all_eq = all_eq && (pts[0] == pts[i]);
+        ```
+
+        Produce a candidate function named `vectorized_AllPointsEq`.

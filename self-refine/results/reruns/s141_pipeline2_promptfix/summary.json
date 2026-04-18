@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "/Users/torence/VecTrans/self-refine/results/reruns/s141_pipeline2_promptfix/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s141_opt(int iterations, float * flat_2d_array, float bb[256][256])\n{\n    int nl_iter = 200 * (iterations / 256);\n    \n    // Precompute all k indices for each (i,j) pair\n    int k_indices[256][256];\n    for (int i = 0; i < 256; i++) {\n        int k = (i+1) * i / 2 + i;\n        for (int j = i; j < 256; j++) {\n            k_indices[i][j] = k;\n            k += j + 1;\n        }\n    }\n    \n    // Loop distribution: separate accumulation from index calculation\n    for (int nl = 0; nl < nl_iter; nl++) {\n        // First loop: accumulate contributions in a vector-friendly way\n        for (int i = 0; i < 256; i++) {\n            // Temporary array for contiguous accumulation\n            float temp_accum[256];\n            \n            // Vectorizable accumulation of bb values - use memcpy for column access\n            // Load bb column i into temp_accum starting at position i\n            for (int j = i; j < 256; j++) {\n                temp_accum[j] = bb[j][i];\n            }\n            \n            // Scatter accumulated values to flat_2d_array\n            // This loop has indirect addressing but is independent of the first loop\n            for (int j = i; j < 256; j++) {\n                int k = k_indices[i][j];\n                flat_2d_array[k] += temp_accum[j];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "/Users/torence/VecTrans/self-refine/results/reruns/s141_pipeline2_promptfix/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "/Users/torence/VecTrans/self-refine/results/reruns/s141_pipeline2_promptfix/vectrans/vectrans_input_snapshot.c",
+        "log_path": "/Users/torence/VecTrans/self-refine/results/reruns/s141_pipeline2_promptfix/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s141(int iterations, float * flat_2d_array, float bb[256][256])\n{\n    int nl_iter = 200 * (iterations / 256);\n\n    // Precompute all k indices for each (i,j) pair\n    int k_indices[256][256];\n    for (int i = 0; i < 256; i++) {\n        int k = (i+1) * i / 2 + i;\n        for (int j = i; j < 256; j++) {\n            k_indices[i][j] = k;\n            k += j + 1;\n        }\n    }\n\n    for (int nl = 0; nl < nl_iter; nl++) {\n        for (int i = 0; i < 256; i++) {\n            float temp_accum[256];\n\n            // Vectorizable: load bb[j][i] for j = i..255\n            // This is a column access, stride = 256 floats\n            // We unroll manually to help the compiler vectorize\n            int j = i;\n            int len = 256 - i;\n\n            // Unrolled by 8 for vectorization hint\n            int j8_end = i + (len & ~7);\n            for (; j < j8_end; j += 8) {\n                temp_accum[j+0] = bb[j+0][i];\n                temp_accum[j+1] = bb[j+1][i];\n                temp_accum[j+2] = bb[j+2][i];\n                temp_accum[j+3] = bb[j+3][i];\n                temp_accum[j+4] = bb[j+4][i];\n                temp_accum[j+5] = bb[j+5][i];\n                temp_accum[j+6] = bb[j+6][i];\n                temp_accum[j+7] = bb[j+7][i];\n            }\n            for (; j < 256; j++) {\n                temp_accum[j] = bb[j][i];\n            }\n\n            // Scatter: indirect addressing, hard to vectorize, keep scalar\n            for (j = i; j < 256; j++) {\n                int k = k_indices[i][j];\n                flat_2d_array[k] += temp_accum[j];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "/Users/torence/VecTrans/self-refine/results/reruns/s141_pipeline2_promptfix/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s141",
+        "input_snapshot": "/Users/torence/VecTrans/self-refine/results/reruns/s141_pipeline2_promptfix/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "/Users/torence/VecTrans/self-refine/results/reruns/s141_pipeline2_promptfix/llmvec/candidate_round_1.c",
+        "binary_path": "/Users/torence/VecTrans/self-refine/results/reruns/s141_pipeline2_promptfix/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

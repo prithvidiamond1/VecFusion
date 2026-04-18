@@ -1,0 +1,38 @@
+void s442(int iterations,int LEN_1D, float* a, float *b,float* c, float *d, float* e, int* indx)
+{
+    int nl, i;
+    int iter = iterations / 2;
+    
+    // Precompute indices for each case to eliminate conditionals in hot loops
+    int idx1[LEN_1D], idx2[LEN_1D], idx3[LEN_1D], idx4[LEN_1D];
+    int count1 = 0, count2 = 0, count3 = 0, count4 = 0;
+    
+    for (i = 0; i < LEN_1D; i++) {
+        switch (indx[i]) {
+            case 1: idx1[count1++] = i; break;
+            case 2: idx2[count2++] = i; break;
+            case 3: idx3[count3++] = i; break;
+            case 4: idx4[count4++] = i; break;
+        }
+    }
+    
+    for (nl = 0; nl < iter; nl++) {
+        // Process each case with contiguous memory access patterns
+        for (int j = 0; j < count1; j++) {
+            i = idx1[j];
+            a[i] += b[i] * b[i];
+        }
+        for (int j = 0; j < count2; j++) {
+            i = idx2[j];
+            a[i] += c[i] * c[i];
+        }
+        for (int j = 0; j < count3; j++) {
+            i = idx3[j];
+            a[i] += d[i] * d[i];
+        }
+        for (int j = 0; j < count4; j++) {
+            i = idx4[j];
+            a[i] += e[i] * e[i];
+        }
+    }
+}

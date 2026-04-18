@@ -1,0 +1,27 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/AllPointsEq_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdbool.h>\n#include <stdint.h>\n\nbool vectorized_AllPointsEq(const int pts[], int count) {\n    if (count <= 1) return true;\n\n    int val = pts[0];\n\n    // Use GCC/Clang vector extensions for SIMD-style processing\n    typedef int v8si __attribute__((vector_size(32)));  // 8 x int (256-bit / AVX)\n\n    int i = 1;\n    int simd_count = 8;\n\n    // Vectorized loop: process 8 ints at a time\n    if (count - 1 >= simd_count) {\n        v8si vval = {val, val, val, val, val, val, val, val};\n\n        for (; i + simd_count - 1 < count; i += simd_count) {\n            v8si chunk;\n            __builtin_memcpy(&chunk, &pts[i], sizeof(v8si));\n            v8si cmp = (chunk != vval);\n            // If any element differs, cmp will have a non-zero lane\n            // Check each lane\n            int *cmp_arr = (int *)&cmp;\n            for (int j = 0; j < simd_count; j++) {\n                if (cmp_arr[j] != 0) return false;\n            }\n        }\n    }\n\n    // Scalar cleanup tail\n    for (; i < count; i++) {\n        if (pts[i] != val) return false;\n    }\n\n    return true;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/AllPointsEq_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "AllPointsEq",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/AllPointsEq_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_rerun_20260418_133434/AllPointsEq_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/AllPointsEq_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

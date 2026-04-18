@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s261_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s261_opt(int iterations,int LEN_1D, float* a,float* b,float* c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Store original c[i-1] values before they're modified\n        float c_prev = c[0];\n        \n        for (int i = 1; i < LEN_1D; ++i) {\n            // Compute a[i] using original c[i-1] (stored in c_prev)\n            float t1 = a[i] + b[i];\n            a[i] = t1 + c_prev;\n            \n            // Update c[i] and save original for next iteration\n            float original_c_i = c[i];\n            c[i] = c[i] * d[i];\n            \n            // Save current original c[i] for next iteration's a[i+1]\n            c_prev = original_c_i;\n        }\n        \n        // Handle the last c[0] update separately\n        c[0] = c[0] * d[0];\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s261_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s261_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s261_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s261(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // a[i] = a[i] + b[i] + c[i-1] (original c[i-1])\n        // c[i] = c[i] * d[i]\n        // These use original c values, so we can vectorize both loops independently.\n\n        // Vectorize a[i] update: a[i] += b[i] + c_orig[i-1]\n        // We read c[i-1] before c is modified, so process in chunks\n        // using a local buffer for the shifted c values.\n\n        // Process a[i] = a[i] + b[i] + c[i-1] (original c)\n        // We can do this in-place since c[i-1] is read before c[i] is written\n        // and a[] doesn't alias c[].\n\n        int i = 1;\n        // Unroll by 8 for vectorization\n        for (; i <= LEN_1D - 8; i += 8) {\n            float c0 = c[i-1];\n            float c1 = c[i+0];\n            float c2 = c[i+1];\n            float c3 = c[i+2];\n            float c4 = c[i+3];\n            float c5 = c[i+4];\n            float c6 = c[i+5];\n            float c7 = c[i+6];\n\n            a[i+0] = a[i+0] + b[i+0] + c0;\n            a[i+1] = a[i+1] + b[i+1] + c1;\n            a[i+2] = a[i+2] + b[i+2] + c2;\n            a[i+3] = a[i+3] + b[i+3] + c3;\n            a[i+4] = a[i+4] + b[i+4] + c4;\n            a[i+5] = a[i+5] + b[i+5] + c5;\n            a[i+6] = a[i+6] + b[i+6] + c6;\n            a[i+7] = a[i+7] + b[i+7] + c7;\n        }\n        // Scalar tail for a[]\n        for (; i < LEN_1D; i++) {\n            a[i] = a[i] + b[i] + c[i-1];\n        }\n\n        // Now update c[] independently: c[i] = c[i] * d[i] for i in [0, LEN_1D)\n        i = 0;\n        for (; i <= LEN_1D - 8; i += 8) {\n            c[i+0] = c[i+0] * d[i+0];\n            c[i+1] = c[i+1] * d[i+1];\n            c[i+2] = c[i+2] * d[i+2];\n            c[i+3] = c[i+3] * d[i+3];\n            c[i+4] = c[i+4] * d[i+4];\n            c[i+5] = c[i+5] * d[i+5];\n            c[i+6] = c[i+6] * d[i+6];\n            c[i+7] = c[i+7] * d[i+7];\n        }\n        // Scalar tail for c[]\n        for (; i < LEN_1D; i++) {\n            c[i] = c[i] * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s261_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s261",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s261_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s261_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s261_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

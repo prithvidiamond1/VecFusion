@@ -1,0 +1,22 @@
+The issue is that the loop starts with `i = 1` but the unrolled loop condition `i + 3 < LEN_1D` means it processes elements starting at index 1, but the loop body accesses `a[k]` where `k` has already been incremented once before the loop. Let me trace the logic:
+
+- Before loop: `k=0`, `max=fabsf(a[0])`, then `k += inc` → `k=inc`, `i=1`
+- First iteration: accesses `a[k]` = `a[inc]` which is `a[1*inc]` ✓
+
+The logic looks correct for `inc`-strided access. The real bug is the **unroll boundary condition**: when `LEN_1D = 1`, the loop never runs but `k` was already incremented once. That's fine. The actual problem is:
+
+- The condition `i + 3 < LEN_1D` should be `i + 3 <= LEN_1D - 1`, i.e., `i + 4 <= LEN_1D`, which is equivalent to `i <= LEN_1D - 4`. The current condition `i + 3 < LEN_1D` means `i < LEN_1D - 3`, which is correct.
+
+The real bug: **the unrolled loop processes 4 elements per iteration but the condition `i + 3 < LEN_1D` is wrong** — it should be `i + 4 <= LEN_1D` i.e. `i <= LEN_1D - 4`, which equals `i < LEN_1D - 3`. That's the same thing. 
+
+The actual bug is simpler: **`index` should be initialized to `0`** and the original reference likely uses 1-based or the `chksum` combines differently. The most likely fix is that `index` should track the position in terms of `k` (the array index), not `i`:
+
+- Change `index = i` to `index = k / inc` (or just use `i` but ensure `i` matches the actual array position when `inc != 1`).
+
+**Fixes:**
+
+- The `index` variable should record the position in the array (i.e., `k/inc` or equivalently `i` only when `inc==1`). Since `k = i * inc`, use `index = i` only if the reference uses loop counter. The mismatch suggests `index` should be `k` (the raw array index), not `i`.
+- Change all `index = i`, `index = i+1`, `index = i+2`, `index = i+3` to `index = k/inc` (computed before each `k += inc`), or equivalently store the current `i` value before incrementing `k`.
+- Specifically: capture the index **before** `k += inc` in each step, e.g., `index = i; k += inc;` — but that's what the code does. The issue is `index = i` vs `index = i+1` etc. need to match the element being compared. In the unrolled block, `v0` uses the current `k` which corresponds to element `i`, so `index = i` is correct for `v0`; `v1` uses `k` after one increment corresponding to `i+1`, so `index = i+1` is correct. This logic is fine.
+- The most likely root cause: **`index` should be initialized to `0`** but the reference implementation may initialize it differently, or the `chksum` formula differs. Check if the reference returns `index` alone or `max + index` — if the reference uses `chksum += index` (integer) vs `chksum = max + (float)index`, that would cause mismatch.
+- **Fix**: Change `chksum = max + (float)index;` to match the reference — likely `chksum = (float)index;` or `chksum += max + (float)index;`.

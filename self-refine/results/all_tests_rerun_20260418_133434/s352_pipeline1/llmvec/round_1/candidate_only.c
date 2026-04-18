@@ -1,0 +1,41 @@
+#include <stdint.h>
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float* b)
+{
+    float dot;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        dot = (float)0.;
+
+        // Process groups of 5 elements (as in original), but unroll 4 such groups at a time
+        // Each group of 5: a[i]*b[i] + a[i+1]*b[i+1] + ... + a[i+4]*b[i+4]
+        // Unroll 4 groups = 20 elements at a time
+        float acc0 = 0.0f, acc1 = 0.0f, acc2 = 0.0f, acc3 = 0.0f;
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 20);  // multiple of 20
+
+        for (; i < limit; i += 20) {
+            // Group 0
+            acc0 += a[i + 0] * b[i + 0] + a[i + 1] * b[i + 1] + a[i + 2] * b[i + 2]
+                  + a[i + 3] * b[i + 3] + a[i + 4] * b[i + 4];
+            // Group 1
+            acc1 += a[i + 5] * b[i + 5] + a[i + 6] * b[i + 6] + a[i + 7] * b[i + 7]
+                  + a[i + 8] * b[i + 8] + a[i + 9] * b[i + 9];
+            // Group 2
+            acc2 += a[i + 10] * b[i + 10] + a[i + 11] * b[i + 11] + a[i + 12] * b[i + 12]
+                  + a[i + 13] * b[i + 13] + a[i + 14] * b[i + 14];
+            // Group 3
+            acc3 += a[i + 15] * b[i + 15] + a[i + 16] * b[i + 16] + a[i + 17] * b[i + 17]
+                  + a[i + 18] * b[i + 18] + a[i + 19] * b[i + 19];
+        }
+
+        dot = acc0 + acc1 + acc2 + acc3;
+
+        // Scalar cleanup for remaining groups of 5
+        for (; i < LEN_1D; i += 5) {
+            dot = dot + a[i] * b[i] + a[i + 1] * b[i + 1] + a[i + 2] * b[i + 2]
+                + a[i + 3] * b[i + 3] + a[i + 4] * b[i + 4];
+        }
+    }
+    return dot;
+}

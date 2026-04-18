@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "/Users/torence/VecTrans/self-refine/results/reruns/s281_pipeline2_promptfix/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s281_opt(int iterations,int LEN_1D, float* a,float* b,float* c)\n{\n    float* a_original = (float*)malloc(LEN_1D * sizeof(float));\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        // Copy 'a' to temporary array to preserve original values\n        for (int i = 0; i < LEN_1D; i++) {\n            a_original[i] = a[i];\n        }\n        \n        // Process all iterations using preserved 'a' values\n        for (int i = 0; i < LEN_1D; i++) {\n            float x = a_original[LEN_1D-i-1] + b[i] * c[i];\n            a[i] = x - (float)1.0;\n            b[i] = x;\n        }\n    }\n    \n    free(a_original);\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "/Users/torence/VecTrans/self-refine/results/reruns/s281_pipeline2_promptfix/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "/Users/torence/VecTrans/self-refine/results/reruns/s281_pipeline2_promptfix/vectrans/vectrans_input_snapshot.c",
+        "log_path": "/Users/torence/VecTrans/self-refine/results/reruns/s281_pipeline2_promptfix/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdlib.h>\n#include <string.h>\n\nvoid vectorized_s281(int iterations, int LEN_1D, float* a, float* b, float* c)\n{\n    float* a_original = (float*)malloc(LEN_1D * sizeof(float));\n\n    for (int nl = 0; nl < iterations; nl++) {\n        // Copy 'a' to temporary array to preserve original values\n        memcpy(a_original, a, LEN_1D * sizeof(float));\n\n        // Process all iterations using preserved 'a' values\n        // Vectorize: x[i] = a_original[LEN_1D-i-1] + b[i] * c[i]\n        // a[i] = x[i] - 1.0f\n        // b[i] = x[i]\n        // Note: a_original[LEN_1D-i-1] is a reverse-indexed read, no write dependency.\n\n        int i = 0;\n        int vec_len = LEN_1D - (LEN_1D % 8);\n\n        for (; i < vec_len; i += 8) {\n            float x0 = a_original[LEN_1D - i - 1] + b[i]   * c[i];\n            float x1 = a_original[LEN_1D - i - 2] + b[i+1] * c[i+1];\n            float x2 = a_original[LEN_1D - i - 3] + b[i+2] * c[i+2];\n            float x3 = a_original[LEN_1D - i - 4] + b[i+3] * c[i+3];\n            float x4 = a_original[LEN_1D - i - 5] + b[i+4] * c[i+4];\n            float x5 = a_original[LEN_1D - i - 6] + b[i+5] * c[i+5];\n            float x6 = a_original[LEN_1D - i - 7] + b[i+6] * c[i+6];\n            float x7 = a_original[LEN_1D - i - 8] + b[i+7] * c[i+7];\n\n            a[i]   = x0 - 1.0f;\n            a[i+1] = x1 - 1.0f;\n            a[i+2] = x2 - 1.0f;\n            a[i+3] = x3 - 1.0f;\n            a[i+4] = x4 - 1.0f;\n            a[i+5] = x5 - 1.0f;\n            a[i+6] = x6 - 1.0f;\n            a[i+7] = x7 - 1.0f;\n\n            b[i]   = x0;\n            b[i+1] = x1;\n            b[i+2] = x2;\n            b[i+3] = x3;\n            b[i+4] = x4;\n            b[i+5] = x5;\n            b[i+6] = x6;\n            b[i+7] = x7;\n        }\n\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            float x = a_original[LEN_1D - i - 1] + b[i] * c[i];\n            a[i] = x - 1.0f;\n            b[i] = x;\n        }\n    }\n\n    free(a_original);\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "/Users/torence/VecTrans/self-refine/results/reruns/s281_pipeline2_promptfix/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s281",
+        "input_snapshot": "/Users/torence/VecTrans/self-refine/results/reruns/s281_pipeline2_promptfix/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "/Users/torence/VecTrans/self-refine/results/reruns/s281_pipeline2_promptfix/llmvec/candidate_round_1.c",
+        "binary_path": "/Users/torence/VecTrans/self-refine/results/reruns/s281_pipeline2_promptfix/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

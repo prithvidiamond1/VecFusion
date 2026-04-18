@@ -1,0 +1,17 @@
+```c
+float vectorized_s317(int iterations, int LEN_1D) {
+    float q;
+    int half_len = LEN_1D / 2;
+
+    float factor = 1.0f;
+    for (int i = 0; i < half_len; i++) {
+        factor *= 0.99f;
+    }
+
+    for (int nl = 0; nl < 5 * iterations; nl++) {
+        q = factor;
+    }
+
+    return q;
+}
+```

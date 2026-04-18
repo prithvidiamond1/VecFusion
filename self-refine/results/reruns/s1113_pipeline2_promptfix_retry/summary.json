@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "/Users/torence/VecTrans/self-refine/results/reruns/s1113_pipeline2_promptfix_retry/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s1113_opt(int iterations, int LEN_1D, float* a, float* b) {\n    int mid = LEN_1D / 2;\n    for (int nl = 0; nl < 2 * iterations; nl++) {\n        float mid_val = a[mid];\n        for (int i = 0; i < mid; i++) {\n            a[i] = mid_val + b[i];\n        }\n        a[mid] = mid_val + b[mid];\n        mid_val = a[mid];\n        for (int i = mid + 1; i < LEN_1D; i++) {\n            a[i] = mid_val + b[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "/Users/torence/VecTrans/self-refine/results/reruns/s1113_pipeline2_promptfix_retry/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "/Users/torence/VecTrans/self-refine/results/reruns/s1113_pipeline2_promptfix_retry/vectrans/vectrans_input_snapshot.c",
+        "log_path": "/Users/torence/VecTrans/self-refine/results/reruns/s1113_pipeline2_promptfix_retry/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s1113(int iterations, int LEN_1D, float* a, float* b) {\n    int mid = LEN_1D / 2;\n    for (int nl = 0; nl < 2 * iterations; nl++) {\n        float mid_val = a[mid];\n\n        // Vectorize first loop: i = 0 to mid-1\n        int i = 0;\n        for (; i <= mid - 4; i += 4) {\n            a[i + 0] = mid_val + b[i + 0];\n            a[i + 1] = mid_val + b[i + 1];\n            a[i + 2] = mid_val + b[i + 2];\n            a[i + 3] = mid_val + b[i + 3];\n        }\n        for (; i < mid; i++) {\n            a[i] = mid_val + b[i];\n        }\n\n        // Handle mid element\n        a[mid] = mid_val + b[mid];\n        mid_val = a[mid];\n\n        // Vectorize second loop: i = mid+1 to LEN_1D-1\n        i = mid + 1;\n        for (; i <= LEN_1D - 4; i += 4) {\n            a[i + 0] = mid_val + b[i + 0];\n            a[i + 1] = mid_val + b[i + 1];\n            a[i + 2] = mid_val + b[i + 2];\n            a[i + 3] = mid_val + b[i + 3];\n        }\n        for (; i < LEN_1D; i++) {\n            a[i] = mid_val + b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "/Users/torence/VecTrans/self-refine/results/reruns/s1113_pipeline2_promptfix_retry/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s1113",
+        "input_snapshot": "/Users/torence/VecTrans/self-refine/results/reruns/s1113_pipeline2_promptfix_retry/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "/Users/torence/VecTrans/self-refine/results/reruns/s1113_pipeline2_promptfix_retry/llmvec/candidate_round_1.c",
+        "binary_path": "/Users/torence/VecTrans/self-refine/results/reruns/s1113_pipeline2_promptfix_retry/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s242_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s242(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < iterations/5; nl++) {\n        // This loop has a loop-carried dependency on a[i] = a[i-1] + ...\n        // so we cannot fully vectorize the inner loop without breaking semantics.\n        // We unroll manually to help the compiler, but must preserve the dependency.\n        float s12 = s1 + s2;\n        int i = 1;\n        // Unroll by 4 while preserving the recurrence\n        for (; i + 3 < LEN_1D; i += 4) {\n            float ai0 = a[i - 1] + s12 + b[i]     + c[i]     + d[i];\n            float ai1 = ai0      + s12 + b[i + 1]  + c[i + 1] + d[i + 1];\n            float ai2 = ai1      + s12 + b[i + 2]  + c[i + 2] + d[i + 2];\n            float ai3 = ai2      + s12 + b[i + 3]  + c[i + 3] + d[i + 3];\n            a[i]     = ai0;\n            a[i + 1] = ai1;\n            a[i + 2] = ai2;\n            a[i + 3] = ai3;\n        }\n        // Scalar cleanup\n        for (; i < LEN_1D; i++) {\n            a[i] = a[i - 1] + s12 + b[i] + c[i] + d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s242_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s242",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s242_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s242_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s242_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

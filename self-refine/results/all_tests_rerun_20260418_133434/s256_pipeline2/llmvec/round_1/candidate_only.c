@@ -1,0 +1,34 @@
+#include <string.h>
+
+typedef float v8sf __attribute__((vector_size(32)));
+
+void vectorized_s256(int iterations, float *a, float aa[][256], float bb[][256], float *d) {
+    int nl_limit = 10 * (iterations / 256);
+
+    for (int nl = 0; nl < nl_limit; nl++) {
+        // compute a[1..255] once per nl iteration
+        for (int j = 1; j < 256; j++) {
+            a[j] = 1.0f - a[j - 1];
+        }
+
+        // For each j, compute aa[j][i] = a[j] + bb[j][i] * d[j] for i in [0,256)
+        for (int j = 1; j < 256; j++) {
+            float aj = a[j];
+            float dj = d[j];
+            v8sf vaj = {aj, aj, aj, aj, aj, aj, aj, aj};
+            v8sf vdj = {dj, dj, dj, dj, dj, dj, dj, dj};
+
+            int i = 0;
+            for (; i <= 256 - 8; i += 8) {
+                v8sf vbb;
+                memcpy(&vbb, &bb[j][i], sizeof(v8sf));
+                v8sf vaa = vaj + vbb * vdj;
+                memcpy(&aa[j][i], &vaa, sizeof(v8sf));
+            }
+            // scalar tail
+            for (; i < 256; i++) {
+                aa[j][i] = aj + bb[j][i] * dj;
+            }
+        }
+    }
+}

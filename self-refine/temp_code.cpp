@@ -9,39 +9,63 @@ void set_points_opt(float* dst, int* src, const int* divs, int divCount, int src
                     bool isScalable) {
     float dstLen = dstEnd - dstStart;
     float scale;
-    float normal_scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
-    float shrink_scale = dstLen / ((float) srcFixed);
+    int normal_case = srcFixed <= dstLen;
     
-    int use_normal = srcFixed <= dstLen;
-    scale = use_normal ? normal_scale : shrink_scale;
+    if (normal_case) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
 
     src[0] = srcStart;
     dst[0] = dstStart;
     
-    // Pre-calculate all src[i+1] and srcDelta values
+    // Pre-compute all src[i+1] values (vectorizable)
     for (int i = 0; i < divCount; i++) {
         src[i + 1] = divs[i];
     }
     
-    // Calculate all dstDelta values without dependencies
-    float dstDelta[divCount];
-    int current_scalable = isScalable;
-    
-    for (int i = 0; i < divCount; i++) {
-        int srcDelta = src[i + 1] - src[i];
-        
-        if (use_normal) {
-            dstDelta[i] = current_scalable ? scale * srcDelta : srcDelta;
-        } else {
-            dstDelta[i] = current_scalable ? 0.0f : scale * srcDelta;
-        }
-        
-        current_scalable = !current_scalable;
+    // Pre-compute all srcDeltas (vectorizable)
+    int* srcDeltas = (int*)alloca(divCount * sizeof(int));
+    srcDeltas[0] = src[1] - srcStart;
+    for (int i = 1; i < divCount; i++) {
+        srcDeltas[i] = src[i + 1] - src[i];
     }
     
-    // Sequential accumulation for dst[i+1]
+    // Pre-compute dstDelta values based on scalable/fixed pattern
+    float* dstDeltas = (float*)alloca(divCount * sizeof(float));
+    
+    if (normal_case) {
+        // Compute all dstDeltas without branching in the loop
+        if (isScalable) {
+            // Pattern: scalable, fixed, scalable, fixed, ...
+            for (int i = 0; i < divCount; i++) {
+                dstDeltas[i] = (i % 2 == 0) ? (scale * srcDeltas[i]) : ((float)srcDeltas[i]);
+            }
+        } else {
+            // Pattern: fixed, scalable, fixed, scalable, ...
+            for (int i = 0; i < divCount; i++) {
+                dstDeltas[i] = (i % 2 == 0) ? ((float)srcDeltas[i]) : (scale * srcDeltas[i]);
+            }
+        }
+    } else {
+        // srcFixed > dstLen case
+        if (isScalable) {
+            // Pattern: scalable(0), fixed(scaled), scalable(0), fixed(scaled), ...
+            for (int i = 0; i < divCount; i++) {
+                dstDeltas[i] = (i % 2 == 0) ? 0.0f : (scale * srcDeltas[i]);
+            }
+        } else {
+            // Pattern: fixed(scaled), scalable(0), fixed(scaled), scalable(0), ...
+            for (int i = 0; i < divCount; i++) {
+                dstDeltas[i] = (i % 2 == 0) ? (scale * srcDeltas[i]) : 0.0f;
+            }
+        }
+    }
+    
+    // Compute cumulative dst values (sequential dependency remains)
     for (int i = 0; i < divCount; i++) {
-        dst[i + 1] = dst[i] + dstDelta[i];
+        dst[i + 1] = dst[i] + dstDeltas[i];
     }
 
     src[divCount + 1] = srcEnd;

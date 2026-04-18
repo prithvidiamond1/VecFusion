@@ -1,0 +1,10 @@
+The test is failing because `src[0]` is being set to `srcStart` but the original function likely doesn't write to `src[0]` — or more likely, the issue is that `src` is being written when it shouldn't be, or the indexing is wrong.
+
+Looking more carefully: the mismatch is at `src[0]`, index 0. The candidate writes `src[0] = srcStart` and `src[i+1] = divs[i]`, but the original scalar code likely stores `src` differently — `src[0]` through `src[divCount-1]` should be the divs values, and `srcStart`/`srcEnd` are used only for delta computation, not stored into `src`.
+
+- **Root cause**: The candidate incorrectly writes `src[0] = srcStart` and shifts all div values up by one (`src[i+1] = divs[i]`). The original code likely stores `src[i] = divs[i]` for `i in [0, divCount)`, without prepending `srcStart`.
+- **Fix**: Remove `src[0] = srcStart;` and change the fill loop to `src[i] = divs[i]` (no offset). Use `srcStart` only as a local variable for delta computation.
+- **Fix srcDeltas**: With `src[i] = divs[i]`, compute `srcDeltas[0] = divs[0] - srcStart` and `srcDeltas[i] = divs[i] - divs[i-1]` for `i >= 1`.
+- **Fix the trailing entry**: Remove `src[divCount + 1] = srcEnd;` — don't write past `src[divCount-1]`. Similarly remove `dst[divCount + 1] = dstEnd` if `dst` layout doesn't expect it (or adjust index to `dst[divCount]`).
+- **Fix dst indexing**: `dst[0] = dstStart`, then `dst[i+1] = dst[i] + dstDeltas[i]` for `i in [0, divCount)` gives `dst[divCount] = dstEnd` — keep this but remove the extra `dst[divCount+1] = dstEnd` write.
+- **Summary of key change**: Replace the `src` population block with a simple `for (int i = 0; i < divCount; i++) src[i] = divs[i];` and fix delta computation to use `srcStart` directly without storing it in `src`.

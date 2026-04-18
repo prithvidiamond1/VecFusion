@@ -1,0 +1,56 @@
+```c
+#include <stdint.h>
+
+void vectorized_s292(int iterations, int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        float b_im1 = b[LEN_1D-1];
+        float b_im2 = b[LEN_1D-2];
+
+        a[0] = (b[0] + b_im1 + b_im2) * (float).333;
+
+        float b_i_minus_1 = b[0];
+        a[1] = (b[1] + b_i_minus_1 + b_im1) * (float).333;
+
+        // Vectorize the main loop i=2..LEN_1D-1
+        // a[i] = (b[i] + b[i-1] + b[i-2]) * 0.333f
+        // No loop-carried dependency since we only read from b[]
+
+        int i = 2;
+        int n = LEN_1D;
+
+        // Vector width: 8 floats
+        #define VW 8
+        typedef float float8 __attribute__((vector_size(VW * sizeof(float))));
+
+        int limit = n - VW;
+        for (; i <= limit; i += VW) {
+            float8 v0, v1, v2, vr;
+            // b[i..i+VW-1]
+            v0 = (float8){ b[i],   b[i+1], b[i+2], b[i+3], b[i+4], b[i+5], b[i+6], b[i+7] };
+            // b[i-1..i+VW-2]
+            v1 = (float8){ b[i-1], b[i],   b[i+1], b[i+2], b[i+3], b[i+4], b[i+5], b[i+6] };
+            // b[i-2..i+VW-3]
+            v2 = (float8){ b[i-2], b[i-1], b[i],   b[i+1], b[i+2], b[i+3], b[i+4], b[i+5] };
+
+            vr = (v0 + v1 + v2) * (float8){ 0.333f, 0.333f, 0.333f, 0.333f,
+                                             0.333f, 0.333f, 0.333f, 0.333f };
+
+            a[i]   = vr[0];
+            a[i+1] = vr[1];
+            a[i+2] = vr[2];
+            a[i+3] = vr[3];
+            a[i+4] = vr[4];
+            a[i+5] = vr[5];
+            a[i+6] = vr[6];
+            a[i+7] = vr[7];
+        }
+
+        // Scalar cleanup tail
+        for (; i < n; i++) {
+            a[i] = (b[i] + b[i-1] + b[i-2]) * (float).333;
+        }
+        #undef VW
+    }
+}
+```

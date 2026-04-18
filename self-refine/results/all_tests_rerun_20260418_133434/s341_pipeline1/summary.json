@@ -1,0 +1,27 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s341_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s341(int iterations, int LEN_1D, float* a, float *b)\n{\n    int j;\n    for (int nl = 0; nl < iterations; nl++) {\n        j = -1;\n        // Unroll by 4 for better vectorization hints, but keep scalar logic\n        // since this is a compaction (stream compaction) which is hard to\n        // fully vectorize without scatter. We unroll to help the compiler.\n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 4);\n        for (; i < limit; i += 4) {\n            float b0 = b[i+0];\n            float b1 = b[i+1];\n            float b2 = b[i+2];\n            float b3 = b[i+3];\n            int c0 = b0 > 0.0f;\n            int c1 = b1 > 0.0f;\n            int c2 = b2 > 0.0f;\n            int c3 = b3 > 0.0f;\n            if (c0) { j++; a[j] = b0; }\n            if (c1) { j++; a[j] = b1; }\n            if (c2) { j++; a[j] = b2; }\n            if (c3) { j++; a[j] = b3; }\n        }\n        for (; i < LEN_1D; i++) {\n            if (b[i] > 0.0f) {\n                j++;\n                a[j] = b[i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s341_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s341",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s341_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s341_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s341_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

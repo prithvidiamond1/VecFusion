@@ -1,0 +1,27 @@
+void s275_opt(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+{
+    int loop_count = 10 * (iterations / 256);
+    
+    for (int nl = 0; nl < loop_count; nl++) {
+        // First, identify which columns need processing
+        int process_cols[256];
+        int col_count = 0;
+        
+        // Vector-friendly: process all columns, mask with condition
+        for (int i = 0; i < 256; i++) {
+            process_cols[i] = i;
+            col_count += (aa[0][i] > (float)0.);
+        }
+        
+        // Process columns in vector-friendly order: j outer, i inner
+        for (int j = 1; j < 256; j++) {
+            // Process all columns with conditional execution
+            for (int i = 0; i < 256; i++) {
+                // Use masking to avoid branching
+                float condition = (aa[0][i] > (float)0.) ? 1.0f : 0.0f;
+                float temp = aa[j-1][i] + bb[j][i] * cc[j][i];
+                aa[j][i] = condition * temp + (1.0f - condition) * aa[j][i];
+            }
+        }
+    }
+}

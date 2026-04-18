@@ -1,0 +1,46 @@
+```c
+#include <stdint.h>
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)
+{
+    float sum;
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        sum = 0.0f;
+
+        typedef float float4 __attribute__((vector_size(16)));
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+
+        float4 vsum = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        for (; i < limit; i += 4) {
+            float4 vc, vd, ve, tmp_a, tmp_b;
+
+            vc = (float4){c[i], c[i+1], c[i+2], c[i+3]};
+            vd = (float4){d[i], d[i+1], d[i+2], d[i+3]};
+            ve = (float4){e[i], e[i+1], e[i+2], e[i+3]};
+
+            tmp_a = vc + vd;
+            tmp_b = vc + ve;
+
+            a[i]   = tmp_a[0]; a[i+1] = tmp_a[1]; a[i+2] = tmp_a[2]; a[i+3] = tmp_a[3];
+            b[i]   = tmp_b[0]; b[i+1] = tmp_b[1]; b[i+2] = tmp_b[2]; b[i+3] = tmp_b[3];
+
+            vsum += tmp_a + tmp_b;
+        }
+
+        sum = vsum[0] + vsum[1] + vsum[2] + vsum[3];
+
+        for (; i < LEN_1D; i++) {
+            float tmp_a = c[i] + d[i];
+            float tmp_b = c[i] + e[i];
+            a[i] = tmp_a;
+            b[i] = tmp_b;
+            sum += tmp_a;
+            sum += tmp_b;
+        }
+    }
+    return sum;
+}
+```

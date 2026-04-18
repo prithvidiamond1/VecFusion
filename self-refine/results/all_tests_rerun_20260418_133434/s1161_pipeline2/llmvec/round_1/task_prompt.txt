@@ -1,0 +1,31 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Vectorize the scalar C function `s1161` below.
+
+        Scalar source:
+        ```c
+        void s1161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        // First loop: compute a[i] where c[i] >= 0
+        for (int i = 0; i < LEN_1D-1; ++i) {
+            if (c[i] >= (float)0.) {
+                a[i] = c[i] + d[i] * e[i];
+            }
+        }
+        // Second loop: compute b[i] where c[i] < 0 using original a[i]
+        for (int i = 0; i < LEN_1D-1; ++i) {
+            if (c[i] < (float)0.) {
+                b[i] = a[i] + d[i] * d[i];
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s1161`.

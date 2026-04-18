@@ -1,0 +1,59 @@
+#include <stdlib.h>
+#include <string.h>
+
+void vectorized_s281(int iterations, int LEN_1D, float* a, float* b, float* c)
+{
+    float* a_original = (float*)malloc(LEN_1D * sizeof(float));
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // Copy 'a' to temporary array to preserve original values
+        memcpy(a_original, a, LEN_1D * sizeof(float));
+
+        // Process all iterations using preserved 'a' values
+        // Vectorize: x[i] = a_original[LEN_1D-i-1] + b[i] * c[i]
+        // a[i] = x[i] - 1.0f
+        // b[i] = x[i]
+        // Note: a_original[LEN_1D-i-1] is a reverse-indexed read, no write dependency.
+
+        int i = 0;
+        int vec_len = LEN_1D - (LEN_1D % 8);
+
+        for (; i < vec_len; i += 8) {
+            float x0 = a_original[LEN_1D - i - 1] + b[i]   * c[i];
+            float x1 = a_original[LEN_1D - i - 2] + b[i+1] * c[i+1];
+            float x2 = a_original[LEN_1D - i - 3] + b[i+2] * c[i+2];
+            float x3 = a_original[LEN_1D - i - 4] + b[i+3] * c[i+3];
+            float x4 = a_original[LEN_1D - i - 5] + b[i+4] * c[i+4];
+            float x5 = a_original[LEN_1D - i - 6] + b[i+5] * c[i+5];
+            float x6 = a_original[LEN_1D - i - 7] + b[i+6] * c[i+6];
+            float x7 = a_original[LEN_1D - i - 8] + b[i+7] * c[i+7];
+
+            a[i]   = x0 - 1.0f;
+            a[i+1] = x1 - 1.0f;
+            a[i+2] = x2 - 1.0f;
+            a[i+3] = x3 - 1.0f;
+            a[i+4] = x4 - 1.0f;
+            a[i+5] = x5 - 1.0f;
+            a[i+6] = x6 - 1.0f;
+            a[i+7] = x7 - 1.0f;
+
+            b[i]   = x0;
+            b[i+1] = x1;
+            b[i+2] = x2;
+            b[i+3] = x3;
+            b[i+4] = x4;
+            b[i+5] = x5;
+            b[i+6] = x6;
+            b[i+7] = x7;
+        }
+
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            float x = a_original[LEN_1D - i - 1] + b[i] * c[i];
+            a[i] = x - 1.0f;
+            b[i] = x;
+        }
+    }
+
+    free(a_original);
+}
