@@ -1,0 +1,111 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s222` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s222(int iterations, int LEN_1D, float*a,float*b,float*c, float* e) {
+    for (int nl = 0; nl < iterations/2; nl++) {
+        // Loop distribution: separate the e recurrence (loop-carried dependency)
+        for (int i = 1; i < LEN_1D; i++) {
+            e[i] = e[i - 1] * e[i - 1];
+        }
+        // Independent a updates (no net effect, but preserve memory access pattern)
+        for (int i = 1; i < LEN_1D; i++) {
+            float temp = b[i] * c[i];
+            a[i] += temp;
+            a[i] -= temp;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+void vectorized_s222(int iterations, int LEN_1D, float* a, float* b, float* c, float* e) {
+    for (int nl = 0; nl < iterations/2; nl++) {
+        // Vectorize the e recurrence loop
+        int i = 1;
+        // Process in chunks of 4 to match typical SIMD width
+        for (; i + 3 < LEN_1D; i += 4) {
+            // Load previous 4 e values
+            float e_prev0 = e[i - 1];
+            float e_prev1 = e[i];
+            float e_prev2 = e[i + 1];
+            float e_prev3 = e[i + 2];
+
+            // Square them
+            e[i] = e_prev0 * e_prev0;
+            e[i + 1] = e_prev1 * e_prev1;
+            e[i + 2] = e_prev2 * e_prev2;
+            e[i + 3] = e_prev3 * e_prev3;
+        }
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            e[i] = e[i - 1] * e[i - 1];
+        }
+
+        // Vectorize the independent a updates
+        i = 1;
+        for (; i + 3 < LEN_1D; i += 4) {
+            // Load b and c values
+            float b0 = b[i];
+            float b1 = b[i + 1];
+            float b2 = b[i + 2];
+            float b3 = b[i + 3];
+
+            float c0 = c[i];
+            float c1 = c[i + 1];
+            float c2 = c[i + 2];
+            float c3 = c[i + 3];
+
+            // Compute temp values
+            float temp0 = b0 * c0;
+            float temp1 = b1 * c1;
+            float temp2 = b2 * c2;
+            float temp3 = b3 * c3;
+
+            // Update a values (net effect is zero)
+            a[i] += temp0;
+            a[i] -= temp0;
+            a[i + 1] += temp1;
+            a[i + 1] -= temp1;
+            a[i + 2] += temp2;
+            a[i + 2] -= temp2;
+            a[i + 3] += temp3;
+            a[i + 3] -= temp3;
+        }
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float temp = b[i] * c[i];
+            a[i] += temp;
+            a[i] -= temp;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The recurrence loop for `e` incorrectly loads previous values: it uses `e[i]`, `e[i+1]`, `e[i+2]` as "previous" values, but the recurrence depends only on `e[i-1]` for each position.
+- For the vectorized chunk starting at `i`, the correct previous values are `e[i-1]`, `e[i]`, `e[i+1]`, `e[i+2]` (since `e[i]` depends on `e[i-1]`, `e[i+1]` depends on `e[i]`, etc.). The current code loads `e[i-1]`, `e[i]`, `e[i+1]`, `e[i+2]` but then assigns incorrectly: `e[i]` should be `e[i-1] * e[i-1]`, not `e_prev0 * e_prev0` where `e_prev0 = e[i-1]` is correct but the assignment target is wrong.
+- Specifically, the assignments should be shifted: `e[i] = e_prev0 * e_prev0;` (correct), `e[i+1] = e_prev1 * e_prev1;` where `e_prev1 = e[i]` (current code uses `e[i]` as `e_prev1`, which is correct), but the pattern must ensure each new `e[j]` uses the original `e[j-1]` before any updates in this chunk.
+- Since the recurrence is sequential within the chunk, vectorization requires loading the four original values starting at `e[i-1]` (indices i-1, i, i+1, i+2), squaring them, and storing results starting at `e[i]` (indices i, i+1, i+2, i+3). The current code stores to i, i+1, i+2, i+3 but loads from i-1, i, i+1, i+2, which is correct for the values to square, but the naming is misleading.
+- The mismatch at index 3 suggests the first chunk (i=1) computes `e[3]` incorrectly. For i=1, the chunk processes indices 1,2,3,4. `e[3]` should be `e[2] * e[2]` (original `e[2]`). The code loads `e_prev2 = e[2]` and assigns `e[3] = e_prev2 * e_prev2`, which is correct. However, the scalar tail after the vector loop may interfere if LEN_1D is small.
+- Check LEN_1D value: if LEN_1D is 4, the vector loop condition `i + 3 < LEN_1D` with i=1 gives 1+3<4 false, so it skips to scalar tail, which processes i=1,2,3. The scalar loop uses `e[i-1] * e[i-1]`, which for i=3 uses `e[2]` (original). This should match the reference. But the report says mismatch at index 3, so likely LEN_1D > 4 and the vector loop runs.
+- The actual bug: In the vector loop, the loaded values are from memory, but if `e[i]` is updated earlier in the same iteration (for i=1, `e[1]` is updated), then loading `e[i+1]` (which is `e[2]`) is fine because it's not overwritten yet. However, the assignment `e[i+1] = e_prev1 * e_prev1` uses `e_prev1 = e[i]`, which after the first assignment in the chunk would be the *new* `e[1]` if we updated `e[1]` before loading `e_prev1`. But the code loads all `e_prev` values before any stores, so it uses original values. That is correct.
+- Therefore, the mismatch might be due to the scalar tail starting index after the vector loop. The vector loop increments i by 4, so after processing i=1..4, i becomes 5. If LEN_1D is 5, the scalar tail runs for i=5, but index 3 is already set by the vector loop. The vector loop should have computed `e[3]` correctly. The error suggests the reference uses a different recurrence pattern: perhaps the original loop starts at i=0? Check the original s222: typically `for (i = 1; i < LEN_1D; i++) e[i] = e[i-1] * e[i-1];`. The candidate matches this. The mismatch at index 3 indicates the computed `e[3]` differs. Verify with a concrete example: if initial e = {0,1,2,3,4,...}, then after: e[1]=0*0=0, e[2]=1*1=1, e[3]=2*2=4. The vector chunk with i=1 loads e[0],e[1],e[2],e[3] = 0,1,2,3, squares them: e[1]=0, e[2]=1, e[3]=4, e[4]=9. That matches scalar. So the candidate should be correct.
+
+Given the report shows only one mismatch at index 3, and the code seems correct, perhaps the test uses a different LEN_1D or initial data. But the vectorizer must ensure the vector loop handles the recurrence correctly by loading original values before any stores. The current code does that. However, there is a subtlety: the vector loop stores to e[i..i+3], but the next iteration loads e[i+3] as e_prev3 for the next chunk? No, because i jumps by 4, so the next chunk starts at i+4, and it loads e[i+3] as its e[i-1] (since i-1 = i+3). But e[i+3] was just overwritten in the current chunk. That is correct for recurrence: e[i+4] should use the new e[i+3]. The current code's next chunk would load the updated e[i+3] because it's stored before the next iteration. That matches scalar semantics.
+
+Thus, the candidate code is correct. The mismatch might be due to a test harness error or the report is from an earlier version. Since the compile succeeded and only one mismatch appears, and the logic is correct, the vectorizer should pass.
+
+PASS
+
+        Return a corrected candidate function named `vectorized_s222`.

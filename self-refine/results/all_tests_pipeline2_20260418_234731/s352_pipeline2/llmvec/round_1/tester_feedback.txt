@@ -1,0 +1,8 @@
+- The test fails because the function returns a mismatched dot product value compared to the original scalar version.
+- The vectorized loop incorrectly processes 8 elements per iteration but only accumulates into two separate vector accumulators (`vdot0`, `vdot1`), then sums them. This is correct for accumulation, but the issue is the tail handling.
+- The "Add out-of-bounds contributions" loop is incorrectly implemented: it uses `i` after the main loop, but `i` may be equal to `LEN_1D` (if `LEN_1D` is a multiple of 8), causing the loop to access `a[LEN_1D]` and `b[LEN_1D]`, which are out of bounds and not part of the original computation.
+- The original scalar code likely does not have out-of-bounds accesses; this extra loop should be removed entirely because it introduces incorrect extra computations.
+- The scalar tail loop correctly handles remaining elements after the vectorized part, so only the erroneous out-of-bounds loop needs to be deleted.
+- After removing the out-of-bounds loop, the function will compute the dot product correctly for all elements within bounds.
+- Ensure the function returns the final `dot` value after the outer loop completes; currently it returns the dot from the last iteration, which is correct if the outer loop is just for timing.
+- Fix: Delete the entire second tail loop (lines starting from "// Add out-of-bounds contributions..." to the end of that block).

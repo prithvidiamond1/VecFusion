@@ -1,0 +1,31 @@
+- The test failure indicates a mismatch in array `a` at index 0 on the first trial. This suggests the vectorized loop incorrectly computed or stored to `a[0]`.
+
+- In the second pass (computing `a[i]`), the vector loop condition is `i + 3 < LEN_1D`. For `i=0`, this processes indices 0,1,2,3. However, the scalar reference kernel for s161 only updates `a[i]` when `b[i] >= 0`. The vector loop's mask logic should prevent stores for lanes where `b[i] < 0`.
+
+- The vector mask is generated using `v4i mask_vec = b_vec >= zero_vec;`. This is correct for the condition. The issue likely is in the **mask extraction and application**.
+
+- The mask extraction uses `mask_vec[0] ? 1 : 0` etc. However, `mask_vec` is of type `v4i` (vector of int). In GCC/clang, comparing two float vectors yields a vector of `int` where each element is `-1` (all bits set) for true, `0` for false. The ternary `mask_vec[0] ? 1 : 0` will treat `-1` as true, yielding `1`, which is correct for the mask bit. So the mask bits should be correct.
+
+- The problem is the **store logic in the second pass**. The vector loop stores to `a[i + lane]`. For `i=0` and `lane=0`, this is `a[0]`. If `b[0] >= 0` is false, the mask bit for lane 0 will be 0, and the store won't happen. But the test says `a[0]` is mismatched.
+
+- Check the **data dependencies**: The first pass writes to `c[i+1]` for `i` where `b[i] < 0`. The second pass reads `c[i]` for computing `a[i]`. There is a potential cross-iteration dependency: when `i=0`, the first pass may write to `c[1]` (if `b[0] < 0`). The second pass for `i=1` reads `c[1]`. This is fine because the passes are sequential (first pass fully completes before second pass starts). However, the second pass for `i=0` reads `c[0]`, which is never written by the first pass (since first pass writes to `c[i+1]`). So `c[0]` remains its input value.
+
+- The mismatch at `a[0]` suggests that the second pass's computation for `i=0` used an incorrect value for `c[0]`. The vectorized code loads `c_vec = *(v4f*)&c[i];` for `i=0`. This loads `c[0..3]`. But `c[0]` may have been **overwritten by a previous iteration's first pass?** No, the first pass writes to `c[i+1]`, so `c[0]` is never touched. So `c[0]` should be the original input value.
+
+- However, note the **outer loop**: `outer_loop_count = iterations / 2`. The function runs multiple trials (iterations) of the kernel. The first iteration (nl=0) runs the two passes. Then for nl=1, it runs again. The `c` array from the previous iteration's second pass is unchanged (second pass only writes to `a`). But the first pass of the *next* iteration writes to `c[i+1]` again. This could affect `c[0]`? No, because `i` starts at 0, first pass writes to `c[1]`, not `c[0]`. So `c[0]` remains its original input across all outer iterations.
+
+- The test failure is at trial 0 (the first call to the function). So the mismatch is between the reference scalar kernel and the vectorized kernel on the first call. The scalar kernel for s161 does: for each iteration (outer loop), it runs the two passes. The vectorized version splits the outer loop into `iterations/2` but does two passes per nl. This is correct if `iterations` is even. But the test might run with `iterations=1`. Then `outer_loop_count = 1/2 = 0` (integer division). So the vectorized loop would run **zero** times, skipping both passes entirely! That would leave `a[0]` unchanged, while the scalar kernel would run one full iteration (two passes) and update `a[0]` if `b[0] >= 0`. This explains the mismatch.
+
+- **Fix**: The outer loop count should be `iterations`, not `iterations / 2`. The candidate incorrectly assumed each "nl" iteration does two passes, so it halved the count. But the original scalar kernel runs `iterations` times, each time doing both passes. So the vectorized version should also run `iterations` times, each time doing both passes. Change `int outer_loop_count = iterations / 2;` to `int outer_loop_count = iterations;`.
+
+- Additionally, ensure the vector loads/stores are aligned. They are not guaranteed to be. Use `__builtin_assume_aligned` or load via `__builtin_assume_aligned` to avoid UB. But the compile succeeded, so alignment may be okay for the test.
+
+- Also, the vector loop for the first pass has condition `i + 3 < LEN_1D - 1` because it writes to `c[i+1]`, so the last valid i is `LEN_1D-2`. That's correct.
+
+- The second pass vector loop condition `i + 3 < LEN_1D` is correct.
+
+**Primary fix:**
+- Change `int outer_loop_count = iterations / 2;` to `int outer_loop_count = iterations;`. This ensures the same number of kernel iterations as the scalar reference.
+
+**Secondary check:**
+- After fixing, ensure the function works for odd `iterations` (e.g., 1). The loop will run once, doing both passes.

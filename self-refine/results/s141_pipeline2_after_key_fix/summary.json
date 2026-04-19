@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/s141_pipeline2_after_key_fix/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s141_opt(int iterations, float * flat_2d_array, float bb[256][256]) {\n    int nl_iter = 200 * (iterations / 256);\n    \n    for (int nl = 0; nl < nl_iter; nl++) {\n        // First: accumulate bb values into flat_2d_array with regular access pattern\n        for (int i = 0; i < 256; i++) {\n            float accum[256];\n            // Vectorizable accumulation: regular access to bb[j][i]\n            for (int j = i; j < 256; j++) {\n                accum[j] = bb[j][i];\n            }\n            // Scatter accumulated values to flat_2d_array\n            int k = (i+1) * i / 2 + i;\n            for (int j = i; j < 256; j++) {\n                flat_2d_array[k] += accum[j];\n                k += j + 1;\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/s141_pipeline2_after_key_fix/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/s141_pipeline2_after_key_fix/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/s141_pipeline2_after_key_fix/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s141(int iterations, float * flat_2d_array, float bb[256][256]) {\n    int nl_iter = 200 * (iterations / 256);\n    \n    for (int nl = 0; nl < nl_iter; nl++) {\n        for (int i = 0; i < 256; i++) {\n            float accum[256];\n            \n            // Vectorizable accumulation loop\n            int j = i;\n            for (; j <= 256 - 4; j += 4) {\n                accum[j] = bb[j][i];\n                accum[j + 1] = bb[j + 1][i];\n                accum[j + 2] = bb[j + 2][i];\n                accum[j + 3] = bb[j + 3][i];\n            }\n            // Scalar tail\n            for (; j < 256; j++) {\n                accum[j] = bb[j][i];\n            }\n            \n            // Scatter loop remains scalar due to irregular access pattern\n            int k = (i + 1) * i / 2 + i;\n            for (int j = i; j < 256; j++) {\n                flat_2d_array[k] += accum[j];\n                k += j + 1;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/s141_pipeline2_after_key_fix/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s141",
+        "input_snapshot": "results/s141_pipeline2_after_key_fix/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/s141_pipeline2_after_key_fix/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/s141_pipeline2_after_key_fix/llmvec/candidate_round_1.c",
+        "binary_path": "results/s141_pipeline2_after_key_fix/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

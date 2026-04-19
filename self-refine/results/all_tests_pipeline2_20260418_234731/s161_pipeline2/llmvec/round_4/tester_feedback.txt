@@ -1,0 +1,15 @@
+- The test failure indicates a mismatch in array `a` at index 0 after the first iteration. The vectorized code incorrectly updates `a` in the second pass based on `c` values that may have been set in the first pass, but the original scalar loop likely updates `a` and `c` in a single pass with data dependencies between them.
+
+- The candidate splits the loop into two separate passes: first computing `c[i]` for `b[i] < 0`, then computing `a[i]` for `b[i] >= 0`. However, the original scalar loop processes each `i` once, updating either `c[i]` or `a[i]` based on the condition, without separating the updates into distinct passes. This changes the data flow because `a[i]` in the second pass uses `c[i]` from the first pass, but in the original, `c[i]` and `a[i]` are computed independently per iteration.
+
+- The vectorizer must merge both conditions into a single vectorized loop that handles both assignments (`c[i]` for `b[i] < 0` and `a[i]` for `b[i] >= 0`) within the same iteration over `i`, using masked stores for each case.
+
+- Specifically, for each vectorized chunk, compute both potential results: `a[i] + d[i]*d[i]` for `c`, and `c[i] + d[i]*e[i]` for `a`. Then, use two separate masks (one for `b[i] < 0` and one for `b[i] >= 0`) to conditionally store to `c` or `a` respectively.
+
+- Ensure that the vectorized loop reads `a` and `c` before overwriting them, as the updates are conditional and may not happen for all lanes. This preserves the original semantics where each iteration only modifies one array based on `b[i]`.
+
+- The scalar tail loop should also be updated to match this merged logic, processing each index once with the conditional assignment.
+
+- After merging, remove the separate first and second passes to avoid the incorrect two-pass structure that caused the data mismatch.
+
+- Verify that the vectorized loop correctly handles the case where `b[i]` is exactly zero (should go to the `>= 0` branch) to match the scalar condition.

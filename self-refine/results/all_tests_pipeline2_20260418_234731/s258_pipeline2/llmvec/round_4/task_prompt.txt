@@ -1,0 +1,118 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {
+    float aa0[256];
+    for (int i = 0; i < 256; ++i) {
+        aa0[i] = aa[0][i];
+    }
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float temp_s[256];
+        float d_sq[256];
+
+        // Precompute d[i]*d[i] for all i
+        for (int i = 0; i < 256; ++i) {
+            d_sq[i] = d[i] * d[i];
+        }
+
+        float s = 0.0f;
+        // First loop: compute s values with dependency
+        // Use arithmetic masking to eliminate branching
+        for (int i = 0; i < 256; ++i) {
+            float mask = (a[i] > 0.0f) ? 1.0f : 0.0f;
+            s = mask * d_sq[i] + (1.0f - mask) * s;
+            temp_s[i] = s;
+        }
+
+        // Second loop: compute b[i] and e[i] using precomputed s values
+        for (int i = 0; i < 256; ++i) {
+            float s_val = temp_s[i];
+            b[i] = s_val * c[i] + d[i];
+            e[i] = (s_val + 1.0f) * aa0[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {
+    float aa0[256];
+    for (int i = 0; i < 256; ++i) {
+        aa0[i] = aa[0][i];
+    }
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float temp_s[256];
+        float d_sq[256];
+
+        // Vectorized precomputation of d_sq
+        int i = 0;
+        for (; i <= 252; i += 4) {
+            d_sq[i] = d[i] * d[i];
+            d_sq[i+1] = d[i+1] * d[i+1];
+            d_sq[i+2] = d[i+2] * d[i+2];
+            d_sq[i+3] = d[i+3] * d[i+3];
+        }
+        for (; i < 256; ++i) {
+            d_sq[i] = d[i] * d[i];
+        }
+
+        // First loop: compute s values with dependency - keep scalar for correctness
+        float s = 0.0f;
+        for (i = 0; i < 256; ++i) {
+            float mask = (a[i] > 0.0f) ? 1.0f : 0.0f;
+            s = mask * d_sq[i] + (1.0f - mask) * s;
+            temp_s[i] = s;
+            a[i] = s;
+        }
+
+        // Second loop: vectorized computation of b[i] and e[i]
+        i = 0;
+        for (; i <= 252; i += 4) {
+            float s_val0 = temp_s[i];
+            float s_val1 = temp_s[i+1];
+            float s_val2 = temp_s[i+2];
+            float s_val3 = temp_s[i+3];
+
+            b[i] = s_val0 * c[i] + d[i];
+            b[i+1] = s_val1 * c[i+1] + d[i+1];
+            b[i+2] = s_val2 * c[i+2] + d[i+2];
+            b[i+3] = s_val3 * c[i+3] + d[i+3];
+
+            e[i] = (s_val0 + 1.0f) * aa0[i];
+            e[i+1] = (s_val1 + 1.0f) * aa0[i+1];
+            e[i+2] = (s_val2 + 1.0f) * aa0[i+2];
+            e[i+3] = (s_val3 + 1.0f) * aa0[i+3];
+        }
+        for (; i < 256; ++i) {
+            float s_val = temp_s[i];
+            b[i] = s_val * c[i] + d[i];
+            e[i] = (s_val + 1.0f) * aa0[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The first loop has a dependency where `s` is used across iterations, but the vectorizer incorrectly kept it scalar while still trying to vectorize the loop. This causes incorrect `temp_s` and `a` values.
+- Change the first loop to remain fully scalar; remove any vectorization attempt for it.
+- Ensure `temp_s[i]` is computed sequentially using the previous iteration's `s` value.
+- The loop should compute `s` exactly as in the original: `s = (a[i] > 0) ? d[i]*d[i] : s;` and store `s` into `temp_s[i]` and `a[i]`.
+- Precompute `d_sq` vectorization is fine, but the first loop must use `d_sq[i]` correctly within the scalar recurrence.
+- Update the first loop to: `s = (a[i] > 0.0f) ? d_sq[i] : s;` then assign `temp_s[i] = s;` and `a[i] = s;`.
+- This ensures the recurrence dependency is preserved, fixing the mismatch in array `a`.
+- The second loop's vectorization can remain unchanged.
+
+        Return a corrected candidate function named `vectorized_s258`.

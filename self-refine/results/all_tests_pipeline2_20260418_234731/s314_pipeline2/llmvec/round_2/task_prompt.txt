@@ -1,0 +1,93 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s314` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s314(int iterations, int LEN_1D, float* a)
+{
+    float x;
+    for (int nl = 0; nl < iterations*5; nl++) {
+        float max_val = a[0];
+
+        // Main vectorizable reduction loop
+        int i;
+        for (i = 0; i < LEN_1D; i++) {
+            float v = a[i];
+            if (v > max_val) {
+                max_val = v;
+            }
+        }
+
+        x = max_val;
+    }
+    return x;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+float vectorized_s314(int iterations, int LEN_1D, float* a) {
+    float x = 0.0f;
+
+    for (int nl = 0; nl < iterations * 5; nl++) {
+        float max_val = a[0];
+
+        // Vectorized reduction
+        typedef float v4f __attribute__((vector_size(16)));
+        const size_t vlen = 4;
+        size_t i = 0;
+
+        if (LEN_1D >= vlen) {
+            v4f vmax = {a[0], a[0], a[0], a[0]};
+
+            // Process vector chunks
+            for (; i + vlen <= (size_t)LEN_1D; i += vlen) {
+                v4f v = *(v4f*)&a[i];
+                v4f cmp = v > vmax;
+                vmax = (v & cmp) | (vmax & ~cmp);
+            }
+
+            // Horizontal reduction
+            float vmax_arr[4];
+            *(v4f*)vmax_arr = vmax;
+            for (size_t j = 0; j < vlen; j++) {
+                if (vmax_arr[j] > max_val) {
+                    max_val = vmax_arr[j];
+                }
+            }
+        }
+
+        // Scalar tail
+        for (; i < (size_t)LEN_1D; i++) {
+            float v = a[i];
+            if (v > max_val) {
+                max_val = v;
+            }
+        }
+
+        x = max_val;
+    }
+
+    return x;
+}
+        ```
+
+        Tester feedback:
+        - The vectorized reduction uses bitwise operators `&`, `|`, and `~` on floating-point vectors, which is invalid. Replace with `__builtin_shuffle` or manual element selection using conditional moves.
+- Use `__builtin_shuffle` or a manual blend: `vmax = __builtin_shufflevector(v, vmax, ...)` is not directly suitable; instead, use `vmax = (v > vmax) ? v : vmax;` if supported, or implement a blend via `__builtin_ia32_blendps` or equivalent intrinsics.
+- Alternatively, avoid bitwise operations by using a comparison and a select pattern: `vmax = cmp ? v : vmax;` but C doesn't support ternary on vectors directly. Use `vmax = (vmax & ~cmp) | (v & cmp);` with integer reinterpretation.
+- Reinterpret the vectors as integer vectors to perform bitwise operations, e.g., cast to `__attribute__((vector_size(16))) int` before using `&` and `|`.
+- Fix the sign comparison warning by casting `LEN_1D` to `size_t` in the comparison: `if ((size_t)LEN_1D >= vlen)`.
+- Ensure the blend operation correctly selects elements: after reinterpreting as integer vectors, apply the bitwise blend: `vmax_int = (v_int & cmp_int) | (vmax_int & ~cmp_int);` then cast back to float vector.
+- The horizontal reduction and scalar tail are correct but depend on fixing the vectorized part first.
+- After fixing, verify the code compiles without errors and passes tests for correctness.
+
+        Return a corrected candidate function named `vectorized_s314`.

@@ -2,11 +2,30 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import sys
 from pathlib import Path
 from types import ModuleType
 
 from .types import TransformResult
+
+
+_FUNC_DEF_RE = re.compile(
+    r"""
+    (?P<ret>
+        \b[A-Za-z_][\w\s\*\[\]]*?
+    )
+    \s+
+    (?P<name>[A-Za-z_]\w*)
+    \s*
+    \(
+        (?P<params>[^{};]*?)
+    \)
+    \s*
+    \{
+    """,
+    re.DOTALL | re.VERBOSE,
+)
 
 
 class VecTransAdapter:
@@ -20,8 +39,6 @@ class VecTransAdapter:
         if not self.module_path.exists():
             raise FileNotFoundError(f"Could not find run_split.py under {self.vectrans_root}")
 
-        # VecTrans uses relative imports like `from src.vectorizer...`
-        # and prompt-lib lives under self-refine/prompt-lib.
         extra_paths = [
             str(self.vectrans_root),
             str(self.vectrans_root / "prompt-lib"),
@@ -35,31 +52,35 @@ class VecTransAdapter:
             raise ImportError(f"Unable to load module spec from {self.module_path}")
 
         module = importlib.util.module_from_spec(spec)
-
-        # run_split.py references os before importing it in the shared version.
         module.__dict__["os"] = os
         sys.modules[spec.name] = module
         spec.loader.exec_module(module)
         return module
 
     def _extract_final_code(self, text: str) -> str:
-        import re
-
-        # VecTrans writes:
-        # # FINAL CODE
-        # ```c
-        # ...
-        # ```
+        # Prefer explicit FINAL CODE blocks first.
         matches = re.findall(r"# FINAL CODE\s*```c\s*(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
         if matches:
             return matches[-1].strip()
 
-        # fallback: last fenced C block
+        # Fallback: last fenced C block.
         fenced = re.findall(r"```c\s*(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
         if fenced:
             return fenced[-1].strip()
 
         return ""
+
+    def _looks_like_full_c_function(self, code: str) -> bool:
+        code = code.strip()
+        if not code:
+            return False
+
+        # Must contain at least one apparent function definition.
+        if not _FUNC_DEF_RE.search(code):
+            return False
+
+        # Quick brace sanity check.
+        return code.count("{") >= 1 and code.count("}") >= 1
 
     def run(self, source_code: str, outdir: Path, max_rounds: int = 6) -> TransformResult:
         outdir.mkdir(parents=True, exist_ok=True)
@@ -70,8 +91,6 @@ class VecTransAdapter:
         log_path = outdir / "vectrans_output.md"
         log_path.write_text("")
 
-        # VecTrans compilerTest.py uses CLANG_PATH, not --compiler.
-        # Give it sane defaults on macOS if missing.
         old_clang_path = os.environ.get("CLANG_PATH")
         old_sdkroot = os.environ.get("SDKROOT")
 
@@ -94,8 +113,6 @@ class VecTransAdapter:
 
             module = self._load_module()
 
-            # run_split.py uses relative prompt paths like data/prompt/vectorize/init.jsonl
-            # so we need to run from vectrans_root.
             old_cwd = Path.cwd()
             os.chdir(self.vectrans_root)
             try:
@@ -116,34 +133,53 @@ class VecTransAdapter:
             log_text = log_path.read_text() if log_path.exists() else ""
             candidate_code = self._extract_final_code(log_text)
 
-            if candidate_code:
-                final_candidate_path = outdir / "final_candidate.c"
-                final_candidate_path.write_text(candidate_code + "\n")
+            if not candidate_code:
+                no_candidate_path = outdir / "vectrans_no_final_code.txt"
+                no_candidate_path.write_text(
+                    "VecTrans ran but no '# FINAL CODE' fenced block was found in the output log.\n\n"
+                    + log_text
+                )
                 return TransformResult(
                     stage="vectrans",
-                    ok=True,
-                    candidate_code=candidate_code,
-                    summary="VecTrans produced a final candidate and wrote it to the output log.",
+                    ok=False,
+                    candidate_code="",
+                    summary="VecTrans ran but did not emit a final candidate block.",
                     rounds_used=max_rounds,
-                    artifact_path=str(final_candidate_path),
+                    artifact_path=str(no_candidate_path),
                     metadata={
                         "input_snapshot": str(input_snapshot),
                         "log_path": str(log_path),
                     },
                 )
 
-            no_candidate_path = outdir / "vectrans_no_final_code.txt"
-            no_candidate_path.write_text(
-                "VecTrans ran but no '# FINAL CODE' fenced block was found in the output log.\n\n"
-                + log_text
-            )
+            if not self._looks_like_full_c_function(candidate_code):
+                invalid_path = outdir / "vectrans_non_function_candidate.c"
+                invalid_path.write_text(candidate_code + "\n")
+                return TransformResult(
+                    stage="vectrans",
+                    ok=False,
+                    candidate_code=candidate_code,
+                    summary=(
+                        "VecTrans emitted a C snippet, not a full function. "
+                        "Rejecting it as a pipeline handoff candidate."
+                    ),
+                    rounds_used=max_rounds,
+                    artifact_path=str(invalid_path),
+                    metadata={
+                        "input_snapshot": str(input_snapshot),
+                        "log_path": str(log_path),
+                    },
+                )
+
+            final_candidate_path = outdir / "final_candidate.c"
+            final_candidate_path.write_text(candidate_code + "\n")
             return TransformResult(
                 stage="vectrans",
-                ok=False,
-                candidate_code="",
-                summary="VecTrans ran but did not emit a final candidate block.",
+                ok=True,
+                candidate_code=candidate_code,
+                summary="VecTrans produced a full-function final candidate and wrote it to the output log.",
                 rounds_used=max_rounds,
-                artifact_path=str(no_candidate_path),
+                artifact_path=str(final_candidate_path),
                 metadata={
                     "input_snapshot": str(input_snapshot),
                     "log_path": str(log_path),
@@ -179,11 +215,20 @@ class LLMVectorizerAdapter:
 
     def __init__(self, llmvec_root: Path) -> None:
         self.llmvec_root = llmvec_root
-        self.module_path = llmvec_root / "llmVectorizer.py"
+
+        preferred = llmvec_root / "llm_vectorizer.py"
+        legacy = llmvec_root / "llmVectorizer.py"
+
+        if preferred.exists():
+            self.module_path = preferred
+        else:
+            self.module_path = legacy
 
     def _load_module(self) -> ModuleType:
         if not self.module_path.exists():
-            raise FileNotFoundError(f"Could not find llmVectorizer.py under {self.llmvec_root}")
+            raise FileNotFoundError(
+                f"Could not find llm_vectorizer.py or llmVectorizer.py under {self.llmvec_root}"
+            )
         spec = importlib.util.spec_from_file_location("vendored_llm_vectorizer", self.module_path)
         if spec is None or spec.loader is None:
             raise ImportError(f"Unable to load module spec from {self.module_path}")
@@ -198,7 +243,7 @@ class LLMVectorizerAdapter:
         return module.RunConfig(
             source_path=source_file.resolve(),
             scalar_function=scalar_function,
-            model=os.environ.get("LLM_VECTORIZER_MODEL", "claude-sonnet-4-6"),
+            model=os.environ.get("LLM_VECTORIZER_MODEL", "deepseek-chat"),
             max_rounds=max_rounds,
             num_trials=int(os.environ.get("LLM_VECTORIZER_NUM_TRIALS", "64")),
             array_len=int(os.environ.get("LLM_VECTORIZER_ARRAY_LEN", "128")),
@@ -211,7 +256,7 @@ class LLMVectorizerAdapter:
                 "portable SIMD-style C using compiler vector types or unrolled/vector-friendly code",
             ),
             dry_run=False,
-            api_base_url=os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com").rstrip("/"),
+            api_base_url=os.environ.get("ANTHROPIC_BASE_URL", "https://api.deepseek.com/anthropic").rstrip("/"),
             api_timeout=int(os.environ.get("LLM_VECTORIZER_API_TIMEOUT", "120")),
         )
 
@@ -227,6 +272,38 @@ class LLMVectorizerAdapter:
             )
         return ""
 
+    def _contains_function_named(self, code: str, scalar_function: str) -> bool:
+        return bool(re.search(rf"\b{re.escape(scalar_function)}\s*\(", code))
+
+    def _rename_single_function(self, code: str, scalar_function: str) -> str:
+        matches = list(_FUNC_DEF_RE.finditer(code))
+        if len(matches) != 1:
+            raise ValueError(
+                "VecTrans-preprocessed input is not a single full function; cannot safely normalize handoff."
+            )
+
+        match = matches[0]
+        old_name = match.group("name")
+        if old_name == scalar_function:
+            return code
+
+        start, end = match.span("name")
+        return code[:start] + scalar_function + code[end:]
+
+    def _prepare_source_text(self, raw_text: str, scalar_function: str, pipeline_context: str) -> str:
+        if pipeline_context != "vectrans_preprocessed":
+            return raw_text
+
+        if not _FUNC_DEF_RE.search(raw_text):
+            raise ValueError(
+                "VecTrans-preprocessed input is not a full function body; cannot hand off to LLM-Vectorizer."
+            )
+
+        if self._contains_function_named(raw_text, scalar_function):
+            return raw_text
+
+        return self._rename_single_function(raw_text, scalar_function)
+
     def run(
         self,
         source_file: Path,
@@ -236,13 +313,31 @@ class LLMVectorizerAdapter:
         pipeline_context: str = "raw_source",
     ) -> TransformResult:
         outdir.mkdir(parents=True, exist_ok=True)
+
+        raw_text = source_file.read_text()
         input_snapshot = outdir / "llm_vectorizer_input_snapshot.c"
-        input_snapshot.write_text(source_file.read_text())
+        input_snapshot.write_text(raw_text)
 
         try:
             module = self._load_module()
             module.load_dotenv(self.llmvec_root / ".env")
-            config = self._build_config(module, source_file, scalar_function, outdir, max_rounds)
+
+            deepseek_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("API_KEY")
+            if deepseek_key:
+                os.environ["ANTHROPIC_API_KEY"] = deepseek_key
+
+            os.environ["ANTHROPIC_BASE_URL"] = "https://api.deepseek.com/anthropic"
+            os.environ["LLM_VECTORIZER_MODEL"] = "deepseek-chat"
+            os.environ.pop("CLAUDE_API_KEY", None)
+            os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
+
+            prepared_text = self._prepare_source_text(raw_text, scalar_function, pipeline_context)
+
+            prepared_text = self._prepare_source_text(raw_text, scalar_function, pipeline_context)
+            prepared_source = outdir / "llm_vectorizer_prepared_input.c"
+            prepared_source.write_text(prepared_text)
+
+            config = self._build_config(module, prepared_source, scalar_function, outdir, max_rounds)
             scalar_source = module.read_source(config.source_path).strip()
 
             context_prefix = self._pipeline_context_prefix(pipeline_context)
@@ -267,7 +362,7 @@ class LLMVectorizerAdapter:
                     ok=False,
                     candidate_code="",
                     summary=(
-                        "LLM-Vectorizer adapter is wired in, but no Anthropic key was found. "
+                        "LLM-Vectorizer adapter is wired in, but no API key was found. "
                         f"{exc}. Debug prompts were saved for inspection."
                     ),
                     rounds_used=0,
@@ -275,6 +370,7 @@ class LLMVectorizerAdapter:
                     metadata={
                         "scalar_function": scalar_function,
                         "input_snapshot": str(input_snapshot),
+                        "prepared_input": str(prepared_source),
                         "pipeline_context": pipeline_context,
                     },
                 )
@@ -326,6 +422,7 @@ class LLMVectorizerAdapter:
                         metadata={
                             "scalar_function": scalar_function,
                             "input_snapshot": str(input_snapshot),
+                            "prepared_input": str(prepared_source),
                             "pipeline_context": pipeline_context,
                             "harness_path": str(result.candidate_path) if result.candidate_path else "",
                             "binary_path": str(result.binary_path) if result.binary_path else "",
@@ -362,6 +459,7 @@ class LLMVectorizerAdapter:
                 metadata={
                     "scalar_function": scalar_function,
                     "input_snapshot": str(input_snapshot),
+                    "prepared_input": str(prepared_source),
                     "pipeline_context": pipeline_context,
                 },
             )

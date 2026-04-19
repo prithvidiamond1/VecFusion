@@ -1,0 +1,55 @@
+```c
+#include <stddef.h>
+#include <stdlib.h>
+
+typedef float v8f __attribute__((__vector_size__(32), __aligned__(32)));
+
+void vectorized_s212(int n, float *a, float *b, float *c, float *d) {
+    if (n <= 1) return;
+
+    float *a_next = (float *)malloc((n-1) * sizeof(float));
+    if (a_next == NULL) return;
+
+    const int vlen = 8;
+    int loop_limit = n - 1;
+    int i = 0;
+    int limit = loop_limit - (loop_limit % vlen);
+
+    // First loop: save a[i+1] and compute a[i] *= c[i]
+    for (; i < limit; i += vlen) {
+        // Load a[i+1] for saving (original values before any modification)
+        v8f a_next_vec = *(v8f *)&a[i+1];
+        *(v8f *)&a_next[i] = a_next_vec;
+
+        // Load a[i] and c[i], compute a[i] *= c[i]
+        v8f a_vec = *(v8f *)&a[i];
+        v8f c_vec = *(v8f *)&c[i];
+        a_vec = a_vec * c_vec;
+        *(v8f *)&a[i] = a_vec;
+    }
+
+    // Scalar tail for first loop
+    for (; i < loop_limit; i++) {
+        a_next[i] = a[i+1];
+        a[i] *= c[i];
+    }
+
+    // Second loop: b[i] += saved_a_next * d[i]
+    i = 0;
+    limit = loop_limit - (loop_limit % vlen);
+    for (; i < limit; i += vlen) {
+        v8f b_vec = *(v8f *)&b[i];
+        v8f a_next_vec = *(v8f *)&a_next[i];
+        v8f d_vec = *(v8f *)&d[i];
+        b_vec = b_vec + a_next_vec * d_vec;
+        *(v8f *)&b[i] = b_vec;
+    }
+
+    // Scalar tail for second loop
+    for (; i < loop_limit; i++) {
+        b[i] += a_next[i] * d[i];
+    }
+
+    free(a_next);
+}
+```

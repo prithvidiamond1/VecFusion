@@ -112,7 +112,6 @@ def load_dotenv(dotenv_path: Path) -> None:
         if key and key not in os.environ:
             os.environ[key] = value
 
-
 def parse_args() -> RunConfig:
     parser = argparse.ArgumentParser(description="Simple LLM vectorizer prototype.")
     parser.add_argument("source", type=Path, help="Path to a C file containing the scalar function.")
@@ -120,11 +119,6 @@ def parse_args() -> RunConfig:
         "--scalar-function",
         required=True,
         help="Name of the scalar function to vectorize.",
-    )
-    parser.add_argument(
-        "--model",
-        default=os.environ.get("LLM_VECTORIZER_MODEL", "deepseek-chat"),
-        help="Model name for the Anthropic-compatible provider.",
     )
     parser.add_argument("--max-rounds", type=int, default=4, help="Maximum vectorization attempts.")
     parser.add_argument("--num-trials", type=int, default=64, help="Number of randomized tests.")
@@ -170,11 +164,6 @@ def parse_args() -> RunConfig:
         help="Model name for the Anthropic-compatible provider.",
     )
 
-    parser.add_argument(
-        "--api-base-url",
-        default=os.environ.get("ANTHROPIC_BASE_URL", "https://api.deepseek.com/anthropic"),
-        help="Anthropic-compatible API base URL.",
-    )
     args = parser.parse_args()
     return RunConfig(
         source_path=args.source.resolve(),
@@ -201,13 +190,31 @@ def read_source(path: Path) -> str:
 
 
 def get_api_key() -> str:
-    api_key = (
-        os.environ.get("ANTHROPIC_API_KEY")
-        or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-        or os.environ.get("CLAUDE_API_KEY")
-        or os.environ.get("DEEPSEEK_API_KEY")
-        or os.environ.get("API_KEY")
+    anthropic_base = os.environ.get("ANTHROPIC_BASE_URL", "")
+    model = os.environ.get("LLM_VECTORIZER_MODEL", "")
+
+    using_deepseek_anthropic = (
+        "api.deepseek.com/anthropic" in anthropic_base
+        or model.startswith("deepseek")
     )
+
+    if using_deepseek_anthropic:
+        api_key = (
+            os.environ.get("DEEPSEEK_API_KEY")
+            or os.environ.get("API_KEY")
+            or os.environ.get("ANTHROPIC_API_KEY")
+            or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+            or os.environ.get("CLAUDE_API_KEY")
+        )
+    else:
+        api_key = (
+            os.environ.get("ANTHROPIC_API_KEY")
+            or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+            or os.environ.get("CLAUDE_API_KEY")
+            or os.environ.get("DEEPSEEK_API_KEY")
+            or os.environ.get("API_KEY")
+        )
+
     if not api_key:
         raise SystemExit(
             "ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, CLAUDE_API_KEY, DEEPSEEK_API_KEY, or API_KEY is required unless --dry-run is used."

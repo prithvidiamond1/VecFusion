@@ -3,12 +3,13 @@ set -u
 
 ROOT="/Users/torence/VecTrans/self-refine"
 PERF_REPEATS="${PERF_REPEATS:-5}"
+PIPELINE="pipeline2"
 
 cd "$ROOT" || exit 1
 source .venv/bin/activate
 source set_env.sh
 
-OUT_ROOT="results/all_tests_rerun_$(date +%Y%m%d_%H%M%S)"
+OUT_ROOT="results/all_tests_${PIPELINE}_$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$OUT_ROOT"
 
 TESTS=()
@@ -16,45 +17,43 @@ while IFS= read -r test; do
   TESTS+=("$test")
 done < <(find test_case -maxdepth 1 -name "*.c" -print | sed 's#.*/##' | sed 's#\.c$##' | sort)
 
-echo "Running ${#TESTS[@]} tests into: $OUT_ROOT"
+echo "Running ${#TESTS[@]} tests for $PIPELINE into: $OUT_ROOT"
 echo
 
 for test in "${TESTS[@]}"; do
-  for pipeline in pipeline1 pipeline2; do
-    echo "=================================================="
-    echo "Running $test on $pipeline"
-    echo "Output -> $OUT_ROOT/${test}_${pipeline}"
-    echo "=================================================="
+  echo "=================================================="
+  echo "Running $test on $PIPELINE"
+  echo "Output -> $OUT_ROOT/${test}_${PIPELINE}"
+  echo "=================================================="
 
-    if ! PYTHONPATH=. python3 -m src.integration.cli "test_case/${test}.c" \
-      --scalar-function "$test" \
-      --pipeline "$pipeline" \
-      --vectrans-root . \
-      --llmvec-root ./src/llm-vectorizer \
-      --outdir "$OUT_ROOT/${test}_${pipeline}"; then
-      echo "Run command failed for $test / $pipeline"
-    fi
+  if ! PYTHONPATH=. python3 -m src.integration.cli "test_case/${test}.c" \
+    --scalar-function "$test" \
+    --pipeline "$PIPELINE" \
+    --vectrans-root . \
+    --llmvec-root ./src/llm-vectorizer \
+    --outdir "$OUT_ROOT/${test}_${PIPELINE}"; then
+    echo "Run command failed for $test / $PIPELINE"
+  fi
 
-    if [ -f "$OUT_ROOT/${test}_${pipeline}/summary.json" ]; then
-      python3 - <<PY
+  if [ -f "$OUT_ROOT/${test}_${PIPELINE}/summary.json" ]; then
+    python3 - <<PY
 import json
 from pathlib import Path
-p = Path("$OUT_ROOT/${test}_${pipeline}/summary.json")
+p = Path("$OUT_ROOT/${test}_${PIPELINE}/summary.json")
 data = json.loads(p.read_text())
 print({
     "test": "$test",
-    "pipeline": "$pipeline",
+    "pipeline": "$PIPELINE",
     "success": data.get("success"),
     "final_stage": data.get("final_stage"),
     "final_code_path": data.get("final_code_path"),
 })
 PY
-    else
-      echo "No summary.json found for $test / $pipeline"
-    fi
+  else
+    echo "No summary.json found for $test / $PIPELINE"
+  fi
 
-    echo
-  done
+  echo
 done
 
 python scripts/compare_perf_all.py \

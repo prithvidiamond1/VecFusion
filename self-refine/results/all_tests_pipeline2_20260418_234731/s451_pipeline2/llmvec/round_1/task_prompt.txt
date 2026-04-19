@@ -1,0 +1,24 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Vectorize the scalar C function `s451` below.
+
+        Scalar source:
+        ```c
+        void s451(int iterations, int LEN_1D, float* a, float* b, float* c) {
+    int outer_iters = iterations / 5;
+    for (int nl = 0; nl < outer_iters; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            float sin_val = sinf(b[i]);
+            float cos_val = cosf(c[i]);
+            a[i] = sin_val + cos_val;
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s451`.

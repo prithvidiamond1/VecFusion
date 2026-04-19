@@ -1,0 +1,15 @@
+- The vectorized loop incorrectly uses `a_j0..a_j3` from `a[j]..a[j-3]` for computing `x_i0..x_i3`. The original scalar loop uses `a[j]` for the first `x_i` computation, but the vectorized version uses `a[j]` for `x_i0` (which corresponds to `i`), then `a[j-1]` for `x_i1` (which corresponds to `i+1`), etc. This is wrong because each `x_i` should use the same `a[j]` value from the original scalar loop? Wait, the scalar loop uses `a[j]` for `x_i` where `j` is the current opposite index. In the vectorized version, for each `i` from `i` to `i+3`, the corresponding `j` is `j-3` to `j`. So `x_i0` (for `i`) should use `a[j]`, `x_i1` (for `i+1`) should use `a[j-1]`, etc. That matches the current code. But the test fails at index 0, indicating a mismatch early in the array.
+
+- Actually, the scalar loop computes `x_i = a[j] + b[i] * c[i]` where `j` is the current opposite index (starting from `LEN_1D-1`). In the vectorized loop, when processing 4 pairs, for `i` and `j` moving inwards, the pairs are `(i, j)`, `(i+1, j-1)`, `(i+2, j-2)`, `(i+3, j-3)`. So `x_i0` (for `i`) should use `a[j]`, `x_i1` (for `i+1`) should use `a[j-1]`, etc. That is correct in the candidate.
+
+- However, the scalar loop then computes `x_j = a[i] + b[j] * c[j]` using the **updated** `a[i]` (just stored as `x_i - 1.0f`). In the vectorized version, the code uses `a_i0_new` (which is `x_i0 - 1.0f`) for computing `x_j3` (for `j-3`), but that's wrong: `x_j3` corresponds to `j-3`, whose opposite index is `i+3`, so it should use `a_i3_new` (updated `a[i+3]`). Similarly, `x_j2` (for `j-2`) should use `a_i2_new`, `x_j1` should use `a_i1_new`, and `x_j0` should use `a_i0_new`. The candidate has them reversed.
+
+- Fix the computation of `x_j` values: swap the assignments so that `x_j3 = a_i3_new + b_j3 * c_j3`, `x_j2 = a_i2_new + b_j2 * c_j2`, `x_j1 = a_i1_new + b_j1 * c_j1`, and `x_j0 = a_i0_new + b_j0 * c_j0`.
+
+- Also, the stores to `a[j-3..j]` and `b[j-3..j]` should match the corrected `x_j` order: after fixing `x_j` values, the stores are already in the correct positions (`a[j-3] = x_j3 - 1.0f`, etc.), but ensure the `b` stores also use the corrected `x_j` values.
+
+- Verify the loop bound `i + 3 < j - 3` ensures at least 4 pairs remain; this is correct for vectorization.
+
+- The remaining scalar loop and middle element handling are correct and match the original.
+
+- After these fixes, recompile and test to ensure the mismatch at index 0 is resolved.

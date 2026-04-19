@@ -1,0 +1,120 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b)
+{
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = 0.0f;
+
+        // Process elements in groups of 5 (matching original stride)
+        float dot0 = 0.0f, dot1 = 0.0f, dot2 = 0.0f, dot3 = 0.0f, dot4 = 0.0f;
+
+        int i;
+        for (i = 0; i <= LEN_1D - 5; i += 5) {
+            // Load all values first (enables better vectorization)
+            float a0 = a[i], a1 = a[i+1], a2 = a[i+2], a3 = a[i+3], a4 = a[i+4];
+            float b0 = b[i], b1 = b[i+1], b2 = b[i+2], b3 = b[i+3], b4 = b[i+4];
+
+            // Compute all products (independent operations)
+            float prod0 = a0 * b0;
+            float prod1 = a1 * b1;
+            float prod2 = a2 * b2;
+            float prod3 = a3 * b3;
+            float prod4 = a4 * b4;
+
+            // Accumulate into separate variables (no loop-carried dependency)
+            dot0 += prod0;
+            dot1 += prod1;
+            dot2 += prod2;
+            dot3 += prod3;
+            dot4 += prod4;
+        }
+
+        // Combine partial sums (reduces dependency chain)
+        dot = ((dot0 + dot1) + (dot2 + dot3)) + dot4;
+
+        // Handle remaining elements (0-4 elements) - matches original out-of-bounds behavior
+        for (; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+        // Add out-of-bounds contributions to match original buggy behavior
+        for (int j = i; j < i + 4 && j < LEN_1D + 4; j++) {
+            if (j >= LEN_1D) {
+                dot += a[j] * b[j];  // This matches original out-of-bounds access
+            }
+        }
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        float vectorized_s352(int iterations, int LEN_1D, float* a, float *b) {
+    float dot;
+
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        dot = 0.0f;
+
+        typedef float v4f __attribute__((vector_size(16)));
+        v4f vdot0 = {0.0f, 0.0f, 0.0f, 0.0f};
+        v4f vdot1 = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        int i;
+        for (i = 0; i <= LEN_1D - 8; i += 8) {
+            v4f va0 = *(v4f*)&a[i];
+            v4f vb0 = *(v4f*)&b[i];
+            v4f va1 = *(v4f*)&a[i + 4];
+            v4f vb1 = *(v4f*)&b[i + 4];
+
+            vdot0 += va0 * vb0;
+            vdot1 += va1 * vb1;
+        }
+
+        float* vdot0p = (float*)&vdot0;
+        float* vdot1p = (float*)&vdot1;
+        dot = (vdot0p[0] + vdot0p[1] + vdot0p[2] + vdot0p[3]) +
+              (vdot1p[0] + vdot1p[1] + vdot1p[2] + vdot1p[3]);
+
+        for (; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+    }
+
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop handles up to `LEN_1D - 8` in steps of 8, but the scalar cleanup loop starts at `i`, which may be less than `LEN_1D` when `LEN_1D` is not a multiple of 8. This is correct, but the issue is that `dot` is not initialized with the vector reduction result before the scalar loop; it's overwritten.
+- In the scalar cleanup loop, `dot += a[i] * b[i]` adds to `dot`, but `dot` already contains the sum from the vectorized part. However, the vectorized sum is computed into a local `dot` variable that is reset each outer loop iteration, but the scalar loop uses the same `dot` variable, which is correct.
+- The exit code 2 and "Return mismatch" indicate a numerical correctness error, likely due to missing contributions from elements when `LEN_1D` is not a multiple of 8. The scalar loop should start at the correct index, but the vectorized loop condition `i <= LEN_1D - 8` may skip the last few elements if `LEN_1D` is less than 8.
+- Fix the vectorized loop bound: change `i <= LEN_1D - 8` to `i < LEN_1D - 7` or `i <= LEN_1D - 8` is correct for step 8, but ensure it doesn't access out of bounds when `LEN_1D` is exactly a multiple of 8. The current condition is safe for multiples, but for non-multiples, `i` will be less than `LEN_1D` after the loop, and the scalar loop will handle the remainder.
+- The error might be due to the vectorized loads being unaligned, which can cause performance issues or correctness problems on some architectures. Use `__builtin_assume_aligned` or load via `__attribute__((aligned(16)))` pointers to ensure alignment, but the report doesn't mention alignment faults.
+- Check that the reduction across `vdot0` and `vdot1` is correctly summed: the code adds two vector accumulators and then sums their components horizontally. This should be correct for a dot product.
+- The outer loop runs `8 * iterations` times, but `dot` is returned after the outer loop. The scalar `dot` variable is updated each outer iteration, but it's reset to 0.0f at the start of each outer iteration, so the final `dot` is from the last outer iteration only. This matches typical benchmarking patterns.
+- To fix the return mismatch, ensure the vectorized loop doesn't skip any elements: verify that when `LEN_1D` is 0 or small (<8), the loop doesn't execute and `i` remains 0, so the scalar loop handles all elements. The condition `i <= LEN_1D - 8` fails for `LEN_1D < 8`, so the vector loop is skipped entirely, which is correct. The error might be in the horizontal sum: use `vdot0p[0] + vdot0p[1] + vdot0p[2] + vdot0p[3] + vdot1p[0] + vdot1p[1] + vdot1p[2] + vdot1p[3]` directly assigned to `dot`, which is already done. No obvious bug, but the mismatch suggests a subtle error.
+
+Given the report, the most likely fix is to change the vectorized loop bound to `i < LEN_1D - 7` to ensure correct iteration count for all `LEN_1D`, but the current bound is actually correct for step 8. Instead, focus on the scalar loop: it should add to `dot`, but `dot` is already set to the vector sum, so it's adding the vector sum again? Wait, the code sets `dot = (vdot0p[0] + ...) + (vdot1p[0] + ...);` then `dot += a[i] * b[i];` in the scalar loop. This is correct because the scalar loop adds only the remaining elements. However, if the vector loop is skipped (e.g., `LEN_1D < 8`), then `dot` is 0.0f from initialization, and the scalar loop adds all elements, which is correct.
+
+The error might be due to the vectorized loads aliasing the `dot` variable or other memory, but that's unlikely. Since the compile succeeded and only a return mismatch occurs, try initializing `dot` to 0.0f before the vectorized sum accumulation, but it's already done. Actually, the code sets `dot = 0.0f` at the start of each outer loop, then computes the vector sum into `dot`, then adds scalar remainder. This seems correct.
+
+Given the ambiguity, the minimal fix is to ensure the horizontal sum is accurate: use a single accumulator or verify the arithmetic. But the report doesn't give details, so I'll suggest a common fix for dot product vectorization: use a single vector accumulator and handle remainders carefully.
+
+**Proposed fixes:**
+1. Change the vectorized loop bound from `i <= LEN_1D - 8` to `i < LEN_1D - 7` to avoid potential off-by-one in some cases.
+2. Ensure the scalar cleanup loop correctly adds to `dot` by initializing `dot` to the vector sum before the scalar loop, which is already done.
+3. If the mismatch persists, consider using `-ffast-math` or ensuring floating-point associativity is accounted for, but the test likely allows approximate results.
+
+Since I cannot run tests, I'll recommend the bound change as the first step.
+
+        Return a corrected candidate function named `vectorized_s352`.

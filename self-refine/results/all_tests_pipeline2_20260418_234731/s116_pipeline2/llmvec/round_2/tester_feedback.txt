@@ -1,0 +1,8 @@
+- The vectorized loop accesses `a[i + 3 * vlen + 1]` which can read beyond the array bounds when `i + 3 * vlen + 1 > limit`. The test shows a mismatch at index 77, likely due to reading out-of-bounds data.
+- Adjust the main loop condition to ensure all reads `a[i + k * vlen + 1]` stay within `limit`. Since the largest offset is `i + 3 * vlen + 1`, the condition should be `i + 3 * vlen + 1 <= limit`.
+- Change the loop condition from `i + vlen * 4 <= limit` to `i + 3 * vlen + 1 <= limit` to prevent over-reading.
+- Update the loop increment accordingly to `i += vlen * 4` remains correct because the loop processes 4 vectors per iteration.
+- The scalar cleanup loop already handles up to `limit`, so it remains correct for the remaining elements.
+- Verify that the new condition ensures all vector loads are within bounds for each iteration.
+- After the fix, re-run the test to confirm no out-of-bounds accesses occur.
+- Ensure the fix maintains the same semantics as the original scalar loop: `a[i] = a[i+1] * a[i]` for `i` from `0` to `LEN_1D - 2`.

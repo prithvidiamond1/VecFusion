@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s13110_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s13110_opt(int iterations, float aa[256][256]) {\n    int xindex, yindex;\n    float max, chksum;\n    int outer_loop_count = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_loop_count; nl++) {\n        // Step 1: Find per-row maxima and their first column indices\n        float row_max[256];\n        int row_max_col[256];\n        \n        for (int i = 0; i < 256; i++) {\n            float rmax = aa[i][0];\n            int rcol = 0;\n            \n            // Vectorizable: find first occurrence of max in each row\n            for (int j = 1; j < 256; j++) {\n                float current = aa[i][j];\n                // Use > to get first occurrence (matches original)\n                int is_greater = current > rmax;\n                rmax = is_greater ? current : rmax;\n                rcol = is_greater ? j : rcol;\n            }\n            \n            row_max[i] = rmax;\n            row_max_col[i] = rcol;\n        }\n        \n        // Step 2: Find global maximum across rows and first row index\n        max = row_max[0];\n        int max_row = 0;\n        \n        // Vectorizable reduction for max value and first row index\n        for (int i = 1; i < 256; i++) {\n            float current = row_max[i];\n            int is_greater = current > max;\n            max = is_greater ? current : max;\n            max_row = is_greater ? i : max_row;\n        }\n        \n        // Step 3: For rows with same max value, find first occurrence in row-major order\n        for (int i = 0; i < max_row; i++) {\n            if (row_max[i] == max) {\n                // Compare column indices to maintain first occurrence in row-major order\n                if (row_max_col[i] < row_max_col[max_row]) {\n                    max_row = i;\n                }\n            }\n        }\n        \n        // Step 4: Get column index from pre-computed row_max_col\n        xindex = max_row;\n        yindex = row_max_col[max_row];\n        \n        chksum = max + (float)xindex + (float)yindex;\n    }\n    \n    return max + (float)(xindex + 1) + (float)(yindex + 1);\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s13110_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s13110_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s13110_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nfloat vectorized_s13110(int iterations, float aa[256][256]) {\n    int xindex, yindex;\n    float max, chksum;\n    int outer_loop_count = 100 * (iterations / 256);\n\n    for (int nl = 0; nl < outer_loop_count; nl++) {\n        // Step 1: Find per-row maxima and their first column indices\n        float row_max[256];\n        int row_max_col[256];\n\n        for (int i = 0; i < 256; i++) {\n            float rmax = aa[i][0];\n            int rcol = 0;\n\n            // Vectorized inner loop\n            for (int j = 1; j < 256; j += 4) {\n                // Process 4 elements at a time\n                for (int k = 0; k < 4 && (j + k) < 256; k++) {\n                    float current = aa[i][j + k];\n                    int is_greater = current > rmax;\n                    rmax = is_greater ? current : rmax;\n                    rcol = is_greater ? (j + k) : rcol;\n                }\n            }\n\n            row_max[i] = rmax;\n            row_max_col[i] = rcol;\n        }\n\n        // Step 2: Find global maximum across rows and first row index\n        max = row_max[0];\n        int max_row = 0;\n\n        // Vectorized reduction for max value and first row index\n        for (int i = 1; i < 256; i += 4) {\n            // Process 4 rows at a time\n            for (int k = 0; k < 4 && (i + k) < 256; k++) {\n                float current = row_max[i + k];\n                int is_greater = current > max;\n                max = is_greater ? current : max;\n                max_row = is_greater ? (i + k) : max_row;\n            }\n        }\n\n        // Step 3: For rows with same max value, find first occurrence in row-major order\n        for (int i = 0; i < max_row; i++) {\n            if (row_max[i] == max) {\n                // Compare column indices to maintain first occurrence in row-major order\n                if (row_max_col[i] < row_max_col[max_row]) {\n                    max_row = i;\n                }\n            }\n        }\n\n        // Step 4: Get column index from pre-computed row_max_col\n        xindex = max_row;\n        yindex = row_max_col[max_row];\n\n        chksum = max + (float)xindex + (float)yindex;\n    }\n\n    return max + (float)(xindex + 1) + (float)(yindex + 1);\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s13110_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s13110",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s13110_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s13110_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s13110_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s13110_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+- The vectorized accumulation loop incorrectly initializes `s_vec` using `vstride` which is constant {0,1,2,3}, causing wrong values for `a[i]` after the first vector iteration.
+- Replace `vstride` in the `s_vec` calculation with a vector of the actual loop indices: `(v4i){i, i+1, i+2, i+3}`.
+- The scalar `s` update after each vector iteration should be `s += 2.0f * VEC_SIZE;` but this is correct; however, the initial `s_vec` must use the current scalar `s` plus offset per lane.
+- Specifically, compute: `v4f s_vec = (v4f){s, s, s, s} + vtwo * (v4f)((v4i){0,1,2,3} + (v4i){1,1,1,1});` which simplifies to `s + 2.0f * (v4f){1.0f, 2.0f, 3.0f, 4.0f}` for the first vector, but this doesn't match the required sequence where `s` starts at 0 and increments by 2 each scalar iteration.
+- The correct sequence for `a[i]` should be: `a[0]=2.0, a[1]=4.0, a[2]=6.0, ...` (since `s += 2.0` before storing in scalar version). The vectorized version must produce the same values.
+- Instead, compute `s_vec` as `(v4f){s+2.0f, s+4.0f, s+6.0f, s+8.0f}` where `s` is the scalar accumulator at the start of the vector iteration. This matches `s + 2.0f * (v4f){1.0f, 2.0f, 3.0f, 4.0f}`.
+- Update the vectorized accumulation loop to: `v4f s_vec = (v4f){s, s, s, s} + vtwo * (v4f){1.0f, 2.0f, 3.0f, 4.0f};`.
+- After storing `s_vec`, update scalar `s` by `s += 2.0f * VEC_SIZE;` as before.
