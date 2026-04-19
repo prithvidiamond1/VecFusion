@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/debug_s244_pipeline2_retry/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s244_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // First loop: compute a[i] and update b[i]\n        for (int i = 0; i < LEN_1D-1; ++i) {\n            a[i] = b[i] + c[i] * d[i];\n            b[i] = c[i] + b[i];\n        }\n        // Second loop: compute a[i+1] using updated b[i] and original a[i+1]\n        for (int i = 0; i < LEN_1D-1; ++i) {\n            float temp = a[i+1];\n            a[i+1] = b[i] + temp * d[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/debug_s244_pipeline2_retry/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/debug_s244_pipeline2_retry/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/debug_s244_pipeline2_retry/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {\n    for (int nl = 0; nl < iterations; nl++) {\n        // First loop: vectorized computation of a[i] and b[i]\n        int i = 0;\n        for (; i <= LEN_1D - 5; i += 4) {\n            // Load vectors\n            float b_vec[4] = {b[i], b[i+1], b[i+2], b[i+3]};\n            float c_vec[4] = {c[i], c[i+1], c[i+2], c[i+3]};\n            float d_vec[4] = {d[i], d[i+1], d[i+2], d[i+3]};\n            \n            // Compute a[i] = b[i] + c[i] * d[i]\n            float a_vec[4];\n            for (int j = 0; j < 4; j++) {\n                a_vec[j] = b_vec[j] + c_vec[j] * d_vec[j];\n            }\n            \n            // Store a[i]\n            for (int j = 0; j < 4; j++) {\n                a[i+j] = a_vec[j];\n            }\n            \n            // Compute b[i] = c[i] + b[i]\n            for (int j = 0; j < 4; j++) {\n                b_vec[j] = c_vec[j] + b_vec[j];\n            }\n            \n            // Store updated b[i]\n            for (int j = 0; j < 4; j++) {\n                b[i+j] = b_vec[j];\n            }\n        }\n        \n        // Scalar cleanup for first loop\n        for (; i < LEN_1D - 1; i++) {\n            a[i] = b[i] + c[i] * d[i];\n            b[i] = c[i] + b[i];\n        }\n        \n        // Second loop: vectorized computation of a[i+1]\n        i = 0;\n        for (; i <= LEN_1D - 5; i += 4) {\n            // Load b[i] (already updated from first loop)\n            float b_vec[4] = {b[i], b[i+1], b[i+2], b[i+3]};\n            \n            // Load a[i+1] (original values)\n            float a_next_vec[4] = {a[i+1], a[i+2], a[i+3], a[i+4]};\n            \n            // Load d[i]\n            float d_vec[4] = {d[i], d[i+1], d[i+2], d[i+3]};\n            \n            // Compute a[i+1] = b[i] + a[i+1] * d[i]\n            for (int j = 0; j < 4; j++) {\n                a_next_vec[j] = b_vec[j] + a_next_vec[j] * d_vec[j];\n            }\n            \n            // Store updated a[i+1]\n            for (int j = 0; j < 4; j++) {\n                a[i+1+j] = a_next_vec[j];\n            }\n        }\n        \n        // Scalar cleanup for second loop\n        for (; i < LEN_1D - 1; i++) {\n            float temp = a[i+1];\n            a[i+1] = b[i] + temp * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/debug_s244_pipeline2_retry/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s244",
+        "input_snapshot": "results/debug_s244_pipeline2_retry/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/debug_s244_pipeline2_retry/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/debug_s244_pipeline2_retry/llmvec/candidate_round_1.c",
+        "binary_path": "results/debug_s244_pipeline2_retry/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+This input code has already been processed by an earlier VecTrans stage.
+Use that code as a starting point, not a constraint.
+You may simplify awkward structure if needed, but you must preserve the original iteration space and touched indices unless equivalence is obvious.
+Do not change which array elements are updated, do not densify sparse/block updates, and do not replace block-stride loops with full-range elementwise loops unless that is provably equivalent.
+Prefer the simplest correct loop structure that preserves behavior.
+Prioritize semantic correctness first, then vectorizability and performance.
+
+Revise your candidate for `s319` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s319(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)
+{
+    float sum;
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        sum = 0.;
+        for (int i = 0; i < LEN_1D; i++) {
+            float ai = c[i] + d[i];
+            float bi = c[i] + e[i];
+            a[i] = ai;
+            b[i] = bi;
+            sum += ai;
+            sum += bi;
+        }
+    }
+    return sum;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {
+    float sum = 0.0f;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float sum_inner = 0.0f;
+        int i = 0;
+
+        // Vectorized main loop
+        for (; i + 3 < LEN_1D; i += 4) {
+            float c0 = c[i];
+            float c1 = c[i + 1];
+            float c2 = c[i + 2];
+            float c3 = c[i + 3];
+
+            float d0 = d[i];
+            float d1 = d[i + 1];
+            float d2 = d[i + 2];
+            float d3 = d[i + 3];
+
+            float e0 = e[i];
+            float e1 = e[i + 1];
+            float e2 = e[i + 2];
+            float e3 = e[i + 3];
+
+            float ai0 = c0 + d0;
+            float ai1 = c1 + d1;
+            float ai2 = c2 + d2;
+            float ai3 = c3 + d3;
+
+            float bi0 = c0 + e0;
+            float bi1 = c1 + e1;
+            float bi2 = c2 + e2;
+            float bi3 = c3 + e3;
+
+            a[i] = ai0;
+            a[i + 1] = ai1;
+            a[i + 2] = ai2;
+            a[i + 3] = ai3;
+
+            b[i] = bi0;
+            b[i + 1] = bi1;
+            b[i + 2] = bi2;
+            b[i + 3] = bi3;
+
+            sum_inner += (ai0 + bi0) + (ai1 + bi1) + (ai2 + bi2) + (ai3 + bi3);
+        }
+
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            float ai = c[i] + d[i];
+            float bi = c[i] + e[i];
+            a[i] = ai;
+            b[i] = bi;
+            sum_inner += ai + bi;
+        }
+
+        sum += sum_inner;
+    }
+
+    return sum;
+}
+        ```
+
+        Tester feedback:
+        - The test fails due to a return value mismatch, indicating a correctness error in the vectorized loop's sum accumulation.
+- The scalar reduction `sum_inner` is computed differently in the vectorized and scalar loops, leading to numerical differences.
+- In the vectorized loop, `sum_inner` adds `(ai0 + bi0) + (ai1 + bi1) + (ai2 + bi2) + (ai3 + bi3)`, which is equivalent to `(ai0 + ai1 + ai2 + ai3) + (bi0 + bi1 + bi2 + bi3)`.
+- In the scalar loop, `sum_inner` adds `ai + bi` for each iteration, which matches the per-element sum of `ai` and `bi`.
+- The vectorized loop's sum is correct but may differ due to floating-point associativity; however, the scalar loop should match the original sequential semantics.
+- The issue is that the vectorized loop's sum aggregates four elements at once, which is acceptable, but the test expects bitwise identical results to a scalar reference.
+- To fix, ensure the reduction in the vectorized loop uses a strict sequential order or matches the scalar pattern exactly, possibly by using a horizontal add of partial sums.
+- Implement a fix: compute `sum_inner += ai0 + bi0; sum_inner += ai1 + bi1; ...` in the vectorized loop to match scalar order, or use a vector accumulator and reduce it after the loop.
+
+        Return a corrected candidate function named `vectorized_s319`.

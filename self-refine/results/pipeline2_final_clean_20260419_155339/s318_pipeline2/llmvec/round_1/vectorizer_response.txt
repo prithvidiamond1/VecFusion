@@ -1,0 +1,60 @@
+```c
+#include <math.h>
+#include <stdint.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        // Vector-friendly reduction for max value
+        float local_max = max;
+        int local_k = k;
+        
+        // Process in chunks of 4 for better vectorization
+        int i;
+        for (i = 1; i + 3 < LEN_1D; i += 4) {
+            float abs0 = fabsf(a[local_k]);
+            float abs1 = fabsf(a[local_k + inc]);
+            float abs2 = fabsf(a[local_k + 2*inc]);
+            float abs3 = fabsf(a[local_k + 3*inc]);
+            
+            // Update local_max with all 4 values
+            if (abs0 > local_max) local_max = abs0;
+            if (abs1 > local_max) local_max = abs1;
+            if (abs2 > local_max) local_max = abs2;
+            if (abs3 > local_max) local_max = abs3;
+            
+            local_k += 4*inc;
+        }
+        
+        // Handle remaining elements
+        for (; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[local_k]);
+            if (abs_val > local_max) local_max = abs_val;
+            local_k += inc;
+        }
+
+        // Second pass: find index of max value
+        k = inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k]);
+            if (abs_val == local_max) {
+                index = i;
+                break;
+            }
+            k += inc;
+        }
+
+        max = local_max;
+        chksum = max + (float)index;
+    }
+    return max + index + 1;
+}
+```

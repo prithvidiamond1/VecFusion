@@ -62,6 +62,7 @@ class PipelineOrchestrator:
                 vectrans_code_path,
                 scalar_function,
                 outdir / "llmvec",
+                max_rounds=6,
                 pipeline_context="vectrans_preprocessed",
             )
             steps.append(llm_result)

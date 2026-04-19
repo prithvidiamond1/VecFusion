@@ -1,0 +1,46 @@
+This input code has already been processed by an earlier VecTrans stage.
+Use that code as a starting point, not a constraint.
+You may simplify awkward structure if needed, but you must preserve the original iteration space and touched indices unless equivalence is obvious.
+Do not change which array elements are updated, do not densify sparse/block updates, and do not replace block-stride loops with full-range elementwise loops unless that is provably equivalent.
+Prefer the simplest correct loop structure that preserves behavior.
+Prioritize semantic correctness first, then vectorizability and performance.
+
+Vectorize the scalar C function `s126` below.
+
+        Scalar source:
+        ```c
+        void s126(int iterations, float bb[256][256], float cc[256][256], float * flat_2d_array)
+{
+    for (int nl = 0; nl < 10*(iterations/256); nl++) {
+        int k = 1;
+
+        // Process each column independently
+        for (int i = 0; i < 256; i++) {
+            // Store the initial value for this column
+            float prev_bb = bb[0][i];
+
+            // Precompute all k indices for this column
+            int k_indices[256];
+            for (int j = 1; j < 256; j++) {
+                k_indices[j] = k - 1;
+                k++;
+            }
+            k++; // Extra increment after column
+
+            // First: compute all the multiplication results
+            float mul_results[256];
+            for (int j = 1; j < 256; j++) {
+                mul_results[j] = flat_2d_array[k_indices[j]] * cc[j][i];
+            }
+
+            // Second: perform the cumulative sum (serial dependency)
+            for (int j = 1; j < 256; j++) {
+                prev_bb = prev_bb + mul_results[j];
+                bb[j][i] = prev_bb;
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s126`.

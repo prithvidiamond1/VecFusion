@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s332_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s332_opt(int iterations,int LEN_1D,int t, float* a)\n{\n    float value = 0.0f;\n    float chksum = 0.0f;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        int index = -2;\n        float current_value = -1.0f;\n        \n        int i = 0;\n        int found_index = LEN_1D;\n        \n        // Main vectorizable loop - process in chunks\n        for (; i + 3 < LEN_1D; i += 4) {\n            // Load 4 elements\n            float a0 = a[i];\n            float a1 = a[i+1];\n            float a2 = a[i+2];\n            float a3 = a[i+3];\n            \n            // Compute comparisons without branching\n            int cond0 = a0 > t;\n            int cond1 = a1 > t;\n            int cond2 = a2 > t;\n            int cond3 = a3 > t;\n            \n            // Calculate first match index in this chunk using arithmetic\n            int first_in_chunk = LEN_1D;\n            \n            // Branchless calculation of first true index\n            int mask0 = cond0;\n            int mask1 = cond1 && !mask0;\n            int mask2 = cond2 && !mask0 && !mask1;\n            int mask3 = cond3 && !mask0 && !mask1 && !mask2;\n            \n            first_in_chunk = mask0 * i + mask1 * (i+1) + mask2 * (i+2) + mask3 * (i+3) + \n                           (!mask0 && !mask1 && !mask2 && !mask3) * LEN_1D;\n            \n            // Update global minimum index\n            if (first_in_chunk < found_index) {\n                found_index = first_in_chunk;\n            }\n        }\n        \n        // Remainder loop for cleanup\n        for (; i < LEN_1D; i++) {\n            if (a[i] > t) {\n                if (i < found_index) {\n                    found_index = i;\n                }\n                break;\n            }\n        }\n        \n        // Finalize results\n        if (found_index < LEN_1D) {\n            index = found_index;\n            current_value = a[found_index];\n        }\n        \n        value = current_value;\n        chksum = value + (float)index;\n    }\n    return value;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s332_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s332_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s332_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nfloat vectorized_s332(int iterations, int LEN_1D, int t, float* a) {\n    float value = 0.0f;\n    float chksum = 0.0f;\n\n    for (int nl = 0; nl < iterations; nl++) {\n        int index = -2;\n        float current_value = -1.0f;\n        int found_index = LEN_1D;\n\n        // Vectorized main loop\n        int i = 0;\n        for (; i + 7 < LEN_1D; i += 8) {\n            // Load 8 elements\n            float a0 = a[i];\n            float a1 = a[i+1];\n            float a2 = a[i+2];\n            float a3 = a[i+3];\n            float a4 = a[i+4];\n            float a5 = a[i+5];\n            float a6 = a[i+6];\n            float a7 = a[i+7];\n\n            // Compute comparisons\n            int cond0 = a0 > t;\n            int cond1 = a1 > t;\n            int cond2 = a2 > t;\n            int cond3 = a3 > t;\n            int cond4 = a4 > t;\n            int cond5 = a5 > t;\n            int cond6 = a6 > t;\n            int cond7 = a7 > t;\n\n            // Find first true in this chunk\n            int first_in_chunk = LEN_1D;\n            \n            // Process first 4 elements\n            int mask0 = cond0;\n            int mask1 = cond1 && !mask0;\n            int mask2 = cond2 && !mask0 && !mask1;\n            int mask3 = cond3 && !mask0 && !mask1 && !mask2;\n            \n            int first_half = mask0 * i + mask1 * (i+1) + mask2 * (i+2) + mask3 * (i+3);\n            int first_half_valid = mask0 || mask1 || mask2 || mask3;\n            \n            // Process next 4 elements only if no match in first half\n            int mask4 = cond4 && !first_half_valid;\n            int mask5 = cond5 && !first_half_valid && !mask4;\n            int mask6 = cond6 && !first_half_valid && !mask4 && !mask5;\n            int mask7 = cond7 && !first_half_valid && !mask4 && !mask5 && !mask6;\n            \n            int second_half = mask4 * (i+4) + mask5 * (i+5) + mask6 * (i+6) + mask7 * (i+7);\n            int second_half_valid = mask4 || mask5 || mask6 || mask7;\n            \n            if (first_half_valid) {\n                first_in_chunk = first_half;\n            } else if (second_half_valid) {\n                first_in_chunk = second_half;\n            }\n\n            // Update global minimum\n            if (first_in_chunk < found_index) {\n                found_index = first_in_chunk;\n                // Early exit if we found a match at the beginning of the chunk\n                if (found_index == i) {\n                    i = LEN_1D; // Force exit from vector loop\n                    break;\n                }\n            }\n        }\n\n        // Scalar remainder loop\n        for (; i < LEN_1D; i++) {\n            if (a[i] > t) {\n                if (i < found_index) {\n                    found_index = i;\n                }\n                break;\n            }\n        }\n\n        // Finalize results\n        if (found_index < LEN_1D) {\n            index = found_index;\n            current_value = a[found_index];\n        }\n\n        value = current_value;\n        chksum = value + (float)index;\n    }\n    return value;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s332_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s332",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s332_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s332_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s332_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s332_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

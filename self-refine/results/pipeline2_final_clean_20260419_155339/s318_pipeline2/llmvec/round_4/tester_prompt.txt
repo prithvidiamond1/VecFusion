@@ -1,0 +1,66 @@
+Candidate code:
+```c
+#include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    float chksum = 0.0f;
+    
+    for (int nl = 0; nl < iterations/2; nl++) {
+        float max = fabsf(a[0]);
+        int index = 0;
+        
+        float local_max = max;
+        int local_index = 0;
+        int pos = inc;
+        
+        int i;
+        for (i = 1; i + 3 < LEN_1D; i += 4) {
+            float abs0 = fabsf(a[pos]);
+            float abs1 = fabsf(a[pos + inc]);
+            float abs2 = fabsf(a[pos + 2*inc]);
+            float abs3 = fabsf(a[pos + 3*inc]);
+            
+            if (abs0 > local_max) {
+                local_max = abs0;
+                local_index = i;
+            }
+            if (abs1 > local_max) {
+                local_max = abs1;
+                local_index = i + 1;
+            }
+            if (abs2 > local_max) {
+                local_max = abs2;
+                local_index = i + 2;
+            }
+            if (abs3 > local_max) {
+                local_max = abs3;
+                local_index = i + 3;
+            }
+            
+            pos += 4*inc;
+        }
+        
+        for (; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[pos]);
+            if (abs_val > local_max) {
+                local_max = abs_val;
+                local_index = i;
+            }
+            pos += inc;
+        }
+        
+        max = local_max;
+        index = local_index;
+        chksum = max + (float)index;
+    }
+    
+    return chksum;
+}
+```
+
+External compile/test report:
+Compile succeeded for round 4.
+Exit code: 2
+stderr:
+Return mismatch on trial 0

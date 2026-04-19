@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s315_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s315_opt(int iterations, int LEN_1D, float* a) {\n    // Initialize array (vectorizable)\n    for (int i = 0; i < LEN_1D; i++) {\n        a[i] = (i * 7) % LEN_1D;\n    }\n\n    float x;\n    int index;\n    float chksum = 0.0f;\n\n    // Outer loop over iterations\n    for (int nl = 0; nl < iterations; nl++) {\n        x = a[0];\n        index = 0;\n        \n        // Loop splitting: separate max value reduction from index tracking\n        // First loop: find max value (pure reduction, vectorizable)\n        float max_val = a[0];\n        for (int i = 1; i < LEN_1D; ++i) {\n            float val = a[i];\n            max_val = val > max_val ? val : max_val;\n        }\n        \n        // Second loop: find last index of max value (vectorizable comparison)\n        // Use branchless logic to track last occurrence\n        int max_idx = 0;\n        for (int i = 0; i < LEN_1D; ++i) {\n            // Create mask: 1 if current element equals max_val, 0 otherwise\n            int is_max = a[i] == max_val;\n            // Update index to current i when is_max is true, keep old value otherwise\n            // This captures the LAST occurrence since we overwrite with later indices\n            max_idx = is_max ? i : max_idx;\n        }\n        \n        x = max_val;\n        index = max_idx;\n        \n        // Compute chksum to maintain exact memory access pattern\n        chksum = x + (float)index;\n        (void)chksum;\n    }\n    \n    return index + x + 1;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s315_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s315_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s315_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nfloat vectorized_s315(int iterations, int LEN_1D, float* a) {\n    // Initialize array (vectorizable)\n    for (int i = 0; i < LEN_1D; i++) {\n        a[i] = (i * 7) % LEN_1D;\n    }\n\n    float x;\n    int index;\n    float chksum = 0.0f;\n\n    // Outer loop over iterations\n    for (int nl = 0; nl < iterations; nl++) {\n        x = a[0];\n        index = 0;\n\n        // First loop: find max value (vectorizable reduction)\n        float max_val = a[0];\n        int i = 1;\n        \n        // Vectorized max reduction\n        for (; i + 3 < LEN_1D; i += 4) {\n            float val0 = a[i];\n            float val1 = a[i + 1];\n            float val2 = a[i + 2];\n            float val3 = a[i + 3];\n            \n            if (val0 > max_val) max_val = val0;\n            if (val1 > max_val) max_val = val1;\n            if (val2 > max_val) max_val = val2;\n            if (val3 > max_val) max_val = val3;\n        }\n        \n        // Scalar tail\n        for (; i < LEN_1D; ++i) {\n            float val = a[i];\n            if (val > max_val) max_val = val;\n        }\n\n        // Second loop: find last index of max value (vectorizable)\n        int max_idx = 0;\n        i = 0;\n        \n        // Vectorized index tracking\n        for (; i + 3 < LEN_1D; i += 4) {\n            int idx0 = i;\n            int idx1 = i + 1;\n            int idx2 = i + 2;\n            int idx3 = i + 3;\n            \n            int is_max0 = a[idx0] == max_val;\n            int is_max1 = a[idx1] == max_val;\n            int is_max2 = a[idx2] == max_val;\n            int is_max3 = a[idx3] == max_val;\n            \n            if (is_max0) max_idx = idx0;\n            if (is_max1) max_idx = idx1;\n            if (is_max2) max_idx = idx2;\n            if (is_max3) max_idx = idx3;\n        }\n        \n        // Scalar tail\n        for (; i < LEN_1D; ++i) {\n            if (a[i] == max_val) max_idx = i;\n        }\n\n        x = max_val;\n        index = max_idx;\n\n        // Compute chksum to maintain exact memory access pattern\n        chksum = x + (float)index;\n        (void)chksum;\n    }\n\n    return index + x + 1;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s315_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s315",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s315_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s315_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s315_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s315_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+This input code has already been processed by an earlier VecTrans stage.
+Use that code as a starting point, not a constraint.
+You may simplify awkward structure if needed, but you must preserve the original iteration space and touched indices unless equivalence is obvious.
+Do not change which array elements are updated, do not densify sparse/block updates, and do not replace block-stride loops with full-range elementwise loops unless that is provably equivalent.
+Prefer the simplest correct loop structure that preserves behavior.
+Prioritize semantic correctness first, then vectorizability and performance.
+
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b) {
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = 0.f;
+
+        // Process in groups of 5 to match original semantics exactly
+        int i;
+        for (i = 0; i <= LEN_1D - 5; i += 5) {
+            float t0 = a[i] * b[i];
+            float t1 = a[i+1] * b[i+1];
+            float t2 = a[i+2] * b[i+2];
+            float t3 = a[i+3] * b[i+3];
+            float t4 = a[i+4] * b[i+4];
+            dot += t0 + t1 + t2 + t3 + t4;
+        }
+
+        // Handle remaining elements (less than 5)
+        for (; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float *b) {
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = 0.f;
+
+        typedef float v4f __attribute__((vector_size(16)));
+        v4f dot_acc0 = {0.f, 0.f, 0.f, 0.f};
+        v4f dot_acc1 = {0.f, 0.f, 0.f, 0.f};
+        v4f dot_acc2 = {0.f, 0.f, 0.f, 0.f};
+        v4f dot_acc3 = {0.f, 0.f, 0.f, 0.f};
+        v4f dot_acc4 = {0.f, 0.f, 0.f, 0.f};
+
+        int i = 0;
+        for (; i <= LEN_1D - 20; i += 20) {
+            v4f a_vec0 = *(v4f*)&a[i];
+            v4f b_vec0 = *(v4f*)&b[i];
+            dot_acc0 += a_vec0 * b_vec0;
+
+            v4f a_vec1 = *(v4f*)&a[i+4];
+            v4f b_vec1 = *(v4f*)&b[i+4];
+            dot_acc1 += a_vec1 * b_vec1;
+
+            v4f a_vec2 = *(v4f*)&a[i+8];
+            v4f b_vec2 = *(v4f*)&b[i+8];
+            dot_acc2 += a_vec2 * b_vec2;
+
+            v4f a_vec3 = *(v4f*)&a[i+12];
+            v4f b_vec3 = *(v4f*)&b[i+12];
+            dot_acc3 += a_vec3 * b_vec3;
+
+            v4f a_vec4 = *(v4f*)&a[i+16];
+            v4f b_vec4 = *(v4f*)&b[i+16];
+            dot_acc4 += a_vec4 * b_vec4;
+        }
+
+        float* acc0 = (float*)&dot_acc0;
+        float* acc1 = (float*)&dot_acc1;
+        float* acc2 = (float*)&dot_acc2;
+        float* acc3 = (float*)&dot_acc3;
+        float* acc4 = (float*)&dot_acc4;
+
+        dot += acc0[0] + acc0[1] + acc0[2] + acc0[3] +
+               acc1[0] + acc1[1] + acc1[2] + acc1[3] +
+               acc2[0] + acc2[1] + acc2[2] + acc2[3] +
+               acc3[0] + acc3[1] + acc3[2] + acc3[3] +
+               acc4[0] + acc4[1] + acc4[2] + acc4[3];
+
+        for (; i <= LEN_1D - 5; i += 5) {
+            float t0 = a[i] * b[i];
+            float t1 = a[i+1] * b[i+1];
+            float t2 = a[i+2] * b[i+2];
+            float t3 = a[i+3] * b[i+3];
+            float t4 = a[i+4] * b[i+4];
+            dot += t0 + t1 + t2 + t3 + t4;
+        }
+
+        for (; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop processes 20 elements per iteration, but the reduction sum incorrectly adds all 20 partial products to `dot` without first initializing `dot` to the accumulated vector sums.
+- The scalar `dot` variable is set to `0.f` at the start of each outer loop iteration, but after the vectorized loop, the code adds the vector accumulators' sums to `dot` using `+=`, which is correct. However, the test failure suggests a numerical mismatch, likely due to missing the vectorized contributions.
+- The vector accumulators (`dot_acc0` to `dot_acc4`) are correctly initialized to zero vectors, but after the vectorized loop, their reduction into `dot` uses `+=` on `dot`, which already holds `0.f`. This should be fine, but ensure no other part of the code overwrites `dot` before the reduction.
+- The cleanup loops (5-element and scalar) also use `+=` on `dot`, which is correct. However, the mismatch indicates the total sum is wrong, possibly because the vectorized loop's contribution is omitted or double-counted.
+- Check the loop bounds: the main vectorized loop condition `i <= LEN_1D - 20` is correct for inclusive upper bound when `i` increments by 20. Ensure `LEN_1D` is large enough in tests; if `LEN_1D` is less than 20, the vectorized loop is skipped, and only cleanup loops run, which should still be correct.
+- The failure might be due to floating-point non-associativity: vectorized and scalar sums can differ due to rounding, but the test likely allows small tolerance. However, the exit code 2 suggests a significant mismatch.
+- Verify that the vectorized loop correctly loads from `a` and `b` without aliasing issues: the pointer casts `*(v4f*)&a[i]` assume proper alignment; if arrays are not aligned to 16 bytes, this could cause undefined behavior or incorrect loads.
+- To fix, ensure the vectorized loop's contribution is included: the current code adds it with `+=`, so it should be included. But if the test expects exact bitwise equality with a scalar version, consider using a single accumulator variable for the vector sum and adding it to `dot` once, rather than splitting across multiple accumulators, though this should not cause correctness issues. Instead, focus on potential overflow or precision: use `-ffast-math` or similar for associativity, but since this is a correctness test, the vectorizer must match the scalar output exactly, which may require a different reduction strategy (e.g., serializing the vector sums in order).
+
+        Return a corrected candidate function named `vectorized_s352`.

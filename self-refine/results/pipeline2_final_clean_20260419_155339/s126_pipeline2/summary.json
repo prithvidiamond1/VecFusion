@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/debug_s126_pipeline2_retry/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s126_opt(int iterations, float bb[256][256], float cc[256][256], float * flat_2d_array)\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        int k = 1;\n        \n        // Process each column independently\n        for (int i = 0; i < 256; i++) {\n            // Store the initial value for this column\n            float prev_bb = bb[0][i];\n            \n            // Precompute all k indices for this column\n            int k_indices[256];\n            for (int j = 1; j < 256; j++) {\n                k_indices[j] = k - 1;\n                k++;\n            }\n            k++; // Extra increment after column\n            \n            // First: compute all the multiplication results\n            float mul_results[256];\n            for (int j = 1; j < 256; j++) {\n                mul_results[j] = flat_2d_array[k_indices[j]] * cc[j][i];\n            }\n            \n            // Second: perform the cumulative sum (serial dependency)\n            for (int j = 1; j < 256; j++) {\n                prev_bb = prev_bb + mul_results[j];\n                bb[j][i] = prev_bb;\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/debug_s126_pipeline2_retry/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/debug_s126_pipeline2_retry/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/debug_s126_pipeline2_retry/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s126(int iterations, float bb[256][256], float cc[256][256], float * flat_2d_array)\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        int k = 1;\n        \n        for (int i = 0; i < 256; i++) {\n            float prev_bb = bb[0][i];\n            \n            // Vectorized multiplication\n            for (int j = 1; j < 256; j += 4) {\n                int k0 = k - 1;\n                int k1 = k;\n                int k2 = k + 1;\n                int k3 = k + 2;\n                \n                float mul0 = flat_2d_array[k0] * cc[j][i];\n                float mul1 = flat_2d_array[k1] * cc[j+1][i];\n                float mul2 = flat_2d_array[k2] * cc[j+2][i];\n                float mul3 = flat_2d_array[k3] * cc[j+3][i];\n                \n                // Serial accumulation (preserve dependency)\n                prev_bb = prev_bb + mul0;\n                bb[j][i] = prev_bb;\n                \n                prev_bb = prev_bb + mul1;\n                bb[j+1][i] = prev_bb;\n                \n                prev_bb = prev_bb + mul2;\n                bb[j+2][i] = prev_bb;\n                \n                prev_bb = prev_bb + mul3;\n                bb[j+3][i] = prev_bb;\n                \n                k += 4;\n            }\n            k++; // Extra increment after column\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/debug_s126_pipeline2_retry/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s126",
+        "input_snapshot": "results/debug_s126_pipeline2_retry/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/debug_s126_pipeline2_retry/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/debug_s126_pipeline2_retry/llmvec/candidate_round_1.c",
+        "binary_path": "results/debug_s126_pipeline2_retry/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+- The vectorized accumulation loop incorrectly initializes `s_vec` by adding `s` (which is 0.0f initially) to `vtwo * vstride`, but the original scalar pattern increments `s` by 2.0f *before* storing to `a[i]`. The vectorized version should compute `s_vec` as `(v4f){s+2.0f*0, s+2.0f*1, s+2.0f*2, s+2.0f*3}`.
+- After storing the vector, `s` should be incremented by `2.0f * VEC_SIZE` (which is correct), but the starting `s` for the next vector iteration must account for the fact that the last element of the previous vector was `s + 2.0f*(VEC_SIZE-1)`. The current update `s += 2.0f * VEC_SIZE` is correct if `s_vec` is computed as `s + 2.0f * vstride`.
+- However, the test failure at index 0 indicates the first stored value is wrong. The scalar loop does `s += 2.0f; a[i] = s;`, so `a[0]` should be 2.0f, not 0.0f. The vectorized version currently sets `a[0]` to `s + 2.0f*0 = 0.0f`.
+- Fix by initializing `s_vec` as `(v4f){s+2.0f, s+4.0f, s+6.0f, s+8.0f}` for the first vector when `s=0.0f`, which matches the scalar sequence: after first increment `s=2.0f` (store to a[0]), second increment `s=4.0f` (store to a[1]), etc.
+- This can be computed as `s_vec = (v4f){s, s, s, s} + vtwo * ((v4f)(vstride) + (v4f){1.0f, 1.0f, 1.0f, 1.0f})` or more simply `s_vec = (v4f){s, s, s, s} + vtwo * (v4f)(vstride + (v4i){1,1,1,1})`.
+- Update `s` after the vector store by `s += 2.0f * VEC_SIZE` as before, which will correctly advance `s` to `8.0f` after the first vector, matching the scalar `s` after 4 iterations.
+- Ensure the tail loop starts with the correct `s` value from the vectorized part, which it currently does.
+- The multiplication loop is correct and does not need changes.

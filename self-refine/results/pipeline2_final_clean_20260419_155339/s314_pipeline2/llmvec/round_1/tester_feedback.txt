@@ -1,0 +1,8 @@
+- The vectorized reduction uses bitwise operators `&`, `|`, and `~` on floating-point vectors, which is invalid. Replace with `__builtin_shuffle` or manual element selection using conditional moves.
+- Use `__builtin_shuffle` or a manual blend: `vmax = __builtin_shufflevector(v, vmax, ...)` is not directly suitable; instead, use `vmax = (v > vmax) ? v : vmax;` if supported, or implement a blend via `__builtin_ia32_blendps` or equivalent intrinsics.
+- Alternatively, avoid bitwise operations by using a comparison and a select pattern: `vmax = cmp ? v : vmax;` but C doesn't support ternary on vectors directly. Use `vmax = (vmax & ~cmp) | (v & cmp);` with integer reinterpretation.
+- Reinterpret the vectors as integer vectors to perform bitwise operations, e.g., cast to `__attribute__((vector_size(16))) int` before using `&` and `|`.
+- Fix the sign comparison warning by casting `LEN_1D` to `size_t` in the comparison: `if ((size_t)LEN_1D >= vlen)`.
+- Ensure the blend operation correctly selects elements: after reinterpreting as integer vectors, apply the bitwise blend: `vmax_int = (v_int & cmp_int) | (vmax_int & ~cmp_int);` then cast back to float vector.
+- The horizontal reduction and scalar tail are correct but depend on fixing the vectorized part first.
+- After fixing, verify the code compiles without errors and passes tests for correctness.

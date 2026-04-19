@@ -1,0 +1,4 @@
+- The scalar cleanup loop condition `i < LEN_1D - 5` incorrectly processes up to index `LEN_1D - 6`, but the vectorized loop stops at `i <= LEN_1D - 9`. This leaves indices `LEN_1D - 8` to `LEN_1D - 6` unprocessed.
+- Change the scalar cleanup loop condition from `i < LEN_1D - 5` to `i < LEN_1D - 4` to process all remaining elements up to `LEN_1D - 5`.
+- The vectorized loop's upper bound `i <= LEN_1D - 9` ensures it processes indices up to `LEN_1D - 9` (inclusive) with step 4, but the cleanup must start at the next index.
+- The mismatch at index 78 (likely near the end of the array) indicates the cleanup loop is not handling the correct range, causing some elements to retain original values.

@@ -1,0 +1,160 @@
+This input code has already been processed by an earlier VecTrans stage.
+Use that code as a starting point, not a constraint.
+You may simplify awkward structure if needed, but you must preserve the original iteration space and touched indices unless equivalence is obvious.
+Do not change which array elements are updated, do not densify sparse/block updates, and do not replace block-stride loops with full-range elementwise loops unless that is provably equivalent.
+Prefer the simplest correct loop structure that preserves behavior.
+Prioritize semantic correctness first, then vectorizability and performance.
+
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s;
+    float s_array[256];
+    float d_sq[256];
+
+    // Precompute d[i]*d[i] once per outer iteration
+    for (int i = 0; i < 256; ++i) {
+        d_sq[i] = d[i] * d[i];
+    }
+
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+
+        // First loop: compute s values using precomputed d_sq
+        // This can now be vectorized with masked assignment
+        for (int i = 0; i < 256; ++i) {
+            // Branchless conditional update using comparison result as mask
+            float mask = (a[i] > 0.0f) ? 1.0f : 0.0f;
+            s = mask * d_sq[i] + (1.0f - mask) * s;
+            s_array[i] = s;
+        }
+
+        // Second loop: compute b and e using stored s values
+        // This loop is fully vectorizable
+        for (int i = 0; i < 256; ++i) {
+            float temp_s = s_array[i];
+            b[i] = temp_s * c[i] + d[i];
+            e[i] = (temp_s + 1.0f) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s;
+    float s_array[256];
+    float d_sq[256];
+
+    // Precompute d[i]*d[i] once per outer iteration
+    for (int i = 0; i < 256; i += 4) {
+        float d0 = d[i];
+        float d1 = d[i+1];
+        float d2 = d[i+2];
+        float d3 = d[i+3];
+        d_sq[i] = d0 * d0;
+        d_sq[i+1] = d1 * d1;
+        d_sq[i+2] = d2 * d2;
+        d_sq[i+3] = d3 * d3;
+    }
+
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.0f;
+
+        // First loop: compute s values using precomputed d_sq
+        for (int i = 0; i < 256; i += 4) {
+            float a0 = a[i];
+            float a1 = a[i+1];
+            float a2 = a[i+2];
+            float a3 = a[i+3];
+
+            float mask0 = (a0 > 0.0f) ? 1.0f : 0.0f;
+            float mask1 = (a1 > 0.0f) ? 1.0f : 0.0f;
+            float mask2 = (a2 > 0.0f) ? 1.0f : 0.0f;
+            float mask3 = (a3 > 0.0f) ? 1.0f : 0.0f;
+
+            float dsq0 = d_sq[i];
+            float dsq1 = d_sq[i+1];
+            float dsq2 = d_sq[i+2];
+            float dsq3 = d_sq[i+3];
+
+            s = mask0 * dsq0 + (1.0f - mask0) * s;
+            s_array[i] = s;
+            s = mask1 * dsq1 + (1.0f - mask1) * s;
+            s_array[i+1] = s;
+            s = mask2 * dsq2 + (1.0f - mask2) * s;
+            s_array[i+2] = s;
+            s = mask3 * dsq3 + (1.0f - mask3) * s;
+            s_array[i+3] = s;
+        }
+
+        // Second loop: compute b, e, and update a
+        for (int i = 0; i < 256; i += 4) {
+            float s0 = s_array[i];
+            float s1 = s_array[i+1];
+            float s2 = s_array[i+2];
+            float s3 = s_array[i+3];
+
+            float c0 = c[i];
+            float c1 = c[i+1];
+            float c2 = c[i+2];
+            float c3 = c[i+3];
+
+            float d0 = d[i];
+            float d1 = d[i+1];
+            float d2 = d[i+2];
+            float d3 = d[i+3];
+
+            float aa0 = aa[0][i];
+            float aa1 = aa[0][i+1];
+            float aa2 = aa[0][i+2];
+            float aa3 = aa[0][i+3];
+
+            // Compute b[i]
+            float b0 = s0 * c0 + d0;
+            float b1 = s1 * c1 + d1;
+            float b2 = s2 * c2 + d2;
+            float b3 = s3 * c3 + d3;
+            b[i] = b0;
+            b[i+1] = b1;
+            b[i+2] = b2;
+            b[i+3] = b3;
+
+            // Compute e[i]
+            float e0 = (s0 + 1.0f) * aa0;
+            float e1 = (s1 + 1.0f) * aa1;
+            float e2 = (s2 + 1.0f) * aa2;
+            float e3 = (s3 + 1.0f) * aa3;
+            e[i] = e0;
+            e[i+1] = e1;
+            e[i+2] = e2;
+            e[i+3] = e3;
+
+            // Update a[i] = b[i] + d[i] * e[i]
+            a[i] = b0 + d0 * e0;
+            a[i+1] = b1 + d1 * e1;
+            a[i+2] = b2 + d2 * e2;
+            a[i+3] = b3 + d3 * e3;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The first loop's `s` calculation has a cross-iteration dependency: each `s` value depends on the previous iteration's `s`. The current vectorization incorrectly computes `s` in parallel within the vector chunk.
+- The `s_array` values are being computed incorrectly because the sequential `s` update is not preserved. The original scalar loop updates `s` sequentially: `s = (a[i] > 0) ? d[i]*d[i] : s`.
+- The vectorized version uses `mask * dsq + (1 - mask) * s`, but `s` is the same for all four lanes within the vector, not the sequentially updated `s` from the previous scalar iteration.
+- To fix, the first loop must be scalar or use a sequential scan (prefix sum-like) pattern. Since it's a short loop (256 iterations), consider keeping it scalar for correctness.
+- Alternatively, restructure to compute `s_array[i]` directly from the original scalar formula without trying to vectorize the `s` accumulation.
+- The second loop is independent and can remain vectorized as is.
+- For immediate fix: change the first loop back to a scalar loop that computes `s` and fills `s_array` correctly.
+- Ensure `s` is reset to `0.0f` at the start of each outer iteration (already done).
+
+        Return a corrected candidate function named `vectorized_s258`.

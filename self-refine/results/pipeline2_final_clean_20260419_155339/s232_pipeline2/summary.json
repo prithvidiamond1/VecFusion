@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s232_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s232_opt(int iterations, float aa[256][256], float bb[256][256])\n{\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        // Handle i=1 separately for all j\n        for (int j = 1; j < 256; j++) {\n            if (j >= 1) {\n                aa[j][1] = aa[j][0] * aa[j][0] + bb[j][1];\n            }\n        }\n        \n        // Process remaining i values\n        for (int i = 2; i < 256; i++) {\n            // Only process j values where j >= i\n            for (int j = i; j < 256; j++) {\n                aa[j][i] = aa[j][i-1] * aa[j][i-1] + bb[j][i];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s232_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s232_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s232_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s232(int iterations, float aa[256][256], float bb[256][256])\n{\n    int loop_count = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < loop_count; nl++) {\n        // Handle i=1 separately for all j\n        for (int j = 1; j < 256; j++) {\n            if (j >= 1) {\n                aa[j][1] = aa[j][0] * aa[j][0] + bb[j][1];\n            }\n        }\n\n        // Process remaining i values\n        for (int i = 2; i < 256; i++) {\n            // Vectorize the inner j loop\n            int j = i;\n            // Process in chunks of 4\n            for (; j + 3 < 256; j += 4) {\n                float a0 = aa[j][i-1];\n                float a1 = aa[j+1][i-1];\n                float a2 = aa[j+2][i-1];\n                float a3 = aa[j+3][i-1];\n                \n                aa[j][i] = a0 * a0 + bb[j][i];\n                aa[j+1][i] = a1 * a1 + bb[j+1][i];\n                aa[j+2][i] = a2 * a2 + bb[j+2][i];\n                aa[j+3][i] = a3 * a3 + bb[j+3][i];\n            }\n            // Scalar cleanup\n            for (; j < 256; j++) {\n                aa[j][i] = aa[j][i-1] * aa[j][i-1] + bb[j][i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s232_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s232",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s232_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s232_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s232_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s232_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

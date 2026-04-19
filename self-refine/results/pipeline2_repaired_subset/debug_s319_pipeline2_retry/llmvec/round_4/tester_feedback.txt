@@ -1,0 +1,8 @@
+- The test fails due to a return value mismatch, indicating a correctness error in the vectorized loop's sum accumulation.
+- The scalar reduction `sum_inner` is computed differently in the vectorized and scalar loops, leading to numerical differences.
+- In the vectorized loop, `sum_inner` adds `(ai0 + bi0) + (ai1 + bi1) + (ai2 + bi2) + (ai3 + bi3)`, which is equivalent to `(ai0 + ai1 + ai2 + ai3) + (bi0 + bi1 + bi2 + bi3)`.
+- In the scalar loop, `sum_inner` adds `ai + bi` for each iteration, which matches the per-element sum of `ai` and `bi`.
+- The vectorized loop's sum is correct but may differ due to floating-point associativity; however, the scalar loop should match the original sequential semantics.
+- The issue is that the vectorized loop's sum aggregates four elements at once, which is acceptable, but the test expects bitwise identical results to a scalar reference.
+- To fix, ensure the reduction in the vectorized loop uses a strict sequential order or matches the scalar pattern exactly, possibly by using a horizontal add of partial sums.
+- Implement a fix: compute `sum_inner += ai0 + bi0; sum_inner += ai1 + bi1; ...` in the vectorized loop to match scalar order, or use a vector accumulator and reduce it after the loop.

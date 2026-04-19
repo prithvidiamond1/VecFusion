@@ -1,0 +1,92 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s453` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s453(int iterations, int LEN_1D, float* a, float *b)
+{
+    float s;
+    for (int nl = 0; nl < iterations*2; nl++) {
+        s = 0.;
+        // Separate the accumulation of s from the multiplication
+        for (int i = 0; i < LEN_1D; i++) {
+            s += (float)2.;
+            // Store intermediate s values in a[i] temporarily
+            a[i] = s;
+        }
+        // Independent multiplication loop (easily vectorizable)
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = a[i] * b[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+void vectorized_s453(int iterations, int LEN_1D, float* a, float *b) {
+    typedef float v4f __attribute__((vector_size(16)));
+    typedef int v4i __attribute__((vector_size(16)));
+
+    const int VEC_SIZE = 4;
+    const v4f vtwo = (v4f){2.0f, 2.0f, 2.0f, 2.0f};
+    const v4i vstride = (v4i){0, 1, 2, 3};
+
+    for (int nl = 0; nl < iterations*2; nl++) {
+        float s = 0.0f;
+
+        // Vectorized accumulation and store loop
+        int i = 0;
+        for (; i + VEC_SIZE <= LEN_1D; i += VEC_SIZE) {
+            // Generate s values for this vector: s + 2*[0,1,2,3]
+            v4f s_vec = (v4f){s, s, s, s} + vtwo * (v4f)(vstride);
+
+            // Store vector to a[i..i+3]
+            v4f* a_vec = (v4f*)(&a[i]);
+            *a_vec = s_vec;
+
+            // Update scalar s for next iteration
+            s += 2.0f * VEC_SIZE;
+        }
+
+        // Scalar tail for accumulation
+        for (; i < LEN_1D; i++) {
+            s += 2.0f;
+            a[i] = s;
+        }
+
+        // Vectorized multiplication loop
+        i = 0;
+        for (; i + VEC_SIZE <= LEN_1D; i += VEC_SIZE) {
+            v4f* a_vec = (v4f*)(&a[i]);
+            v4f* b_vec = (v4f*)(&b[i]);
+            *a_vec = *a_vec * *b_vec;
+        }
+
+        // Scalar tail for multiplication
+        for (; i < LEN_1D; i++) {
+            a[i] = a[i] * b[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The vectorized accumulation loop incorrectly initializes `s_vec` by adding `s` (which is 0.0f initially) to `vtwo * vstride`, but the original scalar pattern increments `s` by 2.0f *before* storing to `a[i]`. The vectorized version should compute `s_vec` as `(v4f){s+2.0f*0, s+2.0f*1, s+2.0f*2, s+2.0f*3}`.
+- After storing the vector, `s` should be incremented by `2.0f * VEC_SIZE` (which is correct), but the starting `s` for the next vector iteration must account for the fact that the last element of the previous vector was `s + 2.0f*(VEC_SIZE-1)`. The current update `s += 2.0f * VEC_SIZE` is correct if `s_vec` is computed as `s + 2.0f * vstride`.
+- However, the test failure at index 0 indicates the first stored value is wrong. The scalar loop does `s += 2.0f; a[i] = s;`, so `a[0]` should be 2.0f, not 0.0f. The vectorized version currently sets `a[0]` to `s + 2.0f*0 = 0.0f`.
+- Fix by initializing `s_vec` as `(v4f){s+2.0f, s+4.0f, s+6.0f, s+8.0f}` for the first vector when `s=0.0f`, which matches the scalar sequence: after first increment `s=2.0f` (store to a[0]), second increment `s=4.0f` (store to a[1]), etc.
+- This can be computed as `s_vec = (v4f){s, s, s, s} + vtwo * ((v4f)(vstride) + (v4f){1.0f, 1.0f, 1.0f, 1.0f})` or more simply `s_vec = (v4f){s, s, s, s} + vtwo * (v4f)(vstride + (v4i){1,1,1,1})`.
+- Update `s` after the vector store by `s += 2.0f * VEC_SIZE` as before, which will correctly advance `s` to `8.0f` after the first vector, matching the scalar `s` after 4 iterations.
+- Ensure the tail loop starts with the correct `s` value from the vectorized part, which it currently does.
+- The multiplication loop is correct and does not need changes.
+
+        Return a corrected candidate function named `vectorized_s453`.

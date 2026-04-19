@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s222_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s222_opt(int iterations, int LEN_1D, float*a,float*b,float*c, float* e) {\n    for (int nl = 0; nl < iterations/2; nl++) {\n        // Loop distribution: separate the e recurrence (loop-carried dependency)\n        for (int i = 1; i < LEN_1D; i++) {\n            e[i] = e[i - 1] * e[i - 1];\n        }\n        // Independent a updates (no net effect, but preserve memory access pattern)\n        for (int i = 1; i < LEN_1D; i++) {\n            float temp = b[i] * c[i];\n            a[i] += temp;\n            a[i] -= temp;\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s222_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s222_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s222_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s222(int iterations, int LEN_1D, float* a, float* b, float* c, float* e) {\n    for (int nl = 0; nl < iterations/2; nl++) {\n        // Handle recurrence for e with scalar start\n        int i = 1;\n        // Process first element to establish dependency chain\n        if (i < LEN_1D) {\n            e[i] = e[i - 1] * e[i - 1];\n            i++;\n        }\n        \n        // Vectorized recurrence loop for remaining elements\n        for (; i + 3 < LEN_1D; i += 4) {\n            // Load the four consecutive values that will be squared\n            // These are the values computed in previous iterations\n            float prev0 = e[i - 1];  // Already computed\n            float prev1 = prev0 * prev0;  // Compute e[i]\n            float prev2 = prev1 * prev1;  // Compute e[i+1]\n            float prev3 = prev2 * prev2;  // Compute e[i+2]\n            \n            // Store the computed values\n            e[i]     = prev1;\n            e[i + 1] = prev2;\n            e[i + 2] = prev3;\n            e[i + 3] = prev3 * prev3;  // Compute and store e[i+3]\n        }\n        \n        // Scalar tail for the recurrence\n        for (; i < LEN_1D; i++) {\n            e[i] = e[i - 1] * e[i - 1];\n        }\n\n        // Vectorized independent a updates (net zero effect)\n        i = 1;\n        for (; i + 3 < LEN_1D; i += 4) {\n            float b0 = b[i];\n            float b1 = b[i + 1];\n            float b2 = b[i + 2];\n            float b3 = b[i + 3];\n\n            float c0 = c[i];\n            float c1 = c[i + 1];\n            float c2 = c[i + 2];\n            float c3 = c[i + 3];\n\n            float temp0 = b0 * c0;\n            float temp1 = b1 * c1;\n            float temp2 = b2 * c2;\n            float temp3 = b3 * c3;\n\n            a[i]     += temp0;\n            a[i]     -= temp0;\n            a[i + 1] += temp1;\n            a[i + 1] -= temp1;\n            a[i + 2] += temp2;\n            a[i + 2] -= temp2;\n            a[i + 3] += temp3;\n            a[i + 3] -= temp3;\n        }\n        // Scalar tail for a updates\n        for (; i < LEN_1D; i++) {\n            float temp = b[i] * c[i];\n            a[i] += temp;\n            a[i] -= temp;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 3.",
+      "compile_feedback": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 3,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s222_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s222",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s222_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s222_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s222_pipeline2/llmvec/candidate_round_3.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s222_pipeline2/llmvec/candidate_round_3"
+      }
+    }
+  ]
+}

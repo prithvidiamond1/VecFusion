@@ -1,0 +1,12 @@
+- The loop processes 20 elements per iteration but the reduction sums only 5 vector accumulators (4 elements each), totaling 20 elements, which matches. However, the scalar cleanup loop starts from `i` after the vectorized loop, which correctly handles leftover elements.
+- The mismatch likely occurs because the vector accumulators are not initialized to zero for each outer loop iteration `nl`. Currently they are declared inside the outer loop but before the inner loop, which is correct.
+- The reduction of the accumulators into `iter_dot` is done correctly, but the scalar cleanup loop adds to `iter_dot` which already contains the vector sum.
+- The issue may be alignment: the vector loads `*(v4f*)&a[i]` assume the pointers are aligned to 16 bytes, which may not be guaranteed. This can cause misaligned load errors or performance issues but might not cause correctness failures on some architectures.
+- The vectorized loop condition `i <= LEN_1D - 20` ensures the loop runs only when at least 20 elements remain, which is safe.
+- The scalar cleanup loop correctly handles remaining elements from `i` to `LEN_1D-1`.
+- The exit code 2 and "Return mismatch" indicate a numerical correctness issue, not a crash. This suggests the vectorized computation may not match the scalar reference due to floating-point non-associativity from reordering operations.
+- To fix, ensure the vectorized reduction order matches the scalar order, but since floating-point addition is not associative, a mismatch is acceptable if the test allows a tolerance. However, the test expects exact match? If tolerance is not allowed, the vectorization may need to preserve order, which is complex. Alternatively, the mismatch might be due to an off-by-one in the loop bounds or accumulator sum.
+
+**Smallest concrete fix:**
+- Check if the test uses a tolerance for floating-point comparisons. If not, the vectorizer should not vectorize reductions where exact match is required, or it should use a different strategy (like ordered reduction).
+- Since the report only says "Return mismatch", first verify the loop bounds: change `i <= LEN_1D - 20` to `i < LEN_1D - 19` to avoid potential off-by-one when `LEN_1D` is not a multiple of 20. This ensures the last vector load does not exceed array bounds.

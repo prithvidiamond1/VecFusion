@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s114_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s114_opt(int iterations, float aa[256][256], float bb[256][256]) {\n    int loop_count = 200 * (iterations / 256);\n    \n    for (int nl = 0; nl < loop_count; nl++) {\n        // Temporary array to store computed values for lower triangle\n        float temp_lower[256][256];\n        \n        // First compute all new values into temporary array\n        // This breaks the perceived dependency since we only read from aa\n        for (int i = 0; i < 256; i++) {\n            int j = 0;\n            // Process in chunks of 4 for potential vectorization\n            for (; j + 3 < i; j += 4) {\n                temp_lower[i][j] = aa[j][i] + bb[i][j];\n                temp_lower[i][j+1] = aa[j+1][i] + bb[i][j+1];\n                temp_lower[i][j+2] = aa[j+2][i] + bb[i][j+2];\n                temp_lower[i][j+3] = aa[j+3][i] + bb[i][j+3];\n            }\n            // Handle remaining elements\n            for (; j < i; j++) {\n                temp_lower[i][j] = aa[j][i] + bb[i][j];\n            }\n        }\n        \n        // Then copy back to original array\n        // This is a simple contiguous memory copy that can be vectorized\n        for (int i = 0; i < 256; i++) {\n            int j = 0;\n            // Process in chunks of 4 for potential vectorization\n            for (; j + 3 < i; j += 4) {\n                aa[i][j] = temp_lower[i][j];\n                aa[i][j+1] = temp_lower[i][j+1];\n                aa[i][j+2] = temp_lower[i][j+2];\n                aa[i][j+3] = temp_lower[i][j+3];\n            }\n            // Handle remaining elements\n            for (; j < i; j++) {\n                aa[i][j] = temp_lower[i][j];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s114_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s114_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s114_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s114(int iterations, float aa[256][256], float bb[256][256]) {\n    int loop_count = 200 * (iterations / 256);\n    \n    for (int nl = 0; nl < loop_count; nl++) {\n        float temp_lower[256][256];\n        \n        // Compute lower triangle into temp_lower\n        for (int i = 0; i < 256; i++) {\n            int j = 0;\n            // Vectorized chunk processing\n            for (; j + 3 < i; j += 4) {\n                // Load aa[j:j+3][i] - these are contiguous in memory\n                float aa0 = aa[j][i];\n                float aa1 = aa[j+1][i];\n                float aa2 = aa[j+2][i];\n                float aa3 = aa[j+3][i];\n                \n                // Load bb[i][j:j+3] - these are contiguous in memory\n                float bb0 = bb[i][j];\n                float bb1 = bb[i][j+1];\n                float bb2 = bb[i][j+2];\n                float bb3 = bb[i][j+3];\n                \n                // Compute and store\n                temp_lower[i][j] = aa0 + bb0;\n                temp_lower[i][j+1] = aa1 + bb1;\n                temp_lower[i][j+2] = aa2 + bb2;\n                temp_lower[i][j+3] = aa3 + bb3;\n            }\n            \n            // Scalar cleanup for remaining elements\n            for (; j < i; j++) {\n                temp_lower[i][j] = aa[j][i] + bb[i][j];\n            }\n        }\n        \n        // Copy temp_lower back to aa\n        for (int i = 0; i < 256; i++) {\n            int j = 0;\n            // Vectorized chunk processing\n            for (; j + 3 < i; j += 4) {\n                // Load temp_lower[i][j:j+3] - contiguous\n                float t0 = temp_lower[i][j];\n                float t1 = temp_lower[i][j+1];\n                float t2 = temp_lower[i][j+2];\n                float t3 = temp_lower[i][j+3];\n                \n                // Store to aa[i][j:j+3] - contiguous\n                aa[i][j] = t0;\n                aa[i][j+1] = t1;\n                aa[i][j+2] = t2;\n                aa[i][j+3] = t3;\n            }\n            \n            // Scalar cleanup for remaining elements\n            for (; j < i; j++) {\n                aa[i][j] = temp_lower[i][j];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s114_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s114",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s114_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s114_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s114_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s114_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

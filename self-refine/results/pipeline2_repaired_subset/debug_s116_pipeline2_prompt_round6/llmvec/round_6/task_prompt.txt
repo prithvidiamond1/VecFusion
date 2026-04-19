@@ -1,0 +1,101 @@
+This input code has already been processed by an earlier VecTrans stage.
+Use that code as a starting point, not a constraint.
+You may simplify awkward structure if needed, but you must preserve the original iteration space and touched indices unless equivalence is obvious.
+Do not change which array elements are updated, do not densify sparse/block updates, and do not replace block-stride loops with full-range elementwise loops unless that is provably equivalent.
+Prefer the simplest correct loop structure that preserves behavior.
+Prioritize semantic correctness first, then vectorizability and performance.
+
+Revise your candidate for `s116` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s116(int iterations, int LEN_1D, float* a) {
+    for (int nl = 0; nl < iterations * 10; nl++) {
+        // Process all elements except the last 5 in a single stride-1 loop
+        // This allows vectorization since each iteration only uses original values
+        for (int i = 0; i < LEN_1D - 5; i++) {
+            a[i] = a[i + 1] * a[i];
+        }
+
+        // Handle the remaining 5 elements with their specific update pattern
+        // This small loop won't significantly impact performance
+        for (int i = LEN_1D - 5; i < LEN_1D - 4; i++) {
+            float t1 = a[i + 1];
+            float t2 = a[i + 2];
+            float t3 = a[i + 3];
+            float t4 = a[i + 4];
+            float t5 = a[i + 5];
+
+            a[i] = t1 * a[i];
+            a[i + 1] = t2 * t1;
+            a[i + 2] = t3 * t2;
+            a[i + 3] = t4 * t3;
+            a[i + 4] = t5 * t4;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+void vectorized_s116(int iterations, int LEN_1D, float* a) {
+    for (int nl = 0; nl < iterations * 10; nl++) {
+        // Vectorized main loop: process 4 elements per iteration
+        int i = 0;
+        if (LEN_1D >= 9) {
+            for (; i <= LEN_1D - 9; i += 4) {
+                // Load original values a[i] through a[i+3]
+                float b0 = a[i];
+                float b1 = a[i + 1];
+                float b2 = a[i + 2];
+                float b3 = a[i + 3];
+
+                // Load shifted values a[i+1] through a[i+4]
+                float s1 = a[i + 1];
+                float s2 = a[i + 2];
+                float s3 = a[i + 3];
+                float s4 = a[i + 4];
+
+                // Compute updates
+                a[i] = s1 * b0;
+                a[i + 1] = s2 * b1;
+                a[i + 2] = s3 * b2;
+                a[i + 3] = s4 * b3;
+            }
+        }
+
+        // Scalar cleanup for remaining elements (except last 5)
+        for (; i < LEN_1D - 5; i++) {
+            a[i] = a[i + 1] * a[i];
+        }
+
+        // Handle the remaining 5 elements with their specific update pattern
+        if (LEN_1D >= 5) {
+            int i = LEN_1D - 5;
+            // Load all values from original array before any updates
+            float orig_i = a[i];
+            float t1 = a[i + 1];
+            float t2 = a[i + 2];
+            float t3 = a[i + 3];
+            float t4 = a[i + 4];
+            float t5 = a[i + 5];
+
+            a[i] = t1 * orig_i;
+            a[i + 1] = t2 * t1;
+            a[i + 2] = t3 * t2;
+            a[i + 3] = t4 * t3;
+            a[i + 4] = t5 * t4;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The scalar cleanup loop condition `i < LEN_1D - 5` incorrectly processes up to index `LEN_1D - 6`, but the vectorized loop stops at `i <= LEN_1D - 9`. This leaves indices `LEN_1D - 8` to `LEN_1D - 6` unprocessed.
+- Change the scalar cleanup loop condition from `i < LEN_1D - 5` to `i < LEN_1D - 4` to process all remaining elements up to `LEN_1D - 5`.
+- The vectorized loop's upper bound `i <= LEN_1D - 9` ensures it processes indices up to `LEN_1D - 9` (inclusive) with step 4, but the cleanup must start at the next index.
+- The mismatch at index 78 (likely near the end of the array) indicates the cleanup loop is not handling the correct range, causing some elements to retain original values.
+
+        Return a corrected candidate function named `vectorized_s116`.

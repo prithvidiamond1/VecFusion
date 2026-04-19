@@ -1,0 +1,37 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/debug_s141_pipeline2_retry/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": false,
+      "candidate_code": "int k = (i+1) * i / 2 + i;",
+      "summary": "VecTrans emitted a C snippet, not a full function. Rejecting it as a pipeline handoff candidate.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/debug_s141_pipeline2_retry/vectrans/vectrans_non_function_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/debug_s141_pipeline2_retry/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/debug_s141_pipeline2_retry/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s141(int iterations, float * flat_2d_array, float bb[256][256])\n{\n    int k;\n    for (int nl = 0; nl < 200*(iterations/256); nl++) {\n        for (int i = 0; i < 256; i++) {\n            k = (i+1) * ((i+1) - 1) / 2 + (i+1)-1;\n            for (int j = i; j < 256; j++) {\n                flat_2d_array[k] += bb[j][i];\n                k += j+1;\n            }\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/debug_s141_pipeline2_retry/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+- The vectorized loop processes 20 elements per iteration, but the scalar cleanup loop processes 5 elements per iteration, leaving a gap for leftover elements not a multiple of 20.
+- The scalar cleanup loop condition `i <= LEN_1D - 5` should be `i < LEN_1D - 4` or `i <= LEN_1D - 5` is correct, but the issue is the vectorized loop's condition `i <= LEN_1D - 20` may skip the last iteration if `LEN_1D` is not a multiple of 20, leaving more than 5 elements.
+- The scalar cleanup loop adds 5 elements at a time, but after the vectorized loop, `i` may be less than `LEN_1D - 4`, causing the loop to run and potentially access out-of-bounds elements.
+- Change the vectorized loop condition from `i <= LEN_1D - 20` to `i < LEN_1D - 19` to ensure it only runs when at least 20 elements remain, preventing leftover elements from exceeding the scalar loop's capacity.
+- Alternatively, adjust the scalar cleanup loop to handle up to 19 leftover elements by adding multiple smaller steps or a single scalar loop.
+- Since the vectorized loop processes 20 elements, the scalar cleanup should handle 1-19 leftovers, but currently it only handles multiples of 5, leaving 1-4 elements for the final scalar loop.
+- The final scalar loop handles the remaining elements one by one, but the intermediate cleanup loop may skip elements if `i` is not aligned to 5 after the vectorized loop.
+- Simplify by removing the 5-element cleanup loop and letting the final scalar loop handle all leftovers after the vectorized loop, ensuring no gaps in coverage.

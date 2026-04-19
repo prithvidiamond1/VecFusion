@@ -1,0 +1,115 @@
+This input code has already been processed by an earlier VecTrans stage.
+Use that code as a starting point, not a constraint.
+You may simplify awkward structure if needed, but you must preserve the original iteration space and touched indices unless equivalence is obvious.
+Do not change which array elements are updated, do not densify sparse/block updates, and do not replace block-stride loops with full-range elementwise loops unless that is provably equivalent.
+Prefer the simplest correct loop structure that preserves behavior.
+Prioritize semantic correctness first, then vectorizability and performance.
+
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b) {
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = 0.f;
+
+        // Process in groups of 5 to match original semantics exactly
+        int i;
+        for (i = 0; i <= LEN_1D - 5; i += 5) {
+            float t0 = a[i] * b[i];
+            float t1 = a[i+1] * b[i+1];
+            float t2 = a[i+2] * b[i+2];
+            float t3 = a[i+3] * b[i+3];
+            float t4 = a[i+4] * b[i+4];
+            dot += t0 + t1 + t2 + t3 + t4;
+        }
+
+        // Handle remaining elements (less than 5)
+        for (; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float *b) {
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = 0.f;
+
+        typedef float v4f __attribute__((vector_size(16)));
+        v4f dot_acc0 = {0.f, 0.f, 0.f, 0.f};
+        v4f dot_acc1 = {0.f, 0.f, 0.f, 0.f};
+        v4f dot_acc2 = {0.f, 0.f, 0.f, 0.f};
+        v4f dot_acc3 = {0.f, 0.f, 0.f, 0.f};
+        v4f dot_acc4 = {0.f, 0.f, 0.f, 0.f};
+
+        int i = 0;
+        for (; i <= LEN_1D - 20; i += 20) {
+            v4f a_vec0 = *(v4f*)&a[i];
+            v4f b_vec0 = *(v4f*)&b[i];
+            dot_acc0 += a_vec0 * b_vec0;
+
+            v4f a_vec1 = *(v4f*)&a[i+4];
+            v4f b_vec1 = *(v4f*)&b[i+4];
+            dot_acc1 += a_vec1 * b_vec1;
+
+            v4f a_vec2 = *(v4f*)&a[i+8];
+            v4f b_vec2 = *(v4f*)&b[i+8];
+            dot_acc2 += a_vec2 * b_vec2;
+
+            v4f a_vec3 = *(v4f*)&a[i+12];
+            v4f b_vec3 = *(v4f*)&b[i+12];
+            dot_acc3 += a_vec3 * b_vec3;
+
+            v4f a_vec4 = *(v4f*)&a[i+16];
+            v4f b_vec4 = *(v4f*)&b[i+16];
+            dot_acc4 += a_vec4 * b_vec4;
+        }
+
+        float* acc0 = (float*)&dot_acc0;
+        float* acc1 = (float*)&dot_acc1;
+        float* acc2 = (float*)&dot_acc2;
+        float* acc3 = (float*)&dot_acc3;
+        float* acc4 = (float*)&dot_acc4;
+
+        dot = acc0[0] + acc0[1] + acc0[2] + acc0[3] +
+              acc1[0] + acc1[1] + acc1[2] + acc1[3] +
+              acc2[0] + acc2[1] + acc2[2] + acc2[3] +
+              acc3[0] + acc3[1] + acc3[2] + acc3[3] +
+              acc4[0] + acc4[1] + acc4[2] + acc4[3];
+
+        for (; i <= LEN_1D - 5; i += 5) {
+            float t0 = a[i] * b[i];
+            float t1 = a[i+1] * b[i+1];
+            float t2 = a[i+2] * b[i+2];
+            float t3 = a[i+3] * b[i+3];
+            float t4 = a[i+4] * b[i+4];
+            dot += t0 + t1 + t2 + t3 + t4;
+        }
+
+        for (; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop processes 20 elements per iteration, but the scalar cleanup loop processes 5 elements per iteration, leaving a gap for leftover elements not a multiple of 20.
+- The scalar cleanup loop condition `i <= LEN_1D - 5` should be `i < LEN_1D - 4` or `i <= LEN_1D - 5` is correct, but the issue is the vectorized loop's condition `i <= LEN_1D - 20` may skip the last iteration if `LEN_1D` is not a multiple of 20, leaving more than 5 elements.
+- The scalar cleanup loop adds 5 elements at a time, but after the vectorized loop, `i` may be less than `LEN_1D - 4`, causing the loop to run and potentially access out-of-bounds elements.
+- Change the vectorized loop condition from `i <= LEN_1D - 20` to `i < LEN_1D - 19` to ensure it only runs when at least 20 elements remain, preventing leftover elements from exceeding the scalar loop's capacity.
+- Alternatively, adjust the scalar cleanup loop to handle up to 19 leftover elements by adding multiple smaller steps or a single scalar loop.
+- Since the vectorized loop processes 20 elements, the scalar cleanup should handle 1-19 leftovers, but currently it only handles multiples of 5, leaving 1-4 elements for the final scalar loop.
+- The final scalar loop handles the remaining elements one by one, but the intermediate cleanup loop may skip elements if `i` is not aligned to 5 after the vectorized loop.
+- Simplify by removing the 5-element cleanup loop and letting the final scalar loop handle all leftovers after the vectorized loop, ensuring no gaps in coverage.
+
+        Return a corrected candidate function named `vectorized_s352`.

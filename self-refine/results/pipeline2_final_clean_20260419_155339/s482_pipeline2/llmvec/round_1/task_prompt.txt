@@ -1,0 +1,37 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Vectorize the scalar C function `s482` below.
+
+        Scalar source:
+        ```c
+        void s482(int iterations, int LEN_1D, float* a, float *b, float *c)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        // First loop: find break point without vectorization
+        int break_index = LEN_1D;
+        for (int i = 0; i < LEN_1D; i++) {
+            if (c[i] > b[i]) {
+                break_index = i;
+                break;
+            }
+        }
+
+        // Second loop: vectorizable computation up to break point
+        for (int i = 0; i < break_index; i++) {
+            a[i] += b[i] * c[i];
+        }
+
+        // Handle the break point iteration if it exists
+        if (break_index < LEN_1D) {
+            a[break_index] += b[break_index] * c[break_index];
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s482`.

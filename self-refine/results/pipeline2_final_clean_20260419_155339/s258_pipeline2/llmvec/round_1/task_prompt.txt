@@ -1,0 +1,46 @@
+This input code has already been processed by an earlier VecTrans stage.
+Use that code as a starting point, not a constraint.
+You may simplify awkward structure if needed, but you must preserve the original iteration space and touched indices unless equivalence is obvious.
+Do not change which array elements are updated, do not densify sparse/block updates, and do not replace block-stride loops with full-range elementwise loops unless that is provably equivalent.
+Prefer the simplest correct loop structure that preserves behavior.
+Prioritize semantic correctness first, then vectorizability and performance.
+
+Vectorize the scalar C function `s258` below.
+
+        Scalar source:
+        ```c
+        void s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s;
+    float s_array[256];
+    float d_sq[256];
+
+    // Precompute d[i]*d[i] once per outer iteration
+    for (int i = 0; i < 256; ++i) {
+        d_sq[i] = d[i] * d[i];
+    }
+
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+
+        // First loop: compute s values using precomputed d_sq
+        // This can now be vectorized with masked assignment
+        for (int i = 0; i < 256; ++i) {
+            // Branchless conditional update using comparison result as mask
+            float mask = (a[i] > 0.0f) ? 1.0f : 0.0f;
+            s = mask * d_sq[i] + (1.0f - mask) * s;
+            s_array[i] = s;
+        }
+
+        // Second loop: compute b and e using stored s values
+        // This loop is fully vectorizable
+        for (int i = 0; i < 256; ++i) {
+            float temp_s = s_array[i];
+            b[i] = temp_s * c[i] + d[i];
+            e[i] = (temp_s + 1.0f) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s258`.

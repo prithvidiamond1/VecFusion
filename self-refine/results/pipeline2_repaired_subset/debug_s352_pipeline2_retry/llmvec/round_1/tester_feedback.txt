@@ -1,0 +1,8 @@
+- The vectorized loop processes 20 elements per iteration but the horizontal sum is incorrectly accumulating into `dot` inside the vectorized loop, causing repeated addition of partial sums.
+- Move the horizontal sum accumulation outside the vectorized loop's inner processing; accumulate into vector registers across iterations, then sum once per outer iteration.
+- The vector accumulators `dot_acc0` to `dot_acc4` should be declared and initialized before the vectorized loop, not reinitialized each iteration.
+- The horizontal sum should be performed after the vectorized loop completes, adding to `dot` only once per chunk.
+- The scalar tail loops currently add to `dot` correctly, but ensure `dot` is not reset incorrectly.
+- The outer loop resets `dot = 0.f` each iteration, which is correct for the benchmark pattern.
+- The vectorized loop's condition `i <= LEN_1D - 20` may skip the last iteration if `LEN_1D` is not a multiple of 20; adjust to `i < LEN_1D - 19` or keep as is but ensure the tail loops handle remainder.
+- The remaining elements loop uses `i <= LEN_1D - 5` which may process an extra group if `LEN_1D` is a multiple of 5 but less than 20; this is acceptable.

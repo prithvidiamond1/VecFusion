@@ -1,0 +1,8 @@
+- The vectorized loop processes 20 elements per iteration but the reduction sum `dot` is not correctly accumulated across the outer `nl` loop; it's overwritten each iteration.
+- The scalar cleanup loop after the vectorized loop adds to `dot`, but the initial `dot` value for the cleanup should be the accumulated vector sum, not zero.
+- The vectorized loop's reduction accumulators (`dot_acc0` to `dot_acc4`) are not summed into `dot` before the scalar cleanup loop; the current sum is computed but not used as the starting point for the cleanup.
+- The outer loop's `dot = 0.f;` resets the reduction incorrectly; the vector accumulators are reinitialized each iteration, but the final `dot` across iterations should accumulate.
+- The function returns `dot` after the outer loop, but `dot` only holds the result of the last iteration due to the reset; the reduction across `nl` iterations is lost.
+- The scalar cleanup loop should start with `dot` already containing the vector sum, but currently `dot` is set to the vector sum after the cleanup loop's condition is checked, causing a logic error.
+- The vector sum computation (`dot = acc0[0] + ...`) overwrites any previous `dot` value, breaking the reduction across outer loop iterations.
+- The scalar cleanup loop uses `dot += ...` but `dot` at that point is the vector sum, which is correct for a single iteration, but the outer loop accumulation is still broken.

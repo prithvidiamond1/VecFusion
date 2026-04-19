@@ -1,0 +1,57 @@
+Candidate code:
+```c
+#include <stddef.h>
+
+void vectorized_s116(int iterations, int LEN_1D, float* a) {
+    for (int nl = 0; nl < iterations * 10; nl++) {
+        // Vectorized main loop: process 4 elements per iteration
+        int i = 0;
+        for (; i <= LEN_1D - 5 - 4; i += 4) {
+            // Load original values a[i] through a[i+3]
+            float b0 = a[i];
+            float b1 = a[i + 1];
+            float b2 = a[i + 2];
+            float b3 = a[i + 3];
+
+            // Load shifted values a[i+1] through a[i+4]
+            float s1 = a[i + 1];
+            float s2 = a[i + 2];
+            float s3 = a[i + 3];
+            float s4 = a[i + 4];
+
+            // Compute updates
+            a[i] = s1 * b0;
+            a[i + 1] = s2 * b1;
+            a[i + 2] = s3 * b2;
+            a[i + 3] = s4 * b3;
+        }
+
+        // Scalar cleanup for remaining elements (except last 5)
+        for (; i < LEN_1D - 5; i++) {
+            a[i] = a[i + 1] * a[i];
+        }
+
+        // Handle the remaining 5 elements with their specific update pattern
+        if (LEN_1D >= 5) {
+            int i = LEN_1D - 5;
+            float t1 = a[i + 1];
+            float t2 = a[i + 2];
+            float t3 = a[i + 3];
+            float t4 = a[i + 4];
+            float t5 = a[LEN_1D - 1];
+
+            a[i] = t1 * a[i];
+            a[i + 1] = t2 * t1;
+            a[i + 2] = t3 * t2;
+            a[i + 3] = t4 * t3;
+            a[i + 4] = t5 * t4;
+        }
+    }
+}
+```
+
+External compile/test report:
+Compile succeeded for round 4.
+Exit code: 2
+stderr:
+Mismatch in parameter a on trial 0 at index 78

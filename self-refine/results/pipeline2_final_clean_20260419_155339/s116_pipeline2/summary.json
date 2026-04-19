@@ -1,0 +1,55 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s116_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s116_opt(int iterations, int LEN_1D, float* a) {\n    for (int nl = 0; nl < iterations * 10; nl++) {\n        for (int i = 0; i < LEN_1D - 5; i += 5) {\n            // First, load all needed values into temporaries\n            float t0 = a[i];\n            float t1 = a[i + 1];\n            float t2 = a[i + 2];\n            float t3 = a[i + 3];\n            float t4 = a[i + 4];\n            float t5 = a[i + 5];\n            \n            // Then compute all results\n            float r0 = t1 * t0;\n            float r1 = t2 * t1;\n            float r2 = t3 * t2;\n            float r3 = t4 * t3;\n            float r4 = t5 * t4;\n            \n            // Finally, store all results\n            a[i] = r0;\n            a[i + 1] = r1;\n            a[i + 2] = r2;\n            a[i + 3] = r3;\n            a[i + 4] = r4;\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s116_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s116_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s116_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "void vectorized_s116(int iterations, int LEN_1D, float* a) {\n    typedef float v4f __attribute__((vector_size(16)));\n    const int vlen = 4;\n    \n    for (int nl = 0; nl < iterations * 10; nl++) {\n        int i = 0;\n        int limit = LEN_1D - 1;\n        \n        // Vectorized main loop: process 4 vectors (16 elements) per iteration\n        // Ensure a[i + 3*vlen + 1] < LEN_1D for all reads\n        for (; i + 3 * vlen + 1 < LEN_1D; i += vlen * 4) {\n            // Load current vectors\n            v4f v0 = *(v4f*)&a[i];\n            v4f v1 = *(v4f*)&a[i + vlen];\n            v4f v2 = *(v4f*)&a[i + 2 * vlen];\n            v4f v3 = *(v4f*)&a[i + 3 * vlen];\n            \n            // Load next vectors (shifted by 1)\n            v4f v0_next = *(v4f*)&a[i + 1];\n            v4f v1_next = *(v4f*)&a[i + vlen + 1];\n            v4f v2_next = *(v4f*)&a[i + 2 * vlen + 1];\n            v4f v3_next = *(v4f*)&a[i + 3 * vlen + 1];\n            \n            // Compute results: a[i] = a[i+1] * a[i]\n            v4f r0 = v0_next * v0;\n            v4f r1 = v1_next * v1;\n            v4f r2 = v2_next * v2;\n            v4f r3 = v3_next * v3;\n            \n            // Store results\n            *(v4f*)&a[i] = r0;\n            *(v4f*)&a[i + vlen] = r1;\n            *(v4f*)&a[i + 2 * vlen] = r2;\n            *(v4f*)&a[i + 3 * vlen] = r3;\n        }\n        \n        // Scalar cleanup for remaining elements\n        // Process from i to limit inclusive (original loop condition: i < LEN_1D - 5)\n        // But we need to handle up to limit = LEN_1D - 1 for the scalar operation\n        for (; i <= limit; ++i) {\n            a[i] = a[i + 1] * a[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 77",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 77",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s116_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s116",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s116_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s116_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s116(int iterations, int LEN_1D, float* a)\n{\n    for (int nl = 0; nl < iterations*10; nl++) {\n        for (int i = 0; i < LEN_1D - 5; i += 5) {\n            a[i] = a[i + 1] * a[i];\n            a[i + 1] = a[i + 2] * a[i + 1];\n            a[i + 2] = a[i + 3] * a[i + 2];\n            a[i + 3] = a[i + 4] * a[i + 3];\n            a[i + 4] = a[i + 5] * a[i + 4];\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s116_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

@@ -264,11 +264,11 @@ class LLMVectorizerAdapter:
         if pipeline_context == "vectrans_preprocessed":
             return (
                 "This input code has already been processed by an earlier VecTrans stage.\n"
-                "Assume dependency-breaking and preliminary restructuring may already have been attempted.\n"
-                "Do not aggressively rewrite the code from scratch unless a clear blocker remains.\n"
-                "Preserve the current transformed structure as much as possible.\n"
-                "Focus on cleanup, canonicalization, correctness, and final vectorization.\n"
-                "Avoid introducing unnecessary new dependency-breaking transformations.\n"
+                "Use that code as a starting point, not a constraint.\n"
+                "You may simplify awkward structure if needed, but you must preserve the original iteration space and touched indices unless equivalence is obvious.\n"
+                "Do not change which array elements are updated, do not densify sparse/block updates, and do not replace block-stride loops with full-range elementwise loops unless that is provably equivalent.\n"
+                "Prefer the simplest correct loop structure that preserves behavior.\n"
+                "Prioritize semantic correctness first, then vectorizability and performance.\n"
             )
         return ""
 

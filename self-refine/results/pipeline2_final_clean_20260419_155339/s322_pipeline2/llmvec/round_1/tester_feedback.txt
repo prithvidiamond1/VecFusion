@@ -1,0 +1,8 @@
+- The vectorized loop incorrectly loads `a[i-2]` and `a[i-1]` values from the updated `a` array, which has been overwritten in earlier iterations, breaking the recurrence dependency.
+- The scalar reference uses `a[i-2]` and `a[i-1]` from the *original* iteration state (before updates), but the vectorized version loads them from the partially updated array.
+- In the vectorized loop, `a_im2_0` should be `orig_a[i-2]` (or a saved copy), not `a[i-2]`, because `a[i-2]` may have been overwritten in a previous vector iteration.
+- Similarly, `a_im1_0` should be `orig_a[i-1]` (or a saved copy), not `a[i-1]`, for the same reason.
+- For correctness, preserve the original values of `a` (via `orig_a`) for the entire vector chunk’s dependencies, not just the current `orig_a[i]` values.
+- Specifically, change the loads of `a_im2_*` and `a_im1_*` to load from `orig_a` at offsets `i-2` and `i-1` respectively.
+- Ensure the scalar cleanup loop also uses `orig_a[i-2]` and `orig_a[i-1]` instead of `a[i-2]` and `a[i-1]` to match the corrected vector logic.
+- After these changes, verify the loop handles the first two elements correctly (already done) and that the vector loop’s index bounds (`i + 3 < LEN_1D`) are safe.

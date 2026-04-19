@@ -1,0 +1,65 @@
+#include <stddef.h>
+
+void vectorized_s1161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        // Vectorized first loop
+        for (; i <= LEN_1D - 5; i += 4) {
+            float c0 = c[i];
+            float c1 = c[i+1];
+            float c2 = c[i+2];
+            float c3 = c[i+3];
+            
+            float mask0 = c0 >= 0.0f;
+            float mask1 = c1 >= 0.0f;
+            float mask2 = c2 >= 0.0f;
+            float mask3 = c3 >= 0.0f;
+            
+            float val0 = c0 + d[i] * e[i];
+            float val1 = c1 + d[i+1] * e[i+1];
+            float val2 = c2 + d[i+2] * e[i+2];
+            float val3 = c3 + d[i+3] * e[i+3];
+            
+            a[i] = mask0 ? val0 : a[i];
+            a[i+1] = mask1 ? val1 : a[i+1];
+            a[i+2] = mask2 ? val2 : a[i+2];
+            a[i+3] = mask3 ? val3 : a[i+3];
+        }
+        // Scalar tail for first loop
+        for (; i < LEN_1D - 1; i++) {
+            if (c[i] >= 0.0f) {
+                a[i] = c[i] + d[i] * e[i];
+            }
+        }
+        
+        i = 0;
+        // Vectorized second loop
+        for (; i <= LEN_1D - 5; i += 4) {
+            float c0 = c[i];
+            float c1 = c[i+1];
+            float c2 = c[i+2];
+            float c3 = c[i+3];
+            
+            float mask0 = c0 < 0.0f;
+            float mask1 = c1 < 0.0f;
+            float mask2 = c2 < 0.0f;
+            float mask3 = c3 < 0.0f;
+            
+            float val0 = a[i] + d[i] * d[i];
+            float val1 = a[i+1] + d[i+1] * d[i+1];
+            float val2 = a[i+2] + d[i+2] * d[i+2];
+            float val3 = a[i+3] + d[i+3] * d[i+3];
+            
+            b[i] = mask0 ? val0 : b[i];
+            b[i+1] = mask1 ? val1 : b[i+1];
+            b[i+2] = mask2 ? val2 : b[i+2];
+            b[i+3] = mask3 ? val3 : b[i+3];
+        }
+        // Scalar tail for second loop
+        for (; i < LEN_1D - 1; i++) {
+            if (c[i] < 0.0f) {
+                b[i] = a[i] + d[i] * d[i];
+            }
+        }
+    }
+}

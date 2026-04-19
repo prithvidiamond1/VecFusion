@@ -1,0 +1,42 @@
+This input code has already been processed by an earlier VecTrans stage.
+Use that code as a starting point, not a constraint.
+You may simplify awkward structure if needed, but you must preserve the original iteration space and touched indices unless equivalence is obvious.
+Do not change which array elements are updated, do not densify sparse/block updates, and do not replace block-stride loops with full-range elementwise loops unless that is provably equivalent.
+Prefer the simplest correct loop structure that preserves behavior.
+Prioritize semantic correctness first, then vectorizability and performance.
+
+Vectorize the scalar C function `s256` below.
+
+        Scalar source:
+        ```c
+        void s256(int iterations, float* a, float* d, float aa[256][256], float bb[256][256])
+{
+    int loop_count = 10 * (iterations / 256);
+
+    for (int nl = 0; nl < loop_count; nl++) {
+        // Precompute all a[j] values using closed-form solution
+        float a0 = a[0];
+        float a_temp[256];
+        a_temp[0] = a0;
+
+        // Vectorizable loop: compute a[j] = (j % 2 == 1) ? (1.0f - a0) : a0
+        for (int j = 1; j < 256; j++) {
+            a_temp[j] = (j & 1) ? (1.0f - a0) : a0;
+        }
+
+        // Update original a array
+        for (int j = 1; j < 256; j++) {
+            a[j] = a_temp[j];
+        }
+
+        // Compute aa[j][i] with i-loop outermost for better locality
+        for (int i = 0; i < 256; i++) {
+            for (int j = 1; j < 256; j++) {
+                aa[j][i] = a_temp[j] + bb[j][i] * d[j];
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s256`.

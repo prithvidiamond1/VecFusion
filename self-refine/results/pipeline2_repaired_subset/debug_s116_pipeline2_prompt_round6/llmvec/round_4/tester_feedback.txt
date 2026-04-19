@@ -1,0 +1,8 @@
+- The mismatch at index 78 indicates the vectorized loop's cleanup or tail handling is incorrect for certain array lengths.
+- The scalar cleanup loop condition `i < LEN_1D - 5` incorrectly processes elements that should be handled by the special 5-element block when `LEN_1D - 5` is not a multiple of 4.
+- Change the vectorized loop bound to `i <= LEN_1D - 5 - 4` but ensure it only runs when there are at least 4 full vector iterations before the special 5-element block.
+- Modify the vectorized loop to compute `i <= LEN_1D - 5 - 4` only if `LEN_1D >= 9`, otherwise skip the vectorized loop entirely.
+- Adjust the scalar cleanup to start from the correct index after the vectorized loop and stop before the special 5-element block at `LEN_1D - 5`.
+- Ensure the special 5-element block uses the original values from `a` before updates, not intermediate values that may have been overwritten.
+- In the special block, recompute `t1` through `t5` directly from the original array `a` to avoid using already-modified values from earlier loops.
+- Verify that for `LEN_1D < 5`, the function correctly skips all processing or handles the edge case appropriately.

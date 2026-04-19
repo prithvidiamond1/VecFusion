@@ -1,0 +1,8 @@
+- The test fails with a return mismatch, indicating the vectorized loop's reduction logic for `local_max` and `local_index` is incorrect.
+- The scalar loop updates `local_max` and `local_index` sequentially, where each comparison uses the potentially updated `local_max` from the previous element.
+- The vectorized version compares all four absolute values against the same initial `local_max`, breaking the sequential dependency.
+- Replace the four independent `if` statements with a sequential reduction: compare `abs0` to `local_max`, update, then compare `abs1` to the updated `local_max`, and so on.
+- Ensure `local_index` is updated correctly to match the element index when `local_max` is updated.
+- After the vectorized loop, correctly combine `local_max` and `local_index` from the vectorized and scalar remainder loops.
+- Verify the final `max` and `index` are correctly set before computing `chksum`.
+- Test with small arrays to confirm the sequential reduction matches the scalar behavior.

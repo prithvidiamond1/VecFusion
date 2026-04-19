@@ -1,0 +1,15 @@
+- The first loop has a cross-iteration dependency on `s` that is correctly identified as sequential, but the vectorizer's candidate incorrectly precomputes `d_sq` only once before the outer `nl` loop. The original loop likely recomputes `d_sq` each outer iteration because `d` may be updated inside the loop (via `a` updates that might alias `d`). The mismatch suggests `d_sq` values become stale.
+
+- Move the precomputation of `d_sq` inside the outer `nl` loop, after any updates to `d` (or its aliases) and before the first loop that uses `d_sq`.
+
+- Since `a` is updated in the second loop and `d` is a separate parameter, there's no proven non-aliasing between `a` and `d`. However, the test failure indicates `d_sq` must be recomputed per outer iteration. Place the `d_sq` computation at the start of the `nl` loop body.
+
+- Ensure the `d_sq` computation uses the current values of `d` each iteration. The current code computes it once outside, leading to incorrect `s` values when `d` changes.
+
+- The sequential first loop uses `d_sq[i]`; if `d_sq` is not updated, `s` and subsequently `s_array`, `b`, `e`, and `a` will be wrong, causing the mismatch at index 0.
+
+- Fix: Relocate the entire first `for (int i = 0; i < 256; i += 4)` loop that computes `d_sq` to be inside the `for (int nl = ...)` loop, immediately after `s = 0.0f;` or before the first loop that uses `d_sq`.
+
+- No other correctness issues are indicated by the report; focus on this placement fix.
+
+- After moving the `d_sq` computation inside the outer loop, recompile and test.

@@ -1,0 +1,129 @@
+This input code has already been processed by an earlier VecTrans stage.
+Use that code as a starting point, not a constraint.
+You may simplify awkward structure if needed, but you must preserve the original iteration space and touched indices unless equivalence is obvious.
+Do not change which array elements are updated, do not densify sparse/block updates, and do not replace block-stride loops with full-range elementwise loops unless that is provably equivalent.
+Prefer the simplest correct loop structure that preserves behavior.
+Prioritize semantic correctness first, then vectorizability and performance.
+
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s;
+    float s_array[256];
+    float d_sq[256];
+
+    // Precompute d[i]*d[i] once per outer iteration
+    for (int i = 0; i < 256; ++i) {
+        d_sq[i] = d[i] * d[i];
+    }
+
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+
+        // First loop: compute s values using precomputed d_sq
+        // This can now be vectorized with masked assignment
+        for (int i = 0; i < 256; ++i) {
+            // Branchless conditional update using comparison result as mask
+            float mask = (a[i] > 0.0f) ? 1.0f : 0.0f;
+            s = mask * d_sq[i] + (1.0f - mask) * s;
+            s_array[i] = s;
+        }
+
+        // Second loop: compute b and e using stored s values
+        // This loop is fully vectorizable
+        for (int i = 0; i < 256; ++i) {
+            float temp_s = s_array[i];
+            b[i] = temp_s * c[i] + d[i];
+            e[i] = (temp_s + 1.0f) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s;
+    float s_array[256];
+
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.0f;
+
+        // First loop: compute s values sequentially (cross-iteration dependency)
+        for (int i = 0; i < 256; ++i) {
+            float d_sq = d[i] * d[i];  // Compute d_sq on-demand to avoid aliasing issues
+            if (a[i] > 0.0f) {
+                s = d_sq;
+            }
+            s_array[i] = s;
+        }
+
+        // Second loop: compute b, e, and update a (fully vectorizable)
+        for (int i = 0; i < 256; i += 4) {
+            float s0 = s_array[i];
+            float s1 = s_array[i+1];
+            float s2 = s_array[i+2];
+            float s3 = s_array[i+3];
+
+            float c0 = c[i];
+            float c1 = c[i+1];
+            float c2 = c[i+2];
+            float c3 = c[i+3];
+
+            float d0 = d[i];
+            float d1 = d[i+1];
+            float d2 = d[i+2];
+            float d3 = d[i+3];
+
+            float aa0 = aa[0][i];
+            float aa1 = aa[0][i+1];
+            float aa2 = aa[0][i+2];
+            float aa3 = aa[0][i+3];
+
+            // Compute b[i]
+            float b0 = s0 * c0 + d0;
+            float b1 = s1 * c1 + d1;
+            float b2 = s2 * c2 + d2;
+            float b3 = s3 * c3 + d3;
+            b[i] = b0;
+            b[i+1] = b1;
+            b[i+2] = b2;
+            b[i+3] = b3;
+
+            // Compute e[i]
+            float e0 = (s0 + 1.0f) * aa0;
+            float e1 = (s1 + 1.0f) * aa1;
+            float e2 = (s2 + 1.0f) * aa2;
+            float e3 = (s3 + 1.0f) * aa3;
+            e[i] = e0;
+            e[i+1] = e1;
+            e[i+2] = e2;
+            e[i+3] = e3;
+
+            // Update a[i] = b[i] + d[i] * e[i]
+            a[i] = b0 + d0 * e0;
+            a[i+1] = b1 + d1 * e1;
+            a[i+2] = b2 + d2 * e2;
+            a[i+3] = b3 + d3 * e3;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The test reports a mismatch in array `a` at index 0, indicating the vectorized computation for `a[i]` is incorrect.
+- The original loop likely has a cross-iteration dependency in the first inner loop where `s` is carried forward, but the vectorizer's `s_array` captures this correctly.
+- The error likely stems from the second loop's update of `a[i]` using `b[i]` and `e[i]` which were just computed, but the original might have used the *original* `b[i]` and `e[i]` values from before the loop.
+- Specifically, the original loop probably computes `b[i]`, `e[i]`, and then `a[i] = b[i] + d[i] * e[i]` in the same iteration, but `b[i]` and `e[i]` are being overwritten in the same iteration.
+- In the candidate, the second loop writes to `b[i]` and `e[i]` and then immediately reads them back to compute `a[i]`. This matches the original if the original does the same.
+- However, the mismatch suggests the original might compute `a[i]` using the *old* values of `b[i]` and `e[i]` from before the loop, not the newly computed ones.
+- Check the original source: if the original loop updates `b[i]` and `e[i]` after computing `a[i]`, then the candidate's order is wrong.
+- Fix: Reorder the second loop to compute `a[i]` first using the original `b[i]` and `e[i]` values (or temporary variables), then update `b[i]` and `e[i]`. Alternatively, use temporary variables for the new `b[i]` and `e[i]` and assign them after computing `a[i]`.
+
+        Return a corrected candidate function named `vectorized_s258`.

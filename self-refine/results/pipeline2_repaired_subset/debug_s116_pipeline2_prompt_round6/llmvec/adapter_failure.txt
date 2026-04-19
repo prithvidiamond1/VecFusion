@@ -1,0 +1,1 @@
+AttributeError: 'LLMVectorizerAdapter' object has no attribute '_pipeline_context_prefix'
