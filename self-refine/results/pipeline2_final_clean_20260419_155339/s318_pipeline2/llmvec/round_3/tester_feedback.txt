@@ -1,6 +1,0 @@
-- The test fails because the function returns `max + (float)index` after the outer loop, but the reference likely expects the final `chksum` computed inside the outer loop after each iteration.
-- The variable `chksum` is computed inside the outer loop but never used; the return value should be the final `chksum` from the last iteration, not `max + (float)index` computed after the loop.
-- Change the return statement to return `chksum` instead of recomputing `max + (float)index` after the loop.
-- Ensure `chksum` is declared outside the outer loop so it persists and can be returned.
-- Move the declaration `float chksum;` before the outer loop and assign it inside the loop as `chksum = max + (float)index;`.
-- After the outer loop finishes, return `chksum`.

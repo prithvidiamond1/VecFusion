@@ -1,0 +1,41 @@
+```c
+#include <math.h>
+
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s451(int iterations, int LEN_1D, float* a, float* b, float* c)
+{
+    int loop_count = iterations / 5;
+    
+    for (int nl = 0; nl < loop_count; nl++) {
+        int i = 0;
+        int limit = LEN_1D - 3;
+        
+        // Vectorized main loop
+        for (; i < limit; i += 4) {
+            float4 b_vec = *(float4*)&b[i];
+            float4 c_vec = *(float4*)&c[i];
+            
+            float4 sin_b, cos_c;
+            // Compute sin(b[i..i+3]) and cos(c[i..i+3]) element-wise
+            sin_b.x = sinf(b_vec.x);
+            sin_b.y = sinf(b_vec.y);
+            sin_b.z = sinf(b_vec.z);
+            sin_b.w = sinf(b_vec.w);
+            
+            cos_c.x = cosf(c_vec.x);
+            cos_c.y = cosf(c_vec.y);
+            cos_c.z = cosf(c_vec.z);
+            cos_c.w = cosf(c_vec.w);
+            
+            float4 result = sin_b + cos_c;
+            *(float4*)&a[i] = result;
+        }
+        
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            a[i] = sinf(b[i]) + cosf(c[i]);
+        }
+    }
+}
+```

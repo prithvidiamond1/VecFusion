@@ -1,0 +1,50 @@
+#include <stddef.h>
+
+void vectorized_s222(int iterations, int LEN_1D, float* a, float* b, float* c, float* e) {
+    int loop_count = iterations / 2;
+    
+    for (int nl = 0; nl < loop_count; nl++) {
+        // Store original e values to break loop-carried dependency
+        float e_original[LEN_1D];
+        for (int i = 0; i < LEN_1D; i++) {
+            e_original[i] = e[i];
+        }
+        
+        // Update e[i] using original e[i-1] values (sequential)
+        // This loop has a dependency and cannot be vectorized
+        for (int i = 1; i < LEN_1D; i++) {
+            e[i] = e_original[i-1] * e_original[i-1];
+        }
+        
+        // Independent a[i] operations - vectorizable
+        // Process in chunks of 4 for potential SIMD
+        int i = 1;
+        int limit = LEN_1D;
+        
+        // Vector-friendly loop
+        for (; i + 3 < limit; i += 4) {
+            // Process 4 elements at a time
+            float tmp0 = b[i] * c[i];
+            float tmp1 = b[i+1] * c[i+1];
+            float tmp2 = b[i+2] * c[i+2];
+            float tmp3 = b[i+3] * c[i+3];
+            
+            a[i] += tmp0;
+            a[i+1] += tmp1;
+            a[i+2] += tmp2;
+            a[i+3] += tmp3;
+            
+            a[i] -= tmp0;
+            a[i+1] -= tmp1;
+            a[i+2] -= tmp2;
+            a[i+3] -= tmp3;
+        }
+        
+        // Scalar cleanup for remaining elements
+        for (; i < limit; i++) {
+            float tmp = b[i] * c[i];
+            a[i] += tmp;
+            a[i] -= tmp;
+        }
+    }
+}

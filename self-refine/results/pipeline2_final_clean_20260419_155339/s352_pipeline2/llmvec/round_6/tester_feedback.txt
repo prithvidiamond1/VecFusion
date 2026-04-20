@@ -1,8 +1,0 @@
-- The vectorized loop processes 20 elements per iteration (5 vector accumulators × 4 elements each), but the scalar remainder loop processes groups of 5, which may not align correctly after the vector loop.
-- The scalar remainder loop condition `i <= LEN_1D - 5` should be `i < LEN_1D - 4` or `i <= LEN_1D - 5` is correct, but it processes 5 elements, so the condition should ensure at least 5 elements remain.
-- The vector loop condition `i <= LEN_1D - 20` should be `i < LEN_1D - 19` to avoid accessing out-of-bounds when `LEN_1D` is not a multiple of 20.
-- The reduction of vector accumulators adds all 20 elements in order, but the original loop processes elements sequentially; this should be correct if the vector loads are aligned and in order.
-- The mismatch may be due to floating-point associativity differences from vectorization; ensure the test allows for small numerical error.
-- Check if the vector loads are properly aligned; misaligned loads can cause crashes or incorrect results on some architectures.
-- The scalar remainder loop after the vector loop should handle cases where `LEN_1D` is not a multiple of 20, but the condition may skip some elements if `LEN_1D - i` is less than 5 but greater than 0.
-- Verify that the vector accumulators are initialized to zero inside the outer loop for each iteration of `nl`.

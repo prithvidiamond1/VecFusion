@@ -1,0 +1,7 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline2_20260419_214725/s314_pipeline2/llmvec/candidate_round_3.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline2_20260419_214725/s314_pipeline2/llmvec/candidate_round_3
+            stderr:
+            results/all_tests_pipeline2_20260419_214725/s314_pipeline2/llmvec/candidate_round_3.c:44:25: error: used type 'v4i' (vector of 4 'int' values) where arithmetic or pointer type is required
+   44 |             vmax = mask ? vcurrent : vmax;
+      |                    ~~~~ ^
+1 error generated.

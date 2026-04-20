@@ -1,8 +1,0 @@
-- The test fails with a return mismatch, indicating the computed sum differs from the reference scalar version.
-- The vectorized loop accumulates `sum_inner` incorrectly: it adds `ai0 + bi0` four separate times per vector iteration, but the scalar loop adds `ai + bi` once per element.
-- In the vectorized loop, each element's contribution `ai + bi` is added to `sum_inner` four times (once per lane), causing overcounting.
-- Fix by accumulating each lane's contribution only once: replace the four separate `sum_inner +=` statements with a single accumulation of the four sums.
-- For example, compute `sum_inner += (ai0 + bi0) + (ai1 + bi1) + (ai2 + bi2) + (ai3 + bi3);` instead of four separate additions.
-- Ensure the scalar cleanup loop remains unchanged, as it already correctly adds each element's contribution once.
-- After fixing, recompile and test to verify the sum matches the reference output.
-- This correction addresses the numerical discrepancy while preserving vectorization.

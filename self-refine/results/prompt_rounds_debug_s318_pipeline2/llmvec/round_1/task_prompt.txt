@@ -1,0 +1,50 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Vectorize the scalar C function `s318` below.
+
+        Scalar source:
+        ```c
+        float s318(int iterations,int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        // Loop distribution: separate absolute value computation from max/index search
+        float current_max = max;
+        int current_index = 0;
+
+        // Vector-friendly loop without branching
+        for (int i = 1; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k]);
+            int update = (abs_val > current_max);
+            current_max = update ? abs_val : current_max;
+            current_index = update ? i : current_index;
+            k += inc;
+        }
+
+        index = current_index;
+        max = current_max;
+
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Produce a candidate function named `vectorized_s318`.

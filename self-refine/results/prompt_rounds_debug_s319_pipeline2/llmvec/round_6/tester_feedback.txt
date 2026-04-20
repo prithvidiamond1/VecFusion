@@ -1,0 +1,8 @@
+- The test failure indicates a correctness issue, likely due to misalignment handling or loop bounds.
+- The misalignment calculation `c_ptr % 16` assumes `c` is 16-byte aligned, but the original scalar loop has no such alignment requirement. This can cause the vectorized loop to process different indices than the scalar version.
+- The vectorized loop uses `float4` loads via component-wise assignment, which may not be safe for unaligned addresses. Use `__builtin_assume_aligned` or explicit unaligned loads if the target supports it.
+- The trip count calculation `vec_limit = i + (remaining / 4) * 4` is correct, but ensure `remaining` is positive before division. The current check `if (remaining > 0)` is sufficient.
+- The scalar prologue’s `floats_to_align = (16 - misalign) / sizeof(float)` may produce a non-integer if `misalign` is not a multiple of `sizeof(float)`. Since `c_ptr` is a `uintptr_t`, this division should be integer, but ensure it aligns to vector width correctly.
+- The vector loop stores to `a[i]` and `b[i]` using scalar stores, which is correct, but the loads from `c`, `d`, `e` should be vector loads to match the original semantics. The component-wise load may be reordered or optimized differently.
+- The outer loop variable `nl` is not used, but the loop structure should preserve the same number of inner loop executions per outer iteration. The early `continue` when `LEN_1D <= 0` is correct.
+- The failure may be due to floating-point associativity differences from vectorization. The reduction `sum_vec` accumulates in a different order, which can change the result. This may be acceptable, but the test expects bit-exact match. Consider using `-ffast-math` or ensuring the reduction order is preserved.

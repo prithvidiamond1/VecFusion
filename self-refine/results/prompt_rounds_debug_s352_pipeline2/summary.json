@@ -1,0 +1,55 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/prompt_rounds_debug_s352_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s352_opt(int iterations,int LEN_1D, float* a, float *b)\n{\n    float dot;\n    for (int nl = 0; nl < 8*iterations; nl++) {\n        dot = 0.0f;\n        int i;\n        for (i = 0; i < LEN_1D; i += 5) {\n            float t0 = a[i] * b[i];\n            float t1 = a[i+1] * b[i+1];\n            float t2 = a[i+2] * b[i+2];\n            float t3 = a[i+3] * b[i+3];\n            float t4 = a[i+4] * b[i+4];\n            dot += t0 + t1 + t2 + t3 + t4;\n        }\n    }\n    return dot;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/prompt_rounds_debug_s352_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/prompt_rounds_debug_s352_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/prompt_rounds_debug_s352_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\nfloat vectorized_s352(int iterations, int LEN_1D, float* a, float *b)\n{\n    float dot;\n    for (int nl = 0; nl < 8*iterations; nl++) {\n        dot = 0.0f;\n        \n        typedef float v4f __attribute__((vector_size(16)));\n        v4f vdot = {0.0f, 0.0f, 0.0f, 0.0f};\n        \n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 4);\n        \n        for (; i < limit; i += 4) {\n            v4f va = *(v4f*)&a[i];\n            v4f vb = *(v4f*)&b[i];\n            v4f vmul = va * vb;\n            vdot += vmul;\n        }\n        \n        dot += vdot[0] + vdot[1] + vdot[2] + vdot[3];\n        \n        for (; i < LEN_1D; i++) {\n            dot += a[i] * b[i];\n        }\n    }\n    return dot;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/prompt_rounds_debug_s352_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s352",
+        "input_snapshot": "results/prompt_rounds_debug_s352_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/prompt_rounds_debug_s352_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "float s352(int iterations,int LEN_1D, float* a, float *b)\n{\n    float dot;\n    for (int nl = 0; nl < 8*iterations; nl++) {\n        dot = (float)0.;\n        for (int i = 0; i < LEN_1D; i += 5) {\n            dot = dot + a[i] * b[i] + a[i + 1] * b[i + 1] + a[i + 2]\n                * b[i + 2] + a[i + 3] * b[i + 3] + a[i + 4] * b[i + 4];\n        }\n    }\n    return dot;\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/prompt_rounds_debug_s352_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

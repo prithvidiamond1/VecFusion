@@ -1,0 +1,8 @@
+- The second pass vectorized loop incorrectly increments `k` even after finding a match, which can cause `k` to be out of sync with `i` and lead to incorrect indexing in the tail loop.
+- The early exit condition `!found` is checked per element, but `k` is incremented unconditionally inside each `if (!found)` block, causing `k` to advance beyond the found element.
+- In the second pass, after a match is found, the loop should stop incrementing `k` to keep it aligned with the current position for the tail loop.
+- Modify the second pass vectorized loop to only increment `k` when `!found` is true, or restructure to compute `k` from `i` and `inc` directly to avoid state corruption.
+- The scalar tail loop for the second pass uses `k` which may be incorrectly advanced if a match was found in the vectorized part; recompute `k` as `found_idx * inc` if found, or from `i * inc` if not.
+- Ensure the second pass’s tail loop starts with the correct `k` value by setting `k = i * inc` before entering the tail loop if no match found yet.
+- The first pass’s reduction loop correctly handles `k` increments, but verify `k` starts at 0 and `i` starts at 1, matching the original scalar logic.
+- The function returns `max + index + 1` but the original may expect `chksum`; confirm the return expression matches the original test’s expected output.

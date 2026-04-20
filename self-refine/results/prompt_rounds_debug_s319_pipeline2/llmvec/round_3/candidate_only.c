@@ -1,0 +1,69 @@
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {
+    float total_sum = 0.0f;
+    int outer_iterations = 2 * iterations;
+
+    for (int nl = 0; nl < outer_iterations; nl++) {
+        float sum = 0.0f;
+
+        if (LEN_1D <= 0) {
+            total_sum += sum;
+            continue;
+        }
+
+        // Scalar prologue for alignment
+        int i = 0;
+        uintptr_t c_ptr = (uintptr_t)&c[0];
+        int misalign = c_ptr % 16;
+        if (misalign != 0) {
+            int bytes_to_align = (16 - misalign) % 16;
+            int prologue_end = bytes_to_align / sizeof(float);
+            if (prologue_end > LEN_1D) {
+                prologue_end = LEN_1D;
+            }
+            for (; i < prologue_end; i++) {
+                float tmp_a = c[i] + d[i];
+                float tmp_b = c[i] + e[i];
+                a[i] = tmp_a;
+                b[i] = tmp_b;
+                sum += tmp_a + tmp_b;
+            }
+        }
+
+        // Vectorized main loop
+        int vec_limit = i + ((LEN_1D - i) / 4) * 4;
+        float4 sum_vec = (float4){0.0f, 0.0f, 0.0f, 0.0f};
+
+        for (; i < vec_limit; i += 4) {
+            float4 c_vec = *(float4 *)&c[i];
+            float4 d_vec = *(float4 *)&d[i];
+            float4 e_vec = *(float4 *)&e[i];
+
+            float4 tmp_a_vec = c_vec + d_vec;
+            float4 tmp_b_vec = c_vec + e_vec;
+
+            *(float4 *)&a[i] = tmp_a_vec;
+            *(float4 *)&b[i] = tmp_b_vec;
+
+            float4 lane_sum = tmp_a_vec + tmp_b_vec;
+            sum_vec += lane_sum;
+        }
+
+        // Horizontal reduction
+        sum += sum_vec.x + sum_vec.y + sum_vec.z + sum_vec.w;
+
+        // Scalar epilogue
+        for (; i < LEN_1D; i++) {
+            float tmp_a = c[i] + d[i];
+            float tmp_b = c[i] + e[i];
+            a[i] = tmp_a;
+            b[i] = tmp_b;
+            sum += tmp_a + tmp_b;
+        }
+
+        total_sum += sum;
+    }
+
+    return total_sum;
+}

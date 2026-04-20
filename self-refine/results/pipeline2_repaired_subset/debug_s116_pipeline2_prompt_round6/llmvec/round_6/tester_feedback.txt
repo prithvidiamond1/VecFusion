@@ -1,8 +1,0 @@
-- The scalar cleanup loop incorrectly updates `a[i]` using `a[i+1] * a[i]`, but after the vectorized loop, `a[i+1]` may have already been overwritten, causing a data dependency violation.
-- Change the scalar cleanup to use a temporary variable to hold the original `a[i]` before updating, similar to the vectorized loop's approach: `float orig = a[i]; a[i] = a[i+1] * orig;`.
-- The vectorized loop's condition `i <= LEN_1D - 9` and step `i += 4` may leave more than 5 elements unprocessed, causing the scalar cleanup to handle elements beyond `LEN_1D - 5`.
-- Adjust the vectorized loop bound to ensure it stops at `LEN_1D - 8` (i.e., `i <= LEN_1D - 8`) to guarantee the cleanup loop starts at the correct index.
-- The final block handling the last 5 elements redefines `int i = LEN_1D - 5;`, which shadows the outer `i` variable but is acceptable; ensure it uses the correct original values as it does.
-- Verify that the vectorized loop's load of `s4 = a[i + 4]` does not cause an out-of-bounds access when `i` is near the end; the adjusted bound `LEN_1D - 8` ensures `i+4` is within `LEN_1D - 4`, which is safe.
-- The mismatch at index 78 suggests the error occurs in the scalar cleanup or vectorized loop boundary; prioritize fixing the scalar cleanup's data dependency first.
-- After adjustments, test to ensure all indices are updated correctly, particularly around the transition between vectorized and scalar loops.

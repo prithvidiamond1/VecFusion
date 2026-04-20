@@ -1,0 +1,8 @@
+- The vectorized main loop incorrectly updates `s` using only the last element of each vector chunk (`tmp[i + VEC_SIZE - 1]`), breaking the sequential dependency where `s` should be `tmp[i]` from the previous iteration.
+- The scalar tail after the vectorized main loop uses the wrong `s` value because the vectorized loop does not propagate `s` correctly across the chunk boundaries.
+- The first iteration (scalar) sets `s = tmp[0]`, but the vectorized loop starting at `i=1` should use `s = tmp[0]` for the first vector chunk, not recompute `s` incorrectly.
+- The vectorized loop must process elements sequentially within each chunk: after computing `a[i]` and `b[i]`, `s` should become `tmp[i]` for the next iteration, but the vectorized version cannot directly model this per-element dependency.
+- Since the loop has a forward dependency (`s = tmp[i]` used in the next iteration), full vectorization of the main loop as written is unsafe without additional transformation (e.g., strip-mining to maintain sequential updates within each strip).
+- Consider restructuring: keep the loop scalar or use strip-mining where each strip is processed sequentially but within a strip use vectorization, updating `s` only after each strip.
+- Alternatively, recognize that `s = tmp[i]` where `tmp[i] = b[i] + c[i]` is independent of the loop’s computations, so the dependency chain is artificial; but the original scalar loop uses the updated `b[i]` from the same iteration, not the original `b[i]`. The precomputed `tmp` uses original `b[i]`, causing a semantic mismatch.
+- The precomputation of `tmp = b[i] + c[i]` must use the *updated* `b[i]` from the same iteration, not the original `b`. This requires the loop to remain sequential; vectorization in this form is invalid.

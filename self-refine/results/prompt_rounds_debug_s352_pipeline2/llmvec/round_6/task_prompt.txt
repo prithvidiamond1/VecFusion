@@ -1,0 +1,83 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b)
+{
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = 0.0f;
+        int i;
+        for (i = 0; i < LEN_1D; i += 5) {
+            float t0 = a[i] * b[i];
+            float t1 = a[i+1] * b[i+1];
+            float t2 = a[i+2] * b[i+2];
+            float t3 = a[i+3] * b[i+3];
+            float t4 = a[i+4] * b[i+4];
+            dot += t0 + t1 + t2 + t3 + t4;
+        }
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float *b)
+{
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = 0.0f;
+
+        int i;
+        for (i = 0; i <= LEN_1D - 5; i += 5) {
+            float t0 = a[i] * b[i];
+            dot = dot + t0;
+
+            float t1 = a[i+1] * b[i+1];
+            dot = dot + t1;
+
+            float t2 = a[i+2] * b[i+2];
+            dot = dot + t2;
+
+            float t3 = a[i+3] * b[i+3];
+            dot = dot + t3;
+
+            float t4 = a[i+4] * b[i+4];
+            dot = dot + t4;
+        }
+
+        for (; i < LEN_1D; i++) {
+            dot = dot + a[i] * b[i];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop's reduction variable `dot` is not being correctly accumulated across vector lanes; the scalar accumulation after the vectorized loop must sum the partial dot products from each vector iteration.
+- The vectorizer incorrectly assumed the reduction could be handled by a single scalar variable across vector iterations; need to introduce a vector accumulator and then reduce it to scalar after the vector loop.
+- The cleanup loop after the main vectorized loop must use the same scalar `dot` variable, but the vectorized loop's partial results are not being added to it.
+- The trip count calculation `i <= LEN_1D - 5` is correct for the unrolled loop, but the vectorizer must ensure the vectorized loop handles a multiple of the vector width, not just unroll factor.
+- The vectorizer should generate a vectorized loop that processes `VECTOR_WIDTH` elements per iteration, then a scalar remainder loop, not an unrolled-by-5 loop.
+- The reduction across the outer `nl` loop is also problematic because `dot` is reset each outer iteration; the vectorizer must preserve that resetting behavior.
+- The vectorizer must ensure the final scalar `dot` after the inner loops is the one returned, not a separate vector accumulator that is never combined.
+- The test failure (exit code 2) indicates a numerical mismatch, which is likely due to the reduction not being correctly accumulated across vector lanes and cleanup loops.
+
+        Return a corrected candidate function named `vectorized_s352`.

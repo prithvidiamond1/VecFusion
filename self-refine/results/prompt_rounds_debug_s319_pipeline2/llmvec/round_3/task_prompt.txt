@@ -1,0 +1,125 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Revise your candidate for `s319` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s319(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)
+{
+    float sum;
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        sum = 0.;
+        // Compute and accumulate in one pass with temporaries
+        for (int i = 0; i < LEN_1D; i++) {
+            float tmp_a = c[i] + d[i];
+            float tmp_b = c[i] + e[i];
+            a[i] = tmp_a;
+            b[i] = tmp_b;
+            sum += tmp_a + tmp_b;
+        }
+    }
+    return sum;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float float4 __attribute__((ext_vector_type(4)));
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {
+    float sum;
+    int outer_iterations = 2 * iterations;
+
+    for (int nl = 0; nl < outer_iterations; nl++) {
+        sum = 0.0f;
+
+        if (LEN_1D <= 0) {
+            continue;
+        }
+
+        // Handle misaligned start with scalar prologue
+        int i = 0;
+        int misalign = ((uintptr_t)&c[0]) % 16;
+        if (misalign != 0) {
+            int prologue_end = (4 - (misalign / 4)) % 4;
+            if (prologue_end > LEN_1D) {
+                prologue_end = LEN_1D;
+            }
+            for (; i < prologue_end; i++) {
+                float tmp_a = c[i] + d[i];
+                float tmp_b = c[i] + e[i];
+                a[i] = tmp_a;
+                b[i] = tmp_b;
+                sum += tmp_a + tmp_b;
+            }
+        }
+
+        // Vectorized main loop with aligned accesses
+        int vec_limit = i + ((LEN_1D - i) / 4) * 4;
+        float4 sum_vec = (float4){0.0f, 0.0f, 0.0f, 0.0f};
+
+        for (; i < vec_limit; i += 4) {
+            float4 c_vec = *(float4 *)&c[i];
+            float4 d_vec = *(float4 *)&d[i];
+            float4 e_vec = *(float4 *)&e[i];
+
+            float4 tmp_a_vec = c_vec + d_vec;
+            float4 tmp_b_vec = c_vec + e_vec;
+
+            *(float4 *)&a[i] = tmp_a_vec;
+            *(float4 *)&b[i] = tmp_b_vec;
+
+            // Accumulate in same order as scalar: (c+d) + (c+e) for each element
+            float4 lane_sum = tmp_a_vec + tmp_b_vec;
+            sum_vec += lane_sum;
+        }
+
+        // Horizontal reduction preserving order
+        float temp_sum = sum;
+        temp_sum += sum_vec.x;
+        temp_sum += sum_vec.y;
+        temp_sum += sum_vec.z;
+        temp_sum += sum_vec.w;
+        sum = temp_sum;
+
+        // Scalar epilogue for remaining elements
+        for (; i < LEN_1D; i++) {
+            float tmp_a = c[i] + d[i];
+            float tmp_b = c[i] + e[i];
+            a[i] = tmp_a;
+            b[i] = tmp_b;
+            sum += tmp_a + tmp_b;
+        }
+    }
+
+    return sum;
+}
+        ```
+
+        Tester feedback:
+        - The loop returns a `sum` that is reset to `0.0f` at the start of each outer iteration, but the final returned `sum` is only from the last outer iteration. The original scalar code likely accumulates `sum` across all outer iterations. The vectorized version incorrectly resets `sum` each outer loop, losing the cumulative total.
+
+- Fix by initializing `sum` to `0.0f` before the outer loop and removing the reset inside the outer loop, or by accumulating into a separate outer sum variable.
+
+- The `if (LEN_1D <= 0) { continue; }` is safe but note that `sum` remains uninitialized if skipped on the first iteration; ensure `sum` is initialized before the outer loop.
+
+- The misalignment prologue calculation `(4 - (misalign / 4)) % 4` may be incorrect; misalign is in bytes, dividing by 4 assumes float size is 4 bytes, which is correct, but the modulo operation could yield 0 when prologue_end should be 0? Actually, if misalign is 0, prologue_end becomes (4 - 0) % 4 = 0, which is fine. But if misalign is 4, (4 - 1) % 4 = 3, which is wrong because alignment is already satisfied. The prologue should only run until the first 16-byte aligned address. The formula should compute bytes to next 16-byte boundary: `int bytes_to_align = (16 - misalign) % 16;` then `prologue_end = bytes_to_align / sizeof(float);`.
+
+- The vectorized loop uses `*(float4 *)&c[i]` which may cause strict-aliasing violations or alignment faults if `c[i]` is not 16-byte aligned after the prologue. Ensure the prologue correctly aligns the pointer.
+
+- The reduction order: scalar does `sum += tmp_a + tmp_b;` each iteration. The vector version accumulates into `sum_vec` and then adds horizontally. This is acceptable if floating-point associativity differences are allowed.
+
+- The test failure (exit code 2, return mismatch) is primarily due to the outer-loop sum accumulation error. Fix that first.
+
+        Return a corrected candidate function named `vectorized_s319`.

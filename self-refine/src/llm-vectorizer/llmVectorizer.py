@@ -288,9 +288,26 @@ def make_vectorizer_prompt(config: RunConfig) -> str:
         - Include a scalar cleanup tail when needed.
         - Do not call external libraries beyond standard headers that would already exist.
 
+        Additional guidance for difficult kernels:
+        - If the code has complex control flow (switch/case, early exits, multiple branches, loop-carried conditionals),
+          first normalize the control flow before attempting SIMD-style rewrites.
+        - If a loop bound or trip count is not immediately obvious, derive it explicitly into a scalar temporary
+          before rewriting the loop.
+        - Prefer converting irregular loops into canonical counted loops with a clear induction variable,
+          explicit lower bound, explicit upper bound, and explicit step.
+        - If a switch/case appears inside a loop, consider peeling or splitting the loop by case or by guard
+          so each resulting loop has simpler, more uniform behavior.
+        - If profitable, hoist invariant control decisions outside the loop or create guarded fast paths for common cases.
+        - When vectorization is blocked by control flow, prioritize restructuring into simpler semantically equivalent
+          counted loops over aggressive low-level SIMD tricks.
+        - Never guess unknown trip counts. Compute them explicitly from the existing scalar logic.
+        - If full vectorization is not possible, still produce the cleanest semantically correct canonical loop structure
+          that improves the chance of later vectorization.
+
         Optimization goal:
-        - Produce a simple first working vectorized version, not a perfect one.
-        - Favor correctness and compilability over aggressive tricks.
+        - Produce a working vectorization-friendly version, not just a superficially changed one.
+        - For hard cases, prioritize control-flow simplification, explicit bounds, and correctness first,
+          then vectorization.
 
         Reply with only the code block.
         """
@@ -309,12 +326,18 @@ def make_tester_prompt() -> str:
         Your job:
         - identify the smallest concrete fixes the vectorizer should make next
         - focus on correctness and compilability
+        - specifically check whether loop bounds, trip counts, and control-flow restructuring were handled soundly
         - if the candidate already passes, reply with only: PASS
 
         Constraints:
         - keep the response under 8 bullet points
         - be specific about what failed and how to fix it
         - do not restate the whole candidate
+        - when relevant, call out:
+          - incorrect derived trip counts
+          - unsafe switch/case motion
+          - branch-dependent semantics
+          - non-canonical loop bounds that should be made explicit
         """
     ).strip()
 

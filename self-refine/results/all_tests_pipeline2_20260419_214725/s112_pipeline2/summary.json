@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s112_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s112_opt(float *a, float *b, int iterations, int LEN_1D) {\n    for (int nl = 0; nl < 3 * iterations; nl++) {\n        // Store original values to break dependency\n        float temp[LEN_1D];\n        for (int i = 0; i < LEN_1D - 1; i++) {\n            temp[i] = a[i];\n        }\n        \n        // Vectorizable loop - no loop-carried dependency\n        for (int i = 0; i < LEN_1D - 1; i++) {\n            a[i + 1] = temp[i] + b[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s112_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s112_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s112_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {\n    int outer_iterations = 3 * iterations;\n    int len = LEN_1D - 1;\n    \n    for (int nl = 0; nl < outer_iterations; nl++) {\n        // Store original values to break dependency\n        float temp[LEN_1D];\n        \n        // Vectorized copy loop\n        int i = 0;\n        typedef float v4f __attribute__((vector_size(16)));\n        const int VEC_SIZE = 4;\n        int vec_limit = len - (len % VEC_SIZE);\n        \n        for (; i < vec_limit; i += VEC_SIZE) {\n            v4f a_vec = *(v4f*)&a[i];\n            *(v4f*)&temp[i] = a_vec;\n        }\n        \n        // Scalar tail for copy\n        for (; i < len; i++) {\n            temp[i] = a[i];\n        }\n        \n        // Vectorized computation loop\n        i = 0;\n        vec_limit = len - (len % VEC_SIZE);\n        \n        for (; i < vec_limit; i += VEC_SIZE) {\n            v4f temp_vec = *(v4f*)&temp[i];\n            v4f b_vec = *(v4f*)&b[i];\n            v4f result_vec = temp_vec + b_vec;\n            *(v4f*)&a[i + 1] = result_vec;\n        }\n        \n        // Scalar tail for computation\n        for (; i < len; i++) {\n            a[i + 1] = temp[i] + b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s112_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s112",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s112_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s112_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260419_214725/s112_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260419_214725/s112_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

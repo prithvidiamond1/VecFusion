@@ -1,0 +1,13 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6
+            stderr:
+            results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c:91:41: error: invalid operands to binary expression ('v4f' (vector of 4 'float' values) and 'v4f')
+   91 |             selected_vec = selected_vec & d_vec;
+      |                            ~~~~~~~~~~~~ ^ ~~~~~
+results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c:95:29: error: invalid operands to binary expression ('v4f' (vector of 4 'float' values) and 'v4f')
+   95 |             e_part = e_part & e_vec;
+      |                      ~~~~~~ ^ ~~~~~
+results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c:97:41: error: invalid operands to binary expression ('v4f' (vector of 4 'float' values) and 'v4f')
+   97 |             selected_vec = selected_vec | e_part;
+      |                            ~~~~~~~~~~~~ ^ ~~~~~~
+3 errors generated.

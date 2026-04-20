@@ -1,0 +1,8 @@
+- The test fails with a return mismatch, indicating the vectorized loop's result differs from the scalar reference.
+- The candidate uses a fixed unroll factor of 5, but the loop bound `i + 4 < LEN_1D` may miscompute the trip count when `LEN_1D` is not a multiple of 5.
+- Specifically, the main vectorized loop should iterate while `i <= LEN_1D - 5` (or `i < LEN_1D - 4`), but the condition `i + 4 < LEN_1D` is equivalent and correct; however, the scalar cleanup loop must handle the exact remainder.
+- The issue likely stems from floating-point associativity: the candidate accumulates products in a different order (grouped by 5) than the scalar version (strict sequential), causing rounding differences.
+- To match the scalar result exactly, the vectorized version must preserve the sequential accumulation order across all iterations, not just within each group of 5.
+- Fix by accumulating each group's products into a temporary sum and then adding that sum to `dot` once per group, maintaining the same order as scalar across groups.
+- Alternatively, ensure the vectorized loop's trip count is correct and that the cleanup loop matches any leftover elements precisely.
+- Verify that `dot` is not re-initialized incorrectly inside loops and that the outer loop's `dot` accumulation across `nl` iterations is preserved.

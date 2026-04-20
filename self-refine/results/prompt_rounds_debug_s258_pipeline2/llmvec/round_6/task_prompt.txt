@@ -1,0 +1,129 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+        // First loop: compute s values with dependency
+        float s_vals[256];
+        for (int i = 0; i < 256; ++i) {
+            // Remove branching to help vectorization
+            float condition = a[i] > 0.0f ? 1.0f : 0.0f;
+            s = condition * (d[i] * d[i]) + (1.0f - condition) * s;
+            s_vals[i] = s;
+        }
+
+        // Second loop: compute b[i] using stored s values
+        for (int i = 0; i < 256; ++i) {
+            b[i] = s_vals[i] * c[i] + d[i];
+        }
+
+        // Third loop: compute e[i] using stored s values
+        for (int i = 0; i < 256; ++i) {
+            e[i] = (s_vals[i] + 1.0f) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {
+    typedef float v8f __attribute__((ext_vector_type(8)));
+    const v8f vone = (v8f){1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    const v8f vzero = (v8f){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = 0.0f;
+        float s_vals[256];
+
+        // First loop: compute s values with dependency (scalar)
+        for (int i = 0; i < 256; i++) {
+            if (a[i] > 0.0f) {
+                s = d[i] * d[i];
+            }
+            s_vals[i] = s;
+        }
+
+        // Second loop: vectorized computation of b and update of a
+        int i = 0;
+        for (; i <= 248; i += 8) {
+            v8f s_vec = *((v8f*)&s_vals[i]);
+            v8f c_vec = *((v8f*)&c[i]);
+            v8f d_vec = *((v8f*)&d[i]);
+            v8f b_vec = s_vec * c_vec + d_vec;
+            *((v8f*)&b[i]) = b_vec;
+
+            // Update a[i] = b[i] + c[i] * d[i]
+            v8f a_vec = b_vec + c_vec * d_vec;
+            *((v8f*)&a[i]) = a_vec;
+        }
+        for (; i < 256; i++) {
+            b[i] = s_vals[i] * c[i] + d[i];
+            a[i] = b[i] + c[i] * d[i];
+        }
+
+        // Third loop: vectorized computation of e and update of a
+        i = 0;
+        for (; i <= 248; i += 8) {
+            v8f s_vec = *((v8f*)&s_vals[i]);
+            v8f aa_vec = *((v8f*)&aa[0][i]);
+            v8f e_vec = (s_vec + vone) * aa_vec;
+            *((v8f*)&e[i]) = e_vec;
+
+            // Update a[i] = b[i] + c[i] * c[i]
+            v8f b_vec = *((v8f*)&b[i]);
+            v8f c_vec = *((v8f*)&c[i]);
+            v8f a_vec = b_vec + c_vec * c_vec;
+            *((v8f*)&a[i]) = a_vec;
+        }
+        for (; i < 256; i++) {
+            e[i] = (s_vals[i] + 1.0f) * aa[0][i];
+            a[i] = b[i] + c[i] * c[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The first loop’s scalar dependency on `s` across iterations is not correctly captured in `s_vals`; the vectorizer incorrectly assumes `s_vals[i]` is independent, but `s` updates conditionally based on `a[i] > 0`. This changes `s_vals` values compared to the original sequential semantics.
+
+- The vectorized second loop recomputes `a[i]` using `b_vec + c_vec * d_vec`, but the original scalar loop after the first loop does not exist in the candidate; the original likely had a separate loop that updates `a[i]` after computing `b[i]`. The candidate incorrectly merges updates, altering values.
+
+- The third loop’s update `a[i] = b[i] + c[i] * c[i]` overwrites `a[i]` again, but the original may have had `a[i]` updated only once per iteration in a separate step; this double update causes mismatch at index 0.
+
+- The conditional update of `s` in the first loop must be computed sequentially; vectorizing it requires preserving the exact flow dependence. The candidate should keep the first loop scalar and ensure `s_vals` matches the original.
+
+- Verify the original source had three separate loops after the first `s` loop: one for `b`, one for `a`, one for `e`, and another for `a` again. The candidate incorrectly interleaves `a` updates within the vectorized loops, leading to wrong final `a` values.
+
+- Specifically, after the first loop, the original likely had:
+  ```
+  for (i=0; i<256; i++) b[i] = s_vals[i]*c[i] + d[i];
+  for (i=0; i<256; i++) a[i] = b[i] + c[i]*d[i];
+  for (i=0; i<256; i++) e[i] = (s_vals[i]+1)*aa[0][i];
+  for (i=0; i<256; i++) a[i] = b[i] + c[i]*c[i];
+  ```
+  The candidate’s merging changes order of updates to `a`.
+
+- Fix by separating vectorized loops for `b`, `a` (first update), `e`, and `a` (second update) exactly as in original, keeping the first scalar loop for `s_vals`.
+
+- Ensure the vectorized loops use correct bounds and handle remainder; current bounds `i <= 248` and step 8 are correct for 256 elements.
+
+        Return a corrected candidate function named `vectorized_s258`.

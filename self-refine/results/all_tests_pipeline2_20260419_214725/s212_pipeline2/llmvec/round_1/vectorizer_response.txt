@@ -1,0 +1,60 @@
+```c
+#include <stddef.h>
+
+void vectorized_s212(int n, float *a, float *b, float *c, float *d) {
+    if (n <= 1) return;
+    
+    int count = n - 1;
+    int i = 0;
+    
+    // Vectorized main loop
+    for (; i + 3 < count; i += 4) {
+        // Load current and next a values
+        float a0 = a[i];
+        float a1 = a[i + 1];
+        float a2 = a[i + 2];
+        float a3 = a[i + 3];
+        
+        float a_next0 = a[i + 1];
+        float a_next1 = a[i + 2];
+        float a_next2 = a[i + 3];
+        float a_next3 = a[i + 4];
+        
+        // Load c and d values
+        float c0 = c[i];
+        float c1 = c[i + 1];
+        float c2 = c[i + 2];
+        float c3 = c[i + 3];
+        
+        float d0 = d[i];
+        float d1 = d[i + 1];
+        float d2 = d[i + 2];
+        float d3 = d[i + 3];
+        
+        // Compute a[i] *= c[i]
+        a0 *= c0;
+        a1 *= c1;
+        a2 *= c2;
+        a3 *= c3;
+        
+        // Compute b[i] += a[i+1] * d[i]
+        b[i] += a_next0 * d0;
+        b[i + 1] += a_next1 * d1;
+        b[i + 2] += a_next2 * d2;
+        b[i + 3] += a_next3 * d3;
+        
+        // Store modified a values
+        a[i] = a0;
+        a[i + 1] = a1;
+        a[i + 2] = a2;
+        a[i + 3] = a3;
+    }
+    
+    // Scalar cleanup for remaining iterations
+    for (; i < count; i++) {
+        float temp_a_next = a[i + 1];
+        a[i] *= c[i];
+        b[i] += temp_a_next * d[i];
+    }
+}
+```

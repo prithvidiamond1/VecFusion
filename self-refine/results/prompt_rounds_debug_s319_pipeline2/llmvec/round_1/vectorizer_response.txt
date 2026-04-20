@@ -1,0 +1,48 @@
+```c
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {
+    float sum;
+    int outer_iterations = 2 * iterations;
+    
+    for (int nl = 0; nl < outer_iterations; nl++) {
+        sum = 0.0f;
+        
+        // Vectorized main loop
+        int i = 0;
+        int vec_limit = LEN_1D - (LEN_1D % 4);
+        
+        if (vec_limit > 0) {
+            float4 sum_vec = (float4){0.0f, 0.0f, 0.0f, 0.0f};
+            
+            for (; i < vec_limit; i += 4) {
+                float4 c_vec = *(float4 *)&c[i];
+                float4 d_vec = *(float4 *)&d[i];
+                float4 e_vec = *(float4 *)&e[i];
+                
+                float4 tmp_a_vec = c_vec + d_vec;
+                float4 tmp_b_vec = c_vec + e_vec;
+                
+                *(float4 *)&a[i] = tmp_a_vec;
+                *(float4 *)&b[i] = tmp_b_vec;
+                
+                sum_vec += tmp_a_vec + tmp_b_vec;
+            }
+            
+            // Horizontal reduction of sum_vec
+            sum += sum_vec.x + sum_vec.y + sum_vec.z + sum_vec.w;
+        }
+        
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D; i++) {
+            float tmp_a = c[i] + d[i];
+            float tmp_b = c[i] + e[i];
+            a[i] = tmp_a;
+            b[i] = tmp_b;
+            sum += tmp_a + tmp_b;
+        }
+    }
+    
+    return sum;
+}
+```

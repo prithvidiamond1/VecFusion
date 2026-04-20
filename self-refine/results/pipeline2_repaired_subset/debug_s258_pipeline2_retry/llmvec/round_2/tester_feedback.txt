@@ -1,8 +1,0 @@
-- The first loop's `s` calculation has a cross-iteration dependency: each `s` value depends on the previous iteration's `s`. The current vectorization incorrectly computes `s` in parallel within the vector chunk.
-- The `s_array` values are being computed incorrectly because the sequential `s` update is not preserved. The original scalar loop updates `s` sequentially: `s = (a[i] > 0) ? d[i]*d[i] : s`.
-- The vectorized version uses `mask * dsq + (1 - mask) * s`, but `s` is the same for all four lanes within the vector, not the sequentially updated `s` from the previous scalar iteration.
-- To fix, the first loop must be scalar or use a sequential scan (prefix sum-like) pattern. Since it's a short loop (256 iterations), consider keeping it scalar for correctness.
-- Alternatively, restructure to compute `s_array[i]` directly from the original scalar formula without trying to vectorize the `s` accumulation.
-- The second loop is independent and can remain vectorized as is.
-- For immediate fix: change the first loop back to a scalar loop that computes `s` and fills `s_array` correctly.
-- Ensure `s` is reset to `0.0f` at the start of each outer iteration (already done).

@@ -1,0 +1,55 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/prompt_rounds_debug_s258_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s258_opt(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {\n    float s;\n    for (int nl = 0; nl < iterations; nl++) {\n        s = 0.;\n        // First loop: compute s values with dependency\n        float s_vals[256];\n        for (int i = 0; i < 256; ++i) {\n            // Remove branching to help vectorization\n            float condition = a[i] > 0.0f ? 1.0f : 0.0f;\n            s = condition * (d[i] * d[i]) + (1.0f - condition) * s;\n            s_vals[i] = s;\n        }\n        \n        // Second loop: compute b[i] using stored s values\n        for (int i = 0; i < 256; ++i) {\n            b[i] = s_vals[i] * c[i] + d[i];\n        }\n        \n        // Third loop: compute e[i] using stored s values\n        for (int i = 0; i < 256; ++i) {\n            e[i] = (s_vals[i] + 1.0f) * aa[0][i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/prompt_rounds_debug_s258_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/prompt_rounds_debug_s258_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/prompt_rounds_debug_s258_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {\n    typedef float v8f __attribute__((ext_vector_type(8)));\n    const v8f vone = (v8f){1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        float s = 0.0f;\n        float s_vals[256];\n        \n        // First loop: compute s values with dependency (must remain scalar)\n        for (int i = 0; i < 256; i++) {\n            if (a[i] > 0.0f) {\n                s = d[i] * d[i];\n            }\n            s_vals[i] = s;\n        }\n        \n        // Second loop: compute b[i] = s_vals[i] * c[i] + d[i]\n        int i = 0;\n        for (; i <= 248; i += 8) {\n            v8f s_vec = *((v8f*)&s_vals[i]);\n            v8f c_vec = *((v8f*)&c[i]);\n            v8f d_vec = *((v8f*)&d[i]);\n            v8f b_vec = s_vec * c_vec + d_vec;\n            *((v8f*)&b[i]) = b_vec;\n        }\n        for (; i < 256; i++) {\n            b[i] = s_vals[i] * c[i] + d[i];\n        }\n        \n        // Third loop: compute a[i] = b[i] + c[i] * d[i]\n        i = 0;\n        for (; i <= 248; i += 8) {\n            v8f b_vec = *((v8f*)&b[i]);\n            v8f c_vec = *((v8f*)&c[i]);\n            v8f d_vec = *((v8f*)&d[i]);\n            v8f a_vec = b_vec + c_vec * d_vec;\n            *((v8f*)&a[i]) = a_vec;\n        }\n        for (; i < 256; i++) {\n            a[i] = b[i] + c[i] * d[i];\n        }\n        \n        // Fourth loop: compute e[i] = (s_vals[i] + 1.0f) * aa[0][i]\n        i = 0;\n        for (; i <= 248; i += 8) {\n            v8f s_vec = *((v8f*)&s_vals[i]);\n            v8f aa_vec = *((v8f*)&aa[0][i]);\n            v8f e_vec = (s_vec + vone) * aa_vec;\n            *((v8f*)&e[i]) = e_vec;\n        }\n        for (; i < 256; i++) {\n            e[i] = (s_vals[i] + 1.0f) * aa[0][i];\n        }\n        \n        // Fifth loop: compute a[i] = b[i] + c[i] * c[i]\n        i = 0;\n        for (; i <= 248; i += 8) {\n            v8f b_vec = *((v8f*)&b[i]);\n            v8f c_vec = *((v8f*)&c[i]);\n            v8f a_vec = b_vec + c_vec * c_vec;\n            *((v8f*)&a[i]) = a_vec;\n        }\n        for (; i < 256; i++) {\n            a[i] = b[i] + c[i] * c[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/prompt_rounds_debug_s258_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s258",
+        "input_snapshot": "results/prompt_rounds_debug_s258_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/prompt_rounds_debug_s258_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s258(int iterations, float* a,float* b,float* c, float* d,float* e, float aa[256][256])\n{\n    float s;\n    for (int nl = 0; nl < iterations; nl++) {\n        s = 0.;\n        for (int i = 0; i < 256; ++i) {\n            if (a[i] > 0.) {\n                s = d[i] * d[i];\n            }\n            b[i] = s * c[i] + d[i];\n            e[i] = (s + (float)1.) * aa[0][i];\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/prompt_rounds_debug_s258_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

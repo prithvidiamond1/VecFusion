@@ -1,0 +1,41 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Vectorize the scalar C function `s242` below.
+
+        Scalar source:
+        ```c
+        void s242(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d)
+{
+    float sum_s = s1 + s2;
+    float prev;
+
+    for (int nl = 0; nl < iterations/5; nl++) {
+        // Store initial value for dependency chain
+        prev = a[0];
+
+        // Vectorizable loop: compute independent sums
+        for (int i = 1; i < LEN_1D; ++i) {
+            a[i] = sum_s + b[i] + c[i] + d[i];
+        }
+
+        // Sequential recurrence: maintain dependency
+        for (int i = 1; i < LEN_1D; ++i) {
+            prev = prev + a[i];
+            a[i] = prev;
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s242`.

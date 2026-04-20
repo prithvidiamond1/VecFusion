@@ -1,0 +1,105 @@
+#include <stdbool.h>
+#include <string.h>
+
+typedef float v4f __attribute__((ext_vector_type(4)));
+typedef int v4i __attribute__((ext_vector_type(4)));
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed,
+                    int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,
+                    bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normal_case = (srcFixed <= dstLen);
+
+    if (normal_case) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    // Set first element
+    src[0] = srcStart;
+    dst[0] = dstStart;
+
+    // Vectorized pre-computation of src positions
+    int i = 0;
+    for (; i + 3 < divCount; i += 4) {
+        v4i div_vec;
+        __builtin_memcpy(&div_vec, &divs[i], sizeof(v4i));
+        __builtin_memcpy(&src[i + 1], &div_vec, sizeof(v4i));
+    }
+    for (; i < divCount; i++) {
+        src[i + 1] = divs[i];
+    }
+
+    // Use VLAs for safety
+    int srcDelta[divCount > 0 ? divCount : 1];
+    float dstDelta[divCount > 0 ? divCount : 1];
+
+    // Vectorized computation of srcDelta values
+    i = 0;
+    for (; i + 3 < divCount; i += 4) {
+        v4i src_vec1, src_vec2;
+        __builtin_memcpy(&src_vec1, &src[i], sizeof(v4i));
+        __builtin_memcpy(&src_vec2, &src[i + 1], sizeof(v4i));
+        v4i delta_vec = src_vec2 - src_vec1;
+        __builtin_memcpy(&srcDelta[i], &delta_vec, sizeof(v4i));
+    }
+    for (; i < divCount; i++) {
+        srcDelta[i] = src[i + 1] - src[i];
+    }
+
+    // Compute scaling factors
+    float scale_fixed = normal_case ? 1.0f : scale;
+    float scale_scalable = normal_case ? scale : 0.0f;
+
+    // Generate alternating pattern
+    int start_mask = isScalable ? 1 : 0;
+
+    // Vectorized computation of dstDelta values
+    i = 0;
+    v4f scale_fixed_vec = (v4f){scale_fixed, scale_fixed, scale_fixed, scale_fixed};
+    v4f scale_scalable_vec = (v4f){scale_scalable, scale_scalable, scale_scalable, scale_scalable};
+
+    for (; i + 3 < divCount; i += 4) {
+        // Load srcDelta values
+        v4i srcDelta_vec;
+        __builtin_memcpy(&srcDelta_vec, &srcDelta[i], sizeof(v4i));
+        v4f srcDelta_fvec = (v4f){(float)srcDelta_vec[0], (float)srcDelta_vec[1], 
+                                  (float)srcDelta_vec[2], (float)srcDelta_vec[3]};
+
+        // Compute alternating pattern using vector operations
+        v4i pattern = (v4i){i, i+1, i+2, i+3};
+        v4i even_mask = (pattern & 1) == 0;
+        v4i scalable_mask = even_mask ^ (v4i){start_mask, start_mask, start_mask, start_mask};
+        scalable_mask = scalable_mask == 0;  // Convert to boolean mask
+        
+        // Blend scales based on mask
+        v4f effective_scale = (v4f){
+            scalable_mask[0] ? scale_scalable : scale_fixed,
+            scalable_mask[1] ? scale_scalable : scale_fixed,
+            scalable_mask[2] ? scale_scalable : scale_fixed,
+            scalable_mask[3] ? scale_scalable : scale_fixed
+        };
+
+        // Compute dstDelta
+        v4f dstDelta_vec = srcDelta_fvec * effective_scale;
+        __builtin_memcpy(&dstDelta[i], &dstDelta_vec, sizeof(v4f));
+    }
+
+    // Scalar tail for dstDelta
+    for (; i < divCount; i++) {
+        int is_scalable_mask = (i % 2 == 0) ? start_mask : (1 - start_mask);
+        float effective_scale = is_scalable_mask ? scale_scalable : scale_fixed;
+        dstDelta[i] = effective_scale * srcDelta[i];
+    }
+
+    // Cumulative sum (serial dependency remains scalar)
+    for (i = 0; i < divCount; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+
+    // Set last elements
+    src[divCount + 1] = srcEnd;
+    dst[divCount + 1] = dstEnd;
+}

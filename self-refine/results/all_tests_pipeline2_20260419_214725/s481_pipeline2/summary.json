@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s481_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s481_opt(int iterations,int LEN_1D, float* a, float *b, float *c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        int exit_flag = 0;\n        int exit_index = LEN_1D;\n        \n        // First loop: check condition and find first negative\n        for (int i = 0; i < LEN_1D; i++) {\n            if (d[i] < (float)0.) {\n                exit_flag = 1;\n                exit_index = i;\n                break;\n            }\n        }\n        \n        // Second loop: compute only up to exit_index\n        for (int i = 0; i < exit_index; i++) {\n            a[i] += b[i] * c[i];\n        }\n        \n        if (exit_flag) {\n            return;\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s481_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s481_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s481_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s481(int iterations, int LEN_1D, float* a, float *b, float *c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        int exit_flag = 0;\n        int exit_index = LEN_1D;\n        \n        // Vectorized search for first negative value\n        int i = 0;\n        typedef float v4f __attribute__((vector_size(16)));\n        const int VF = 4;\n        \n        // Process vector chunks\n        for (; i + VF <= LEN_1D; i += VF) {\n            v4f dv = *(v4f*)&d[i];\n            v4f mask = dv < (v4f){0.0f, 0.0f, 0.0f, 0.0f};\n            \n            // Check if any lane is negative\n            int any_negative = 0;\n            for (int lane = 0; lane < VF; lane++) {\n                if (mask[lane]) {\n                    any_negative = 1;\n                    break;\n                }\n            }\n            \n            if (any_negative) {\n                // Find first negative within this vector\n                for (int lane = 0; lane < VF; lane++) {\n                    if (d[i + lane] < 0.0f) {\n                        exit_flag = 1;\n                        exit_index = i + lane;\n                        break;\n                    }\n                }\n                break;\n            }\n        }\n        \n        // Scalar tail for search\n        if (!exit_flag) {\n            for (; i < LEN_1D; i++) {\n                if (d[i] < 0.0f) {\n                    exit_flag = 1;\n                    exit_index = i;\n                    break;\n                }\n            }\n        }\n        \n        // Vectorized computation up to exit_index\n        int j = 0;\n        for (; j + VF <= exit_index; j += VF) {\n            v4f av = *(v4f*)&a[j];\n            v4f bv = *(v4f*)&b[j];\n            v4f cv = *(v4f*)&c[j];\n            av += bv * cv;\n            *(v4f*)&a[j] = av;\n        }\n        \n        // Scalar tail for computation\n        for (; j < exit_index; j++) {\n            a[j] += b[j] * c[j];\n        }\n        \n        if (exit_flag) {\n            return;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s481_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s481",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s481_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s481_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260419_214725/s481_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260419_214725/s481_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

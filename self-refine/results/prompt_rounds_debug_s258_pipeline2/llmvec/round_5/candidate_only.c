@@ -1,0 +1,57 @@
+#include <stdint.h>
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {
+    typedef float v8f __attribute__((ext_vector_type(8)));
+    const v8f vone = (v8f){1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    const v8f vzero = (v8f){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = 0.0f;
+        float s_vals[256];
+
+        // First loop: compute s values with dependency (scalar)
+        for (int i = 0; i < 256; i++) {
+            if (a[i] > 0.0f) {
+                s = d[i] * d[i];
+            }
+            s_vals[i] = s;
+        }
+
+        // Second loop: vectorized computation of b and update of a
+        int i = 0;
+        for (; i <= 248; i += 8) {
+            v8f s_vec = *((v8f*)&s_vals[i]);
+            v8f c_vec = *((v8f*)&c[i]);
+            v8f d_vec = *((v8f*)&d[i]);
+            v8f b_vec = s_vec * c_vec + d_vec;
+            *((v8f*)&b[i]) = b_vec;
+            
+            // Update a[i] = b[i] + c[i] * d[i]
+            v8f a_vec = b_vec + c_vec * d_vec;
+            *((v8f*)&a[i]) = a_vec;
+        }
+        for (; i < 256; i++) {
+            b[i] = s_vals[i] * c[i] + d[i];
+            a[i] = b[i] + c[i] * d[i];
+        }
+
+        // Third loop: vectorized computation of e and update of a
+        i = 0;
+        for (; i <= 248; i += 8) {
+            v8f s_vec = *((v8f*)&s_vals[i]);
+            v8f aa_vec = *((v8f*)&aa[0][i]);
+            v8f e_vec = (s_vec + vone) * aa_vec;
+            *((v8f*)&e[i]) = e_vec;
+            
+            // Update a[i] = b[i] + c[i] * c[i]
+            v8f b_vec = *((v8f*)&b[i]);
+            v8f c_vec = *((v8f*)&c[i]);
+            v8f a_vec = b_vec + c_vec * c_vec;
+            *((v8f*)&a[i]) = a_vec;
+        }
+        for (; i < 256; i++) {
+            e[i] = (s_vals[i] + 1.0f) * aa[0][i];
+            a[i] = b[i] + c[i] * c[i];
+        }
+    }
+}

@@ -1,0 +1,8 @@
+- **Fix vector bitwise operations on float vectors**: The code attempts to use `&`, `|`, and `~` on `float` vectors, which is invalid. Use `__builtin_shuffle` with a mask or explicit conditional moves.
+- **Replace bitwise blend with vector select**: Change `(vabs & vcmp) | (vmax & ~vcmp)` to `__builtin_shufflevector(vabs, vmax, ...)` or use a manual blend via element-wise ternary logic.
+- **Implement blend using `__builtin_shuffle` or manual scalar extraction**: Since direct bitwise ops aren't allowed, restructure the reduction to compare and select per element or use a shuffle with a comparison mask.
+- **Consider using `__builtin_ia32_blendps` or equivalent intrinsics** if targeting x86, or use a generic blend by storing to a temporary array and selecting.
+- **Ensure vector comparison result is usable**: The comparison `vabs > vmax` yields a vector of integers (mask), but must be used in a blend operation compatible with float vectors.
+- **Simplify by using a scalar reduction in the vector loop**: Instead of vectorizing the blend, compute per-element max in scalar form after loading the vector, avoiding the invalid bitwise operations entirely.
+- **Check for missing header for vector intrinsics**: If using platform-specific intrinsics, include appropriate headers (e.g., `<x86intrin.h>`).
+- **Verify vector type operations are legal**: Only arithmetic operations (`+`, `-`, `*`, `/`) and comparisons (`<`, `>`, etc.) are directly supported on GCC/Clang vector extensions; bitwise ops require integer vectors.

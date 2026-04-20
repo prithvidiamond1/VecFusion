@@ -1,0 +1,55 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s323_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s323_opt(int iterations,int LEN_1D, float* a, float *b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        // Compute prefix sum for b first\n        float b_prev = b[0];\n        for (int i = 1; i < LEN_1D; i++) {\n            b[i] = b_prev + c[i] * (d[i] + e[i]);\n            b_prev = b[i];\n        }\n        \n        // Now compute a in a separate vectorizable loop\n        a[1] = b[0] + c[1] * d[1];\n        for (int i = 2; i < LEN_1D; i++) {\n            a[i] = b[i-1] + c[i] * d[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s323_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s323_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s323_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s323(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e) {\n    int loop_count = iterations / 2;\n\n    for (int nl = 0; nl < loop_count; nl++) {\n        // Prefix sum for b - scalar sequential (not vectorizable due to recurrence)\n        float b_prev = b[0];\n        for (int i = 1; i < LEN_1D; i++) {\n            b[i] = b_prev + c[i] * (d[i] + e[i]);\n            b_prev = b[i];\n        }\n\n        // Compute a[1] separately\n        a[1] = b[0] + c[1] * d[1];\n\n        // Vectorized computation for a[i] = b[i-1] + c[i] * d[i]\n        int i = 2;\n        // Process groups of 4 where i <= LEN_1D-4\n        for (; i <= LEN_1D - 4; i += 4) {\n            // Load b[i-1] values for indices i, i+1, i+2, i+3\n            float b_prev_0 = b[i-1];\n            float b_prev_1 = b[i];\n            float b_prev_2 = b[i+1];\n            float b_prev_3 = b[i+2];\n\n            // Compute c[i] * d[i] for four consecutive elements\n            float prod_0 = c[i] * d[i];\n            float prod_1 = c[i+1] * d[i+1];\n            float prod_2 = c[i+2] * d[i+2];\n            float prod_3 = c[i+3] * d[i+3];\n\n            // Store results\n            a[i] = b_prev_0 + prod_0;\n            a[i+1] = b_prev_1 + prod_1;\n            a[i+2] = b_prev_2 + prod_2;\n            a[i+3] = b_prev_3 + prod_3;\n        }\n\n        // Scalar tail for remaining a elements\n        for (; i < LEN_1D; i++) {\n            a[i] = b[i-1] + c[i] * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 15",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 15",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s323_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s323",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s323_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s323_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s323(int iterations,int LEN_1D, float* a, float *b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        for (int i = 1; i < LEN_1D; i++) {\n            a[i] = b[i-1] + c[i] * d[i];\n            b[i] = a[i] + c[i] * e[i];\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s323_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

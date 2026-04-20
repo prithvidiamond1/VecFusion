@@ -1,0 +1,70 @@
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {
+    float sum;
+    int outer_iterations = 2 * iterations;
+
+    for (int nl = 0; nl < outer_iterations; nl++) {
+        sum = 0.0f;
+        
+        if (LEN_1D <= 0) {
+            continue;
+        }
+
+        // Handle misaligned start with scalar prologue
+        int i = 0;
+        int misalign = ((uintptr_t)&c[0]) % 16;
+        if (misalign != 0) {
+            int prologue_end = (4 - (misalign / 4)) % 4;
+            if (prologue_end > LEN_1D) {
+                prologue_end = LEN_1D;
+            }
+            for (; i < prologue_end; i++) {
+                float tmp_a = c[i] + d[i];
+                float tmp_b = c[i] + e[i];
+                a[i] = tmp_a;
+                b[i] = tmp_b;
+                sum += tmp_a + tmp_b;
+            }
+        }
+
+        // Vectorized main loop with aligned accesses
+        int vec_limit = i + ((LEN_1D - i) / 4) * 4;
+        float4 sum_vec = (float4){0.0f, 0.0f, 0.0f, 0.0f};
+        
+        for (; i < vec_limit; i += 4) {
+            float4 c_vec = *(float4 *)&c[i];
+            float4 d_vec = *(float4 *)&d[i];
+            float4 e_vec = *(float4 *)&e[i];
+
+            float4 tmp_a_vec = c_vec + d_vec;
+            float4 tmp_b_vec = c_vec + e_vec;
+
+            *(float4 *)&a[i] = tmp_a_vec;
+            *(float4 *)&b[i] = tmp_b_vec;
+
+            // Accumulate in same order as scalar: (c+d) + (c+e) for each element
+            float4 lane_sum = tmp_a_vec + tmp_b_vec;
+            sum_vec += lane_sum;
+        }
+
+        // Horizontal reduction preserving order
+        float temp_sum = sum;
+        temp_sum += sum_vec.x;
+        temp_sum += sum_vec.y;
+        temp_sum += sum_vec.z;
+        temp_sum += sum_vec.w;
+        sum = temp_sum;
+
+        // Scalar epilogue for remaining elements
+        for (; i < LEN_1D; i++) {
+            float tmp_a = c[i] + d[i];
+            float tmp_b = c[i] + e[i];
+            a[i] = tmp_a;
+            b[i] = tmp_b;
+            sum += tmp_a + tmp_b;
+        }
+    }
+
+    return sum;
+}

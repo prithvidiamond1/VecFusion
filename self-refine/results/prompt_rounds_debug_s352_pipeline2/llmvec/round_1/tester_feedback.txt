@@ -1,0 +1,7 @@
+- The loop's outer iteration count is `8*iterations`, but the original scalar code likely had `iterations` as the outer loop count; the mismatch in outer trip count is causing a return value difference.
+
+- The vectorized inner loop processes groups of 5 elements, but the original scalar loop processes each element individually; this changes the accumulation order of floating-point addition, leading to rounding differences and a mismatched final `dot` value.
+
+- The cleanup loop after the vectorized section correctly handles remaining elements, but the accumulation order difference from the grouped processing still causes a numeric mismatch compared to the scalar reference.
+
+- To match the scalar reference output exactly, the vectorizer must preserve the original outer loop iteration count (use `iterations` not `8*iterations`) and ensure the inner loop's accumulation order is identical, possibly by using a reduction that respects element-wise order or by validating that order-insensitive reductions are acceptable.

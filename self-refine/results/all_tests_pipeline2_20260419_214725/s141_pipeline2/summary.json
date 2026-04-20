@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s141_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s141_opt(int iterations, float * flat_2d_array, float bb[256][256])\n{\n    int nl_max = 200 * (iterations / 256);\n    \n    // Precompute k indices once\n    int k_indices[256][256];\n    for (int i = 0; i < 256; i++) {\n        int k = i * (i + 3) / 2;\n        for (int j = i; j < 256; j++) {\n            k_indices[i][j] = k;\n            k += j + 1;\n        }\n    }\n    \n    // Process outer loop\n    for (int nl = 0; nl < nl_max; nl++) {\n        // Loop distribution with temporary accumulation\n        for (int i = 0; i < 256; i++) {\n            float temp_accum[256 - i];\n            \n            // First: gather all bb values (fully vectorizable)\n            for (int j = i; j < 256; j++) {\n                temp_accum[j - i] = bb[j][i];\n            }\n            \n            // Second: accumulate using precomputed indices\n            // Use local pointer for better aliasing analysis\n            float *local_flat = flat_2d_array;\n            const int *local_k_idx = &k_indices[i][i];\n            for (int j = 0; j < 256 - i; j++) {\n                local_flat[local_k_idx[j]] += temp_accum[j];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s141_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s141_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s141_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s141(int iterations, float * flat_2d_array, float bb[256][256])\n{\n    int nl_max = 200 * (iterations / 256);\n    \n    // Precompute k indices once\n    int k_indices[256][256];\n    for (int i = 0; i < 256; i++) {\n        int k = i * (i + 3) / 2;\n        for (int j = i; j < 256; j++) {\n            k_indices[i][j] = k;\n            k += j + 1;\n        }\n    }\n    \n    // Process outer loop\n    for (int nl = 0; nl < nl_max; nl++) {\n        // Loop distribution with temporary accumulation\n        for (int i = 0; i < 256; i++) {\n            float temp_accum[256 - i];\n            \n            // First: gather all bb values (fully vectorizable)\n            // Canonical counted loop with explicit bounds\n            int j_start = i;\n            int j_end = 256;\n            int j_count = j_end - j_start;\n            \n            // Vector-friendly loop with cleanup\n            int j;\n            for (j = j_start; j + 3 < j_end; j += 4) {\n                temp_accum[j - i] = bb[j][i];\n                temp_accum[j - i + 1] = bb[j + 1][i];\n                temp_accum[j - i + 2] = bb[j + 2][i];\n                temp_accum[j - i + 3] = bb[j + 3][i];\n            }\n            // Scalar cleanup\n            for (; j < j_end; j++) {\n                temp_accum[j - i] = bb[j][i];\n            }\n            \n            // Second: accumulate using precomputed indices\n            // Use local pointer for better aliasing analysis\n            float *local_flat = flat_2d_array;\n            const int *local_k_idx = &k_indices[i][i];\n            \n            // Canonical counted loop with explicit bounds\n            int accum_count = 256 - i;\n            \n            // Vector-friendly loop with cleanup\n            int idx;\n            for (idx = 0; idx + 3 < accum_count; idx += 4) {\n                int k0 = local_k_idx[idx];\n                int k1 = local_k_idx[idx + 1];\n                int k2 = local_k_idx[idx + 2];\n                int k3 = local_k_idx[idx + 3];\n                \n                local_flat[k0] += temp_accum[idx];\n                local_flat[k1] += temp_accum[idx + 1];\n                local_flat[k2] += temp_accum[idx + 2];\n                local_flat[k3] += temp_accum[idx + 3];\n            }\n            // Scalar cleanup\n            for (; idx < accum_count; idx++) {\n                local_flat[local_k_idx[idx]] += temp_accum[idx];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s141_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s141",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s141_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s141_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260419_214725/s141_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260419_214725/s141_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

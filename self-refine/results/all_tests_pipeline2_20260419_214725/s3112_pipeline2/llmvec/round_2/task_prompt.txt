@@ -1,0 +1,113 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Revise your candidate for `s3112` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s3112(int iterations, int LEN_1D, float* a, float* b)
+{
+    float sum;
+    for (int nl = 0; nl < iterations; nl++) {
+        sum = (float)0.0;
+
+        // First loop: compute reduction (vectorizable)
+        float temp_sum = (float)0.0;
+        for (int i = 0; i < LEN_1D; i++) {
+            temp_sum += a[i];
+        }
+        sum = temp_sum;
+
+        // Second loop: compute prefix sum with reordered memory access
+        // Store original a[i] before updating prefix_sum to break dependency
+        float prefix_sum = (float)0.0;
+        for (int i = 0; i < LEN_1D; i++) {
+            float current_a = a[i];  // Load a[i] first
+            prefix_sum += current_a; // Then update prefix_sum
+            b[i] = prefix_sum;       // Finally store to b[i]
+        }
+    }
+    return sum;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+float vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)
+{
+    float sum = 0.0f;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // Vectorized reduction
+        float temp_sum = 0.0f;
+        int i = 0;
+
+        // Process in chunks of 4 for better vectorization potential
+        for (; i + 3 < LEN_1D; i += 4) {
+            temp_sum += a[i] + a[i+1] + a[i+2] + a[i+3];
+        }
+
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            temp_sum += a[i];
+        }
+
+        sum = temp_sum;
+
+        // Prefix sum - use explicit dependency breaking
+        float prefix_sum = 0.0f;
+        i = 0;
+
+        // Process in chunks of 4 with explicit unrolling
+        for (; i + 3 < LEN_1D; i += 4) {
+            float a0 = a[i];
+            float a1 = a[i+1];
+            float a2 = a[i+2];
+            float a3 = a[i+3];
+
+            prefix_sum += a0;
+            b[i] = prefix_sum;
+
+            prefix_sum += a1;
+            b[i+1] = prefix_sum;
+
+            prefix_sum += a2;
+            b[i+2] = prefix_sum;
+
+            prefix_sum += a3;
+            b[i+3] = prefix_sum;
+        }
+
+        // Scalar tail for prefix sum
+        for (; i < LEN_1D; i++) {
+            float current_a = a[i];
+            prefix_sum += current_a;
+            b[i] = prefix_sum;
+        }
+    }
+
+    return sum;
+}
+        ```
+
+        Tester feedback:
+        - The prefix sum loop has a dependency on `prefix_sum` across iterations, which cannot be vectorized as written; the vectorizer incorrectly restructured it into a chunked loop that computes incorrect values for `b[i]`.
+- Replace the chunked prefix sum loop with a scalar loop to preserve the sequential dependency: `for (i = 0; i < LEN_1D; i++) { prefix_sum += a[i]; b[i] = prefix_sum; }`.
+- The reduction loop (`temp_sum += a[i] + ...`) is safe to vectorize, but ensure the scalar tail handles any remaining elements after the vectorized chunk.
+- Verify that `LEN_1D` is non-negative; if it can be zero, the loops should handle it correctly (the current bounds `i + 3 < LEN_1D` and `i < LEN_1D` already do).
+- The outer loop over `nl` is independent and does not affect correctness of the inner loops.
+- After fixing the prefix sum, the function should return the same `sum` as before, which is just the last iteration's `temp_sum`.
+
+        Return a corrected candidate function named `vectorized_s3112`.

@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s316_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s316_opt(int iterations, int LEN_1D, float* a)\n{\n    float x;\n    for (int nl = 0; nl < iterations*5; nl++) {\n        float min_val = a[0];\n        int i;\n        // Main vectorizable reduction loop\n        for (i = 1; i < LEN_1D; ++i) {\n            float current = a[i];\n            if (current < min_val) {\n                min_val = current;\n            }\n        }\n        x = min_val;\n    }\n    return x;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s316_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s316_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s316_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "typedef float float4 __attribute__((ext_vector_type(4)));\n\nfloat vectorized_s316(int iterations, int LEN_1D, float* a)\n{\n    float x = 0.0f;\n    \n    for (int nl = 0; nl < iterations * 5; nl++) {\n        float min_val = a[0];\n        \n        // Vectorized reduction\n        int i = 1;\n        int vec_limit = ((LEN_1D - 1) / 4) * 4 + 1;\n        \n        if (vec_limit > 1) {\n            float4 min_vec = (float4){a[0], a[0], a[0], a[0]};\n            \n            for (; i < vec_limit; i += 4) {\n                float4 current_vec = *(float4*)(&a[i]);\n                min_vec = current_vec < min_vec ? current_vec : min_vec;\n            }\n            \n            // Horizontal reduction of min_vec\n            float temp_min = min_vec.x;\n            if (min_vec.y < temp_min) temp_min = min_vec.y;\n            if (min_vec.z < temp_min) temp_min = min_vec.z;\n            if (min_vec.w < temp_min) temp_min = min_vec.w;\n            \n            if (temp_min < min_val) min_val = temp_min;\n        }\n        \n        // Scalar tail\n        for (; i < LEN_1D; i++) {\n            float current = a[i];\n            if (current < min_val) {\n                min_val = current;\n            }\n        }\n        \n        x = min_val;\n    }\n    \n    return x;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s316_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s316",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s316_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s316_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260419_214725/s316_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260419_214725/s316_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations,int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        // Loop distribution: separate absolute value computation from max/index search
+        float current_max = max;
+        int current_index = 0;
+
+        // Vector-friendly loop without branching
+        for (int i = 1; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[k]);
+            int update = (abs_val > current_max);
+            current_max = update ? abs_val : current_max;
+            current_index = update ? i : current_index;
+            k += inc;
+        }
+
+        index = current_index;
+        max = current_max;
+
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+#include <stdint.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc) {
+    int k, index;
+    float max, chksum;
+
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        float current_max = max;
+        int current_index = 0;
+
+        // Vectorization-friendly loop with explicit bounds
+        int i = 1;
+        int loop_bound = LEN_1D;
+
+        // Process elements in chunks for potential vectorization
+        for (; i + 3 < loop_bound; i += 4) {
+            // Load 4 elements with stride
+            float abs_val0 = fabsf(a[k]);
+            k += inc;
+            float abs_val1 = fabsf(a[k]);
+            k += inc;
+            float abs_val2 = fabsf(a[k]);
+            k += inc;
+            float abs_val3 = fabsf(a[k]);
+            k += inc;
+
+            // Check and update for each element
+            if (abs_val0 > current_max) {
+                current_max = abs_val0;
+                current_index = i;
+            }
+            if (abs_val1 > current_max) {
+                current_max = abs_val1;
+                current_index = i + 1;
+            }
+            if (abs_val2 > current_max) {
+                current_max = abs_val2;
+                current_index = i + 2;
+            }
+            if (abs_val3 > current_max) {
+                current_max = abs_val3;
+                current_index = i + 3;
+            }
+        }
+
+        // Scalar tail cleanup
+        for (; i < loop_bound; i++) {
+            float abs_val = fabsf(a[k]);
+            if (abs_val > current_max) {
+                current_max = abs_val;
+                current_index = i;
+            }
+            k += inc;
+        }
+
+        index = current_index;
+        max = current_max;
+
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Tester feedback:
+        - The loop incorrectly initializes `i = 1` but `current_index` is set to 0, assuming element 0 is the initial max. However, the vectorized loop starts at `i = 1`, skipping a re-check of element 0, which is fine, but the scalar tail loop uses `k` that has already been advanced by the initial `k += inc;` before the loop. This misalignment causes `k` to index the wrong array element when `inc != 1`.
+
+- The initial `k = 0;` then `k += inc;` advances `k` before the loop, but the vectorized loop expects `k` to point to `a[inc]` at `i=1`. However, the vectorized loop's first iteration loads `a[k]` where `k` is already `inc`, which corresponds to index 1 only if `inc == 1`. For other `inc`, the mapping between `i` and `a[k]` is broken because `k` increments by `inc` each element, not by 1.
+
+- The relationship between loop index `i` and array index `k` must be `k = i * inc`. The candidate incorrectly increments `k` by `inc` per element but starts `k` at `inc` when `i=1`, which is correct only if `i` counts from 1. However, the tail loop continues this pattern, but the initial max was taken from `a[0]` with `k=0`, so the stride pattern is inconsistent.
+
+- To fix, compute `k` directly from `i` inside the loops: `float abs_val0 = fabsf(a[i * inc]);` and remove the separate `k` increments. Alternatively, restructure to maintain `k` as `i * inc` explicitly, ensuring the stride is applied correctly for all `inc` values.
+
+- The scalar tail loop currently uses `k` accumulated from the vectorized loop, which will be misaligned if the vectorized loop's iteration count isn't a multiple of 4. Instead, compute `k` inside the tail loop as `i * inc` to guarantee correct indexing.
+
+- The initial `max = fabsf(a[0]);` and `current_index = 0;` are correct, but ensure the vectorized loop starts at `i = 1` and uses `a[i * inc]` for comparisons, so `i` represents the position in the stride pattern.
+
+- After fixing indexing, verify the loop bound `LEN_1D` refers to the number of elements to process, not the memory bound. The original loop likely iterates over indices `0` to `LEN_1D-1` with stride `inc`, so `loop_bound` should be `LEN_1D` and `k = i * inc` must stay within array bounds.
+
+- The return statement uses `max + index + 1` but `max` and `index` are overwritten each outer iteration; the final values from the last iteration are used, which matches typical behavior, but ensure no undefined values from uninitialized variables.
+
+        Return a corrected candidate function named `vectorized_s318`.

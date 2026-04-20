@@ -1,9 +1,0 @@
-- The vectorized loop processes 4 elements per iteration but loads `a[i+4]` for the last update (`a[i+3] = s4 * b3`). This reads one element beyond the vectorized chunk's intended range when `i = LEN_1D - 8`, causing an out-of-bounds access if `LEN_1D` is not a multiple of 4 plus some offset. The mismatch at index 77 suggests memory corruption.
-
-- Change the vectorized loop bound from `i <= LEN_1D - 8` to `i <= LEN_1D - 9` to ensure `i+4` is within bounds when loading `s4`. This guarantees the vectorized chunk reads only up to `a[LEN_1D - 5]`.
-
-- The scalar cleanup loop condition `i < LEN_1D - 5` is correct and will start from the new `i` after vectorization, but ensure it iterates up to index `LEN_1D - 6` inclusive to avoid overlapping with the special handling of the last 5 elements.
-
-- The special handling block for the last 5 elements uses `a[i + 5]` which is out-of-bounds when `i = LEN_1D - 5`. Change `float t5 = a[i + 5];` to `float t5 = a[LEN_1D - 1];` since `i + 5` equals `LEN_1D`, and the last valid index is `LEN_1D - 1`.
-
-- Verify that after fixing the vectorized loop bound, the scalar cleanup and special handling cover all elements without gaps or overlaps. The special handling should start at `LEN_1D - 5` and process indices up to `LEN_1D - 1`.
