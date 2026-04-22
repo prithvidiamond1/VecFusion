@@ -8,6 +8,14 @@ The repository currently supports two combined pipelines:
 
 The goal is to increase the number of correctly transformed kernels that can be verified and benefit from vectorization.
 
+## Project Context
+Developed as a course project for **CSE 583** at the **University of Michigan**.
+
+## Team
+- Torence Mwindaare  
+- Prithviraj Prasad
+- Roy Huang 
+- Farhan Siddik
 ## Repository structure
 
 ```text
