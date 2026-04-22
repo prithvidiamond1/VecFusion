@@ -1,6 +1,0 @@
-- Fix the `__builtin_convertvector` calls: the second argument must be a vector type, not a scalar. Use `v4i` instead of `int`.
-- Change `int mask = __builtin_convertvector(mask_vec, int);` to `v4i mask_v = __builtin_convertvector(mask_vec, v4i);` in both occurrences.
-- Since the subsequent code expects a scalar integer mask, extract it by converting the vector mask to an integer mask using bit operations. For example, use `int mask = (mask_v[0] & 1) | ((mask_v[1] & 1) << 1) | ((mask_v[2] & 1) << 2) | ((mask_v[3] & 1) << 3);`.
-- Alternatively, use a simpler approach: directly compute a scalar mask by checking each lane of `mask_vec` without `__builtin_convertvector`. For instance, `int mask = (mask_vec[0] ? 1 : 0) | (mask_vec[1] ? 2 : 0) | (mask_vec[2] ? 4 : 0) | (mask_vec[3] ? 8 : 0);`.
-- Ensure the fix is applied in both the first pass (line 46) and the second pass (line 77) of the vectorized loop.
-- After fixing, recompile to verify no further type errors exist.
