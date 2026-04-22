@@ -1,8 +1,0 @@
-- The candidate incorrectly handles the `end` calculation for negative stride: `end = LEN_1D / (-inc)` should be `end = (LEN_1D - 1) / (-inc) + 1` to ensure `i*inc` stays non-negative.
-- For positive stride, the `end` calculation `(LEN_1D + inc - 1) / inc` is correct but may exceed valid iteration count; it should be clamped to `LEN_1D` only after ensuring it's non-negative.
-- The initial `first_idx` is hardcoded to `0`, but for negative stride the first valid index is `(end-1)*inc`, not `0`. This breaks the first occurrence semantics.
-- The loop uses `i` starting from `1`, skipping the first element in the sequence; the scalar initialization should match the first element's index based on stride.
-- The `current_max` and `current_index` initialization should use the first element's absolute value and index, not a hardcoded `a[0]`.
-- The tail cleanup loop uses the same `end` bound, but for negative stride the indices `k` may become negative if `end` is miscalculated.
-- The function returns `max + index + 1`, but `index` is an integer; mixing integer and float in addition may cause type mismatch issues with the original scalar code.
-- The outer loop `iterations/2` may not match the original trip count if `iterations` is odd; ensure integer division matches the scalar version's behavior.

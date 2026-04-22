@@ -1,6 +1,0 @@
-- `dot` is uninitialized if `iterations == 0` (loop never executes), but more critically the return value mismatches the reference — the reference likely initializes `dot = 0.0f` before the outer loop or uses a specific starting value.
-- The outer loop overwrites `dot` every iteration starting fresh with `dot0=dot1=dot2=dot3=0`, which is correct for a dot-product kernel, but the **initial value of `dot` before the loop** is uninitialized — initialize `dot = 0.0f` before the outer loop to avoid undefined behavior on zero iterations.
-- The most likely cause of "Return mismatch" is that the reference function uses `1 * iterations` (not `8 * iterations`) as the outer loop count. Change `8 * iterations` back to `iterations` (or `2*iterations` — check the original s352 spec; s352 typically uses `iterations` directly).
-- Specifically, `s352` in the TSVC benchmark uses `for (nl = 0; nl < iterations; nl++)` — using `8 * iterations` runs 8× too many iterations, which can cause floating-point accumulation differences or simply a wrong final `dot` value compared to the reference.
-- Fix: change `8 * iterations` to `iterations` in the outer loop bound.
-- Add `dot = 0.0f;` before the outer loop to handle the zero-iterations edge case safely.

@@ -1,8 +1,0 @@
-- The vectorized conditional selection incorrectly uses bitwise `&` and `|` on `v4f` (float vectors), which is not allowed in C.
-- Replace the bitwise blend logic with a proper float-vector blend using `__builtin_shufflevector` or a conditional operator on the mask.
-- Since `mask` is already a `v4f` of 0.0 or 1.0, use `mask * d_vec + (1.0 - mask) * e_vec` to blend.
-- Alternatively, cast `mask` to an integer vector for bitwise operations, but keep the operands as integer vectors, not float vectors.
-- After computing `mask_int` and `not_mask_int`, cast them back to `v4f` using `__builtin_convertvector` before using them in bitwise operations, or perform bitwise operations only on integer vectors and then reinterpret as float.
-- A simpler fix: compute `selected_vec = (mask * d_vec) + ((v4f){1.0f,1.0f,1.0f,1.0f} - mask) * e_vec;` after ensuring `mask` contains exactly 0.0 or 1.0.
-- Ensure the mask generation `c_vec < zero_vec` yields a vector of `int` (or `v4i`) directly to avoid extra conversions.
-- Use `v4i mask_int = c_vec < zero_vec;` and then `v4f mask_float = __builtin_convertvector(mask_int, v4f);` for blending via multiplication.

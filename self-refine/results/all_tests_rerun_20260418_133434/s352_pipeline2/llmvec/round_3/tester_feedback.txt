@@ -1,2 +1,0 @@
-- The function accumulates `dot` across all `8 * iterations` outer loop iterations, but the reference implementation resets and recomputes the dot product each iteration, returning only the final single-iteration result.
-- Fix: move `float dot = 0.0f;` inside the outer loop (or replace it), so only the last iteration's result is returned — i.e., declare `dot` outside but reset it at the start of each `nl` iteration: `dot = 0.0f;` as the first statement inside the `for (nl ...)` loop body, then after the loop return `dot`.

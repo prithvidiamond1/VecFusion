@@ -1,4 +1,0 @@
-- The vector comparison `vcurrent > vmax` yields a vector of integer results (boolean mask), but the ternary operator expects a scalar condition.
-- Replace the vector ternary with a proper vector select intrinsic or manual blend.
-- Use `__builtin_convertvector` or cast the comparison mask to a vector of floats before blending.
-- Alternatively, implement as: `vmax = (v4f)__builtin_ia32_maxps((__v4sf)vcurrent, (__v4sf)vmax);` for x86 SSE, or use portable `__builtin_shufflevector` and `__builtin_reduce_max`.

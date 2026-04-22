@@ -1,8 +1,0 @@
-- The vector comparison `current_vec > max_vec` yields an `int4` result, but `cmp1` is declared as `float4`. Change `float4 cmp1` to `int4 cmp1`.
-- The ternary operator `cmp1 ? current_vec : max_vec` is invalid because `cmp1` is a vector; use a select intrinsic or manual blend. Replace with `(float4)(cmp1 & (int4)current_vec) | ((int4)max_vec & ~cmp1)` after casting to integer vectors for bitwise operations.
-- The blend operation must be done via integer bitwise ops; ensure proper casting: `max_vec = __builtin_shufflevector(current_vec, max_vec, (cmp1[0]?0:4, cmp1[1]?1:5, cmp1[2]?2:6, cmp1[3]?3:7))` or use `__builtin_convertvector(cmp1, float4)` if the compiler supports float vector select.
-- Alternatively, simplify by using `max_vec = __builtin_ia32_maxps(current_vec, max_vec)` if targeting x86, but for portability, implement a manual max per lane: `max_vec[0] = cmp1[0] ? current_vec[0] : max_vec[0];` etc.
-- The unused variable `chksum` triggers a warning; either remove it or mark it with `(void)chksum;` to suppress the warning.
-- Ensure the vectorized max reduction correctly initializes `max_vec` with the first four elements of `a` if `LEN_1D >= 4`, otherwise handle the scalar case first.
-- The scalar tail for max should start from the correct `i` after the vector loop; this is already correct but verify the loop bounds.
-- The final return uses `index` and `x` which are set inside the loop but may be uninitialized if `iterations == 0`; initialize `x` and `index` before the outer loop to avoid undefined behavior.

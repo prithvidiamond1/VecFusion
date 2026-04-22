@@ -1,8 +1,0 @@
-- Remove the stray backticks and extra code block markers at line 59 (` ```c`) that cause a syntax error.
-- Ensure the `v4f` typedef is correctly defined; currently only `v4i` is defined. Add `typedef float v4f __attribute__((ext_vector_type(4)));` if missing.
-- Complete the truncated line `float effective` at line 219; it should be `float effective_scale = scalable_flag ? scale_scalable : scale_fixed;` and the loop body must be finished.
-- Delete the unrelated function definitions (`next_u32`, `fill_i32`, etc.) that appear after the main function, as they are not part of the vectorized function.
-- Verify all loops use correct bounds; the vectorized loops with `i + 3 < divCount` are correct, but ensure the scalar tails handle the remainder properly.
-- In the vectorized dstDelta computation, the blend logic using individual `if` statements on vector elements is not valid SIMD; replace with a proper vector select operation.
-- The allocation failure fallback path incorrectly frees `srcDelta` and `dstDelta` before using them; move the free calls after the scalar fallback or handle NULL checks properly.
-- The vectorized store for `src` in the first loop writes to `src[i+4]` which may exceed allocated bounds when `i = divCount - 4`; adjust indices to `src[i+1]` to `src[i+4]` only if `i+4 <= divCount`.

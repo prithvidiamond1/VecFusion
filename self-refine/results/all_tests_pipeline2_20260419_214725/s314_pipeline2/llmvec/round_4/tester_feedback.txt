@@ -1,8 +1,0 @@
-- The test fails with a return mismatch, indicating the vectorized reduction logic does not compute the correct maximum value across the array.
-- The vectorized loop uses a manual blend `vcurrent * mask + vmax * (1 - mask)`, but this incorrectly assumes `mask` is 1.0 for true and 0.0 for false; however, the comparison `vcurrent > vmax` yields a vector of `-1` (all bits set) for true, not `1.0`.
-- Using `-1` as a float multiplier corrupts the result because `vcurrent * -1` negates values, and `1 - (-1)` gives 2, breaking the blend.
-- Replace the manual blend with a proper select using `__builtin_shuffle` or conditional move, or correctly convert the mask to 1.0/0.0 by casting and arithmetic.
-- Simpler fix: use `vmax = __builtin_ia32_maxps(vmax, vcurrent)` intrinsic for SSE, or use a portable `vmax = (vcurrent > vmax) ? vcurrent : vmax;` if the compiler supports vector conditional operators.
-- Ensure the scalar initialization `x = a[0]` is correct even when `LEN_1D` is 0; but the mismatch occurs in non-zero cases due to the blend error.
-- After fixing the blend, verify the horizontal reduction and scalar tail loop combine correctly; they appear structurally sound.
-- The outer loop and trip count handling are correct; the issue is purely in the vector comparison and selection semantics.

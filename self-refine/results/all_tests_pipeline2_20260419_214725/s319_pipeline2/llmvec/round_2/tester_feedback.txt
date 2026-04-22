@@ -1,8 +1,0 @@
-- The `__builtin_convertvector` expects a vector argument, but `__builtin_memcpy_inline` returns `void*` (or the destination), not a vector.
-- Replace the `__builtin_memcpy_inline` + `__builtin_convertvector` pattern with a direct vector load using `__builtin_assume_aligned` and a cast, or use `__builtin_memcpy` into a temporary array and then cast.
-- For simplicity, load vectors directly: `v4f c_vec = *((v4f*)&c[i]);` assuming alignment is sufficient or using `__builtin_assume_aligned(&c[i], 16)`.
-- Alternatively, use `__builtin_memcpy(&c_vec, &c[i], 16);` where `c_vec` is a `v4f` variable, avoiding `__builtin_convertvector`.
-- The same fix applies to all four occurrences (loading `c`, `d`, `c`, `e` in the two vectorized loops).
-- Ensure the vector store `__builtin_memcpy_inline(&a[i], &tmp_a_vec, 16);` remains, as it correctly copies a vector to memory.
-- After fixing loads, verify the reduction `sum_a_vec += tmp_a_vec;` and `sum_b_vec += tmp_b_vec;` are correct.
-- Check that the scalar tail loops correctly handle the remaining elements after vectorization.

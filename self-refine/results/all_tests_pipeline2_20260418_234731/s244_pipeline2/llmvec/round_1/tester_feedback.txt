@@ -1,8 +1,0 @@
-- The vectorized main loop incorrectly loads `a[i+1]` before computing `a[i]`, causing a data dependency violation because `a[i+1]` from the previous iteration may have been overwritten.
-- Change the vectorized main loop to compute `a[i]` first, then load the original `a[i+1]` values from memory before computing `a[i+1]`.
-- The vectorized main loop's tail condition `i <= LEN_1D - 2 - VF` is incorrect; it should be `i <= LEN_1D - 2 - VF` but adjusted for the stride, or more simply `i <= LEN_1D - 2 - VF` with `i` starting at 1, but ensure the last vector doesn't exceed bounds.
-- The scalar tail for the main loop should start from the correct `i` after vectorization, but currently it uses `i < LEN_1D - 1`, which may skip the last element; adjust to `i < LEN_1D - 1` or handle the final iteration separately.
-- The first iteration handling at `i=0` is correct, but ensure the vectorized loop starts at `i=1` and doesn't overlap with it.
-- The vectorized loop for updating `b` uses `i <= LEN_1D - 1 - VF`, which is correct for a stride of 4, but the scalar tail should cover `i < LEN_1D`, not `i < LEN_1D - 1`, to include all elements.
-- In the vectorized main loop, after computing `a[i]`, store it, then load `a[i+1]` from the original array (not the just-computed one) to avoid using stale values.
-- Verify that the vectorized main loop's index `i` increments by `VF`, but the operations on `a[i+1]` require that `i+1` also stays within bounds for the entire vector; consider unrolling or adjusting the loop to handle this safely.

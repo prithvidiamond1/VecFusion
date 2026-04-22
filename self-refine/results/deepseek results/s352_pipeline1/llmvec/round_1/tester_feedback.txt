@@ -1,1 +1,0 @@
-- The cleanup loop uses `i += 5` and accesses `a[i+4]`, but when `LEN_1D % 20 != 0` the remaining elements may not be a multiple of 5, causing out-of-bounds access and wrong results. Replace the cleanup loop with a simple scalar loop: `for (; i < LEN_1D; i++) { dot += a[i] * b[i]; }`

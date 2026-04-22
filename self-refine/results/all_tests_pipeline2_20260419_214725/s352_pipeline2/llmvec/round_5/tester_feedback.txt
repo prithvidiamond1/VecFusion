@@ -1,8 +1,0 @@
-- The vectorized loop resets `dot = 0.0f` each outer iteration, but the scalar accumulation after the vector loops uses `dot += ...` without initializing `dot` for that accumulation step. This leaves `dot` uninitialized for the first addition.
-- The vector accumulators `vdot0` and `vdot1` are initialized to zero, but the final reduction loop adds their elements to `dot` without first setting `dot` to zero for that reduction.
-- The scalar remainder loop also uses `dot += a[i] * b[i]`, compounding the uninitialized `dot` issue.
-- Fix: Initialize `dot` to zero before the vector reduction loop, or restructure so `dot` starts at zero and accumulates only once per outer iteration.
-- Specifically, change the line after the vector loops from `for (int j = 0; j < 8; j++) { dot += ... }` to `dot = 0.0f; for (int j = 0; j < 8; j++) { dot += ... }` to ensure a clean start for the reduction.
-- Alternatively, compute a temporary sum from the vectors and assign to `dot` instead of accumulating into an uninitialized `dot`.
-- The outer loop’s `dot = 0.0f` is correct, but the inner vector reduction must not assume `dot` is still zero after the vector loops; it needs explicit re-initialization or a separate accumulator.
-- The trip count and bounds handling for the vector loops appears correct; the failure is purely due to missing initialization in the reduction step.

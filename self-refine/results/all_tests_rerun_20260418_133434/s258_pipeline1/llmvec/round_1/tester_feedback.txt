@@ -1,6 +1,0 @@
-- The test is comparing against a reference implementation. The mismatch on `a[0]` suggests the function signature or the array parameter `aa` is wrong — specifically `aa[256][256]` should likely be `aa[256][256]` passed as a pointer, but the real issue is the **parameter order or type** doesn't match what the test harness expects.
-- More likely the root cause: the reference loop uses `aa[nl][i]` (indexing by the outer `nl` loop), but the candidate always uses `aa[0][i]`. Fix: change `aa[0][i+k]` to `aa[nl][i+k]` throughout.
-- The first scalar pass (lines computing `s` before the `s = 0.f` reset) is dead code and misleading, but not the bug — the real bug is the `aa` row index.
-- Change every occurrence of `aa[0][i+0]` through `aa[0][i+7]` and `aa[0][i]` to `aa[nl][i+0]` etc., using `nl` as the row index.
-- The initial dead scalar loop (first `for (int i = 0; i < 256; ++i)`) should be removed entirely to avoid confusion and wasted work.
-- No other correctness issues are apparent; the sequential `s` dependency handling and `b[i]`/`e[i]` formulas look correct.

@@ -1,8 +1,0 @@
-- The vectorized loop uses unaligned vector loads (`*(v4f*)&a[i]`) which may cause alignment faults on some architectures. Use `__builtin_assume_aligned` or explicit unaligned loads.
-- The reduction variable `dot` is not initialized before the scalar cleanup loop; it should be set to the vector sum result before entering the scalar loop.
-- The scalar cleanup loop incorrectly adds to `dot` without first setting `dot` to the accumulated vector sum; move the vector sum assignment before the scalar loop.
-- The vector sum accumulation (`vdot0 += ...`) may have precision differences compared to scalar, but the test failure suggests a correctness issue, likely due to misalignment or missing initialization.
-- The outer loop resets `dot` each iteration, but the inner vector reduction may not correctly accumulate across the vectorized chunks due to the separate `vdot0` and `vdot1` accumulators.
-- The vector sum calculation uses pointer casting which may violate strict aliasing; use union-based type punning or `__builtin_convertvector` for safety.
-- The loop condition `i <= LEN_1D - 8` may cause an out-of-bounds access when `LEN_1D` is exactly divisible by 8; change to `i < LEN_1D - 7` or keep as is but ensure memory safety.
-- The test exit code 2 indicates a return value mismatch, so verify the reduction formula: ensure the vector accumulators are summed correctly and added to the scalar tail.

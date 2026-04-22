@@ -1,8 +1,0 @@
-- The test fails due to a return mismatch, indicating the computed maximum value is incorrect.
-- The vectorized reduction initializes `vmax` with `x = a[0]` for all lanes, but if `a[0]` is not the maximum in its lane, the reduction may incorrectly drop larger values from later lanes.
-- Specifically, when `a[0]` is smaller than some element in the first vector, the mask `vcurrent > vmax` will be true for those lanes, but the blend operation uses `~mask` incorrectly because `~mask` is a bitwise NOT on integer vectors, not a logical NOT for the condition.
-- Replace the manual blend with `__builtin_shufflevector` or use a proper conditional select: `vmax = __builtin_convertvector(mask, v4f) ? vcurrent : vmax` is not valid C; instead use `vmax = (v4f)((__builtin_convertvector(mask, v4f) * vcurrent) + (__builtin_convertvector(!mask, v4f) * vmax))` but `!mask` isn't defined. Use `vmax = (v4f)(mask ? vcurrent : vmax)` is GCC vector extension syntax.
-- Simpler fix: use GCC vector extensions directly: `vmax = mask ? vcurrent : vmax;` which works with `v4i mask`.
-- Also ensure the scalar tail loop uses the updated `x` after vector reduction, which it does.
-- Verify the horizontal reduction correctly combines `vec_max` with `x`; it does, but the vector reduction flaw corrupts `vec_max`.
-- Change the vector reduction to use explicit conditional assignment via GCC's ternary operator on vector types.

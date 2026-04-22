@@ -500,3 +500,24 @@ class CompilerBaselineAdapter:
             summary="Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
             artifact_path=str(baseline_path),
         )
+
+    def evaluate_candidate(
+        self,
+        source_file: Path,
+        scalar_function: str,
+        candidate_code: str,
+        outdir: Path,
+        pipeline_name: str,
+        steps: list,
+        final_stage: str,
+    ) -> TransformResult:
+        outdir.mkdir(parents=True, exist_ok=True)
+        candidate_path = outdir / f"{final_stage}_input.c"
+        candidate_path.write_text(candidate_code)
+        return TransformResult(
+            stage=final_stage,
+            ok=True,
+            candidate_code=candidate_code,
+            summary=f"Candidate selected from {final_stage}.",
+            artifact_path=str(candidate_path),
+        )

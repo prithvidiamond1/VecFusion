@@ -1,5 +1,0 @@
-- The original `s442` uses `indx[i]` as a direct index into the array (i.e., `a[indx[i]]`), but the candidate uses `indx[i]` as a *selector* for which source array to use while always writing to `a[i]`. Fix: use `indx[i+j]` as the destination index into `a`, e.g., `a[indx[i+j]] += b[i+j] * b[i+j]` (or whatever the reference semantics are).
-- More specifically, the reference `s442` likely does: `a[i] += b[indx[i]] * c[indx[i]]` or similar — check the original loop body. The candidate's conditional dispatch on `idx == 1/2/3/4` does not match the reference semantics at all.
-- The most common `s442` reference is: `for (i=0; i<LEN_1D; i++) a[i] = b[indx[i]] + c[i]` or `a[indx[i]] += b[i]`. Replace the entire conditional block with the correct single-statement body matching the reference.
-- Remove the inner `j`-loop unrolling and the chunk-of-4 outer loop; just write a plain `for (i=0; i<LEN_1D; i++)` loop with the correct body — the compiler will auto-vectorize where possible.
-- The `iterations/2` divisor may also be wrong if the reference uses `iterations` directly; verify and correct the outer loop bound.

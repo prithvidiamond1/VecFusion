@@ -1,5 +1,0 @@
-- The test fails with a return mismatch, indicating the vectorized dot product accumulation does not match the scalar reference in floating-point semantics.
-- The candidate processes groups of 5 elements, summing them into `group_sum` before adding to `dot`. This changes the floating-point accumulation order compared to the original scalar loop, which adds each product sequentially to `dot`.
-- To preserve exact floating-point results, the vectorizer must maintain the same sequential order of accumulation. The candidate should instead accumulate each product directly into `dot` in the original order within the vectorized loop body.
-- Consider using a reduction that sums products in order, or restructure to ensure each product addition to `dot` happens separately, not as a group sum that is then added.
-- The cleanup loop is correct, but the main vectorized loop's accumulation strategy must be revised for bitwise identical results.

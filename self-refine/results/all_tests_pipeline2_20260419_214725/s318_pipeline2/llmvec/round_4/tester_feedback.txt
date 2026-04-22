@@ -1,8 +1,0 @@
-- The second pass vectorized loop incorrectly increments `k` when no match is found: it adds `inc` after processing four elements, but each element already added `inc` inside the sequential checks, causing `k` to overshoot by `inc` per chunk.
-- The early exit condition `!found` in the second pass vectorized loop is checked per element, but the loop continues to process remaining elements in the chunk after a match, which is unnecessary and could cause out-of-bounds `k` increments.
-- The tail preparation for `k` after the second pass vectorized loop incorrectly sets `k = i * inc` when not found, but `k` has already been advanced inside the loop; this double-counts `inc` for processed elements.
-- The second pass tail loop uses `k` that may be misaligned due to the above issues, leading to incorrect array indexing and potential out-of-bounds access.
-- The first pass reduction loop increments `k` inside the vectorized chunk, but the scalar tail loop continues from the same `k`, which is correct; however, ensure `k` starts at 0 and `i` starts at 1, matching the original scalar logic.
-- The second pass should reset `k = 0` and `i = 0` before the vectorized search, but the loop’s internal `k` updates must align with `i` (each element step adds `inc`).
-- Simplify the second pass vectorized loop: process four elements with a single `k` increment per element, and break immediately on match without further increments.
-- After the second pass vectorized loop, if not found, set `k = i * inc` to correctly position for the tail, but only if `k` wasn’t already advanced correctly within the loop.

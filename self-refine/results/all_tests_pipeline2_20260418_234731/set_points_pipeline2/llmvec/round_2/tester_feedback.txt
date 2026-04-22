@@ -1,8 +1,0 @@
-- The test indicates a mismatch in the `src` parameter at index 0, meaning the function is incorrectly modifying the input `src` array.
-- The candidate code creates `src_temp` to avoid corrupting `src`, but `src_temp[0] = src[0];` is insufficient. The function must compute `src_temp[i+1]` based on `src[i] + divs[i]` (a cumulative sum), not just copy `divs[i]`.
-- The algorithm requires `src_temp` to hold the cumulative source positions: `src_temp[0] = srcStart`, then `src_temp[i+1] = src_temp[i] + divs[i]` for i in [0, divCount-1], and `src_temp[divCount+1] = srcEnd`.
-- The current vectorized loop `*(v4i*)&src_temp[i + 1] = div_vec;` incorrectly assigns raw `divs` values, breaking the cumulative sum.
-- The scalar cleanup loop also incorrectly copies `divs[i]` instead of performing the cumulative addition.
-- Fix by implementing a vectorized prefix sum for `src_temp` using `divs` and starting from `srcStart`.
-- Ensure the final `src_temp[divCount+1]` is set to `srcEnd` after the cumulative sum, as it may differ from the computed sum due to `srcFixed`/`srcScalable` partitioning.
-- The `dstDelta` computation uses `src_temp` differences, which will be correct after fixing the cumulative sum.

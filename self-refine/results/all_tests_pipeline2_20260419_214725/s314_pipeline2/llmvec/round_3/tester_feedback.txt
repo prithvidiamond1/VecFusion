@@ -1,4 +1,0 @@
-- The ternary operator `mask ? vcurrent : vmax` is invalid because `mask` is a vector of integers, not a scalar boolean; Clang does not support GCC's vector conditional syntax directly.
-- Replace the vector ternary with a manual blend using `__builtin_shufflevector` or explicit element-wise operations, or use `__builtin_convertvector(mask, v4f)` to convert the mask to a float vector for multiplication.
-- Alternatively, restructure to use standard C loops for the vector portion or use target-specific intrinsics if portability is not required.
-- Ensure the fix maintains the correct max reduction semantics: only update `vmax` where `vcurrent > vmax`.

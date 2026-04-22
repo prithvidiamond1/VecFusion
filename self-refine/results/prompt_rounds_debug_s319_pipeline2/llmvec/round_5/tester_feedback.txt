@@ -1,8 +1,0 @@
-- The vectorized loop incorrectly handles the case where `LEN_1D` is small and the scalar prologue consumes all elements, leaving `vec_limit` incorrectly computed.
-- The calculation `int vec_limit = i + ((LEN_1D - i) / 4) * 4;` can produce a value greater than `LEN_1D` if `(LEN_1D - i)` is negative after the prologue, causing out-of-bounds vector loads.
-- After the scalar prologue, if `i == LEN_1D`, then `LEN_1D - i` is zero, but integer division yields zero, making `vec_limit = i`, which is correct, but the loop condition `i < vec_limit` will be false, skipping the vector loop properly.
-- However, if `LEN_1D` is less than `i` after the prologue (impossible since prologue stops at `floats_to_align` which is `<= LEN_1D`), the expression `LEN_1D - i` becomes negative, leading to undefined behavior in the division and a negative `vec_limit`.
-- To fix, ensure `vec_limit` is clamped: compute `int remaining = LEN_1D - i; if (remaining > 0) vec_limit = i + (remaining / 4) * 4; else vec_limit = i;`.
-- Additionally, the vector loop's store operations use `a[i]` and `b[i]` as base addresses but store four consecutive elements; this is correct only if `i` is the current index, but the stores should be to `&a[i]` etc., which they are.
-- The test failure (exit code 2) indicates a result mismatch, likely due to the vector loop executing when it shouldn't or missing elements, so verify the trip count logic for edge cases like `LEN_1D = 0` (handled by early continue) or `LEN_1D` less than 4.
-- Implement the fix by adjusting the `vec_limit` calculation to avoid negative values and ensure the vector loop only runs when there are at least 4 elements remaining.

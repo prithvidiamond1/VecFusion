@@ -1,8 +1,0 @@
-- The test fails due to a return value mismatch, indicating a correctness error in the vectorized loop's sum calculation.
-- The scalar reference likely accumulates `sum_inner` as `sum_inner += (ai + bi)` for each element, but the vectorized version adds each `ai` and `bi` separately, doubling the contribution.
-- In the vectorized loop, change the sum accumulation to `sum_inner += (ai0 + bi0) + (ai1 + bi1) + (ai2 + bi2) + (ai3 + bi3);` to match scalar semantics.
-- Alternatively, compute `sum_inner += (ai0 + ai1 + ai2 + ai3) + (bi0 + bi1 + bi2 + bi3);` but ensure it's equivalent to adding each pair once per element.
-- Verify the scalar cleanup loop already correctly uses `sum_inner += ai + bi;`—it does, so only the vectorized part needs fixing.
-- Update the vectorized loop's sum lines to a single addition per element pair, e.g., replace the four separate additions with one combined addition of the four sums.
-- Ensure no other arithmetic changes; the `a` and `b` assignments are correct.
-- Recompile and test to confirm the sum matches the scalar reference.

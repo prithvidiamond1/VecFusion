@@ -1,8 +1,0 @@
-- The ternary operator `? :` cannot be used directly with vector types in C; it expects a scalar condition.
-- Replace the ternary selection with explicit blend using vector operations: compute both sides and blend based on mask.
-- Use `__builtin_shufflevector` or manual bitwise operations to implement conditional selection.
-- For example: `selected_vec = (mask & d_vec) | (~mask & e_vec)` after converting mask to appropriate bit pattern.
-- Ensure mask is a vector of all‑ones or all‑zeros per lane for bitwise blending.
-- Alternatively, use `__builtin_ia32_blendvps` if targeting x86, but a portable bitwise blend is safer.
-- The fix must be applied to the vectorized loop for `b[i]` where the error occurs.
-- Keep the scalar tail unchanged; it already uses a scalar ternary correctly.

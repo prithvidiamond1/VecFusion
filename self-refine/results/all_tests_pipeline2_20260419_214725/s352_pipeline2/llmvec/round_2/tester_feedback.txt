@@ -1,8 +1,0 @@
-- The vectorized loop's remainder handling incorrectly assumes the original loop processes elements in groups of 5 after the vectorized part, but the original scalar loop increments by 1 each iteration.
-- The condition `i <= LEN_1D - 5` in the "groups of 5" loop is unsafe: it should be `i <= LEN_1D - 5` is correct for ensuring 5 elements remain, but the original loop does not have this pattern; the vectorizer introduced a non-existent pattern.
-- The "groups of 5" loop is entirely incorrect for the semantics of the original loop, which is a simple dot product without any stride or grouping.
-- Remove the "groups of 5" loop entirely; after the vectorized and 8-element remainder, only a simple scalar remainder loop should remain.
-- The vectorized main loop's condition `i <= LEN_1D - 16` is correct for processing 16 elements per iteration.
-- The 8-element remainder condition `i <= LEN_1D - 8` is correct.
-- After fixing the remainder, ensure the final scalar loop starts from the updated `i` and runs while `i < LEN_1D`.
-- The combination of vector accumulators (dot0, dot1) and the final scalar remainder must sum into `dot` correctly; currently `dot` is overwritten before the remainder loops, which is fine if the remainder adds to it.

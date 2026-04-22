@@ -1,4 +1,0 @@
-Compile succeeded for round 6.
-Exit code: 0
-stdout:
-PASS trials=64

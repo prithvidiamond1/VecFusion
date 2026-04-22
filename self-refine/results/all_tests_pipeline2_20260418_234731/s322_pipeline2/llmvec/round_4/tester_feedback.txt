@@ -1,8 +1,0 @@
-- The vectorized loop incorrectly uses `orig_a[i]` for the `a[i-2]` dependency at position `i`, but `a[i-2]` should be the *updated* value from the original loop, not the original value from `orig_a`.
-- For the first vector iteration (i=2), `a[0]` and `a[1]` have been updated before the vector loop, so `orig_a[0]` and `orig_a[1]` are stale. The vector loop must use the updated `a[0]` and `a[1]` for dependencies.
-- Specifically, when computing `a[i] = orig_a[i] + a[i-2] * c[i] + a[i-1] * b[i]`, the dependencies `a[i-2]` and `a[i-1]` must be the *already computed* values from the `a` array, not from `orig_a`.
-- In the vectorized chunk, for indices i=2 and i=3, `a[i-2]` and `a[i-1]` refer to updated `a[0]`, `a[1]`, `a[2]`, etc., which are not the same as `orig_a[0]`, `orig_a[1]`, `orig_a[2]`.
-- The fix: In the vector loop, load `a[i-2]` and `a[i-1]` from the updated `a` array, not from `orig_a`. This requires loading from `a` for the first few elements of each vector iteration.
-- For correctness, the vector loop must start with the correct `a` values for offsets -2 and -1. Since `a[0]` and `a[1]` are set before the vector loop, load them directly from `a`.
-- Adjust the vector loop's dependency loads: `a_im2_0` should be `a[i-2]`, `a_im2_1` should be `a[i-1]`, etc., ensuring that for i=2, `a[0]` and `a[1]` are taken from the updated `a` array.
-- The scalar cleanup loop already uses `orig_a` incorrectly; it must also use updated `a` values for dependencies `a[i-2]` and `a[i-1]`.

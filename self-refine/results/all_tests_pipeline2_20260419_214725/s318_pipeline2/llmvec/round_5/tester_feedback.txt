@@ -1,8 +1,0 @@
-- The second pass vectorized loop incorrectly increments `k` when a match is found early in a chunk, causing `k` to be misaligned for the tail loop.
-- When `found` becomes true inside the vectorized chunk, the `continue` statements skip the final `k += inc` for that chunk, but the earlier increments for elements before the match still happened, leaving `k` pointing to the element after the found one.
-- The tail loop preparation `k = i * inc` is only executed if `!found`, but if found inside the vectorized loop, `k` is not reset to a known position relative to `i`.
-- The tail loop should start at `k = found_idx * inc` when found in the vectorized loop, but the current logic doesn't ensure this.
-- The scalar tail loop uses `k` directly, but after an early match in the vectorized loop, `k` may point past the found element, causing the tail loop to skip elements.
-- Fix: In the second pass, after the vectorized loop, if `found` is true, set `k = found_idx * inc` to align `k` with the found index before the tail loop (though the tail loop won't execute because `found` is true).
-- Alternatively, restructure the second pass to avoid using `k` for indexing and compute indices directly from `i` to prevent misalignment.
-- The exit code 2 indicates a result mismatch, likely due to incorrect `index` or `chksum` from misaligned `k` affecting the tail loop's `found_idx` detection.

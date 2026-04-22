@@ -1,1 +1,0 @@
-- The outer loop runs `half_iters = iterations / 2` times, but the reference implementation runs `iterations` times. Change `half_iters` to `iterations` (i.e., `for (int nl = 0; nl < iterations; nl++)`).

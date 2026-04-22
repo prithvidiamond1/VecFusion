@@ -1,8 +1,0 @@
-- The vectorized loop handles up to `LEN_1D - 8` elements, but the scalar cleanup loop starts from `i`, which may skip elements if `LEN_1D` is not a multiple of 8.
-- The scalar cleanup loop should accumulate into `dot`, but `dot` already contains the partial sum from the vectorized part; this is correct.
-- However, the test failure (exit code 2) indicates a numerical mismatch, likely due to uninitialized or incorrectly accumulated values in edge cases.
-- The issue is that `dot` is not reset to 0.0f before the scalar cleanup loop for the final iteration of `nl`; it already holds the vector sum, so the scalar loop adds on top of it correctly.
-- The mismatch might occur because the vectorized loop's condition `i <= LEN_1D - 8` can cause an out-of-bounds access if `LEN_1D` is less than 8.
-- Change the vectorized loop condition from `i <= LEN_1D - 8` to `i < LEN_1D - 7` or `i <= LEN_1D - 8` but ensure `LEN_1D >= 8`; however, to avoid issues when `LEN_1D < 8`, add a guard: if `LEN_1D < 8`, skip the vectorized loop entirely.
-- Alternatively, adjust the loop to use `i < LEN_1D - 7` to prevent accessing `a[i + 4]` and `b[i + 4]` beyond bounds when `LEN_1D` is exactly 8 or more.
-- Since the compile succeeded but the test failed, focus on the loop bounds: for `LEN_1D = 8`, `i <= 0` allows `i = 0`, then `i + 4 = 4` is within bounds, but the scalar loop starts at `i = 8` (since `i` increments to 8), leaving no cleanup—this should be correct. The mismatch might stem from floating-point accumulation order differences between vectorized and scalar versions.

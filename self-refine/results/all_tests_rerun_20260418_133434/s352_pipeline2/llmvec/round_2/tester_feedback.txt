@@ -1,2 +1,0 @@
-- The function resets `dot` on every iteration of the outer `nl` loop (by assigning `dot = dot0 + dot1 + dot2 + dot3` each time), but the original `s352` accumulates the dot product **across all iterations** — `dot` should be accumulated with `+=`, not assigned with `=`.
-- Change `dot = dot0 + dot1 + dot2 + dot3;` to `dot += dot0 + dot1 + dot2 + dot3;`

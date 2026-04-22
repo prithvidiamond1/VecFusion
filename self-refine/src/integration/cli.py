@@ -11,7 +11,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run VecTrans-owned combined vectorization pipelines.")
     parser.add_argument("source", type=Path, help="Path to the C source file.")
     parser.add_argument("--scalar-function", required=True, help="Scalar function name for LLM-Vectorizer stages.")
-    parser.add_argument("--pipeline", choices=["pipeline1", "pipeline2"], required=True)
+    parser.add_argument("--pipeline", choices=["pipeline1", "pipeline2", "vectrans_only"], required=True)
     parser.add_argument("--vectrans-root", type=Path, required=True)
     parser.add_argument("--llmvec-root", type=Path, required=True)
     parser.add_argument("--outdir", type=Path, required=True)

@@ -1,5 +1,0 @@
-- The candidate file contains prose/markdown text mixed into the C source code before the `#include` directives, causing parse errors. Remove all text outside the `#include` block and the function body — only valid C code should appear in the file.
-- The file is truncated; the function body is incomplete (the last `for` loop and closing braces are missing). Provide the complete, syntactically valid function.
-- Specifically, the `else` branch for `!isScalable` in the `!normal_case` path is cut off mid-expression (`dstDeltas[i] = (i %`). Complete this expression and close all loops, branches, and the function.
-- After computing `dstDeltas`, add the prefix-sum loop to fill `dst[1..divCount]` from `dst[0]` and `dstDeltas`, then set `dst[divCount] = dstEnd`.
-- Ensure the file starts directly with `#include <stdint.h>` (or similar) with no preceding prose.

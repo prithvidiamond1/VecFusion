@@ -1,8 +1,0 @@
-- The test reports a mismatch in `src` at index 0, but the candidate code modifies `src[1]` during the delta computation, which could corrupt the original `src[0]` value.
-- The first loop writes `src[i+1] = divs[i]` for `i=0`, correctly setting `src[1]`. However, the subsequent delta computation does `src[1] -= srcStart`, altering `src[1]` in place.
-- The restoration loop attempts to fix `src[1]` by adding `srcStart` back, but this assumes `src[1]` originally held `divs[0]`, which may not be true after the subtraction.
-- The algorithm should preserve the original `src` array values for later use (e.g., in the final `src[divCount + 1] = srcEnd`), but the in-place modifications break this.
-- Instead of modifying `src` directly for delta calculations, use a separate temporary array for `srcDelta` to avoid corrupting `src`.
-- The final assignment `src[divCount + 1] = srcEnd` assumes `src` has at least `divCount + 2` elements, but the candidate code may not have allocated or preserved space for this.
-- Ensure the `src` array is not overwritten during intermediate computations; only read from it for delta calculations and write final values at the end.
-- The prefix sum loop writes to `dst[i+4]` which could exceed array bounds when `i + 4 == divCount + 1` near the end of the vectorized loop.

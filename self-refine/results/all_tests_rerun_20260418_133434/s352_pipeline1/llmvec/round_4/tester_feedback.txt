@@ -1,7 +1,0 @@
-- The function returns `dot` after the outer loop, but `dot` is reset to `0.0` at the start of each outer iteration, so only the last iteration's result is returned — this is actually correct behavior for the reference.
-- The issue is likely floating-point associativity: vectorizing the inner dot product changes the order of operations, producing a different result than the scalar reference.
-- Fix: ensure the vectorized reduction accumulates in the same order as scalar, or use a single accumulator without reordering. Avoid auto-vectorization that splits into multiple partial sums if the reference uses strict left-to-right accumulation.
-- Specifically, add a `volatile` accumulator or use a sequential reduction to match the scalar reference exactly, e.g., accumulate into a single `float dot` without SIMD partial sums being merged differently.
-- Alternatively, unroll manually but keep a single accumulator variable to prevent the compiler from creating multiple partial accumulators that are summed at the end (which changes the FP result).
-- Add `#pragma clang loop vectorize(disable)` or equivalent, or restructure so the inner loop is not vectorized and matches the reference scalar order exactly.
-- The simplest fix: mark the inner loop to prevent vectorization reordering, ensuring bit-exact match with the reference implementation.

@@ -1,8 +1,0 @@
-- The first loop has a dependency where `s` is used across iterations, but the vectorizer incorrectly kept it scalar while still trying to vectorize the loop. This causes incorrect `temp_s` and `a` values.
-- Change the first loop to remain fully scalar; remove any vectorization attempt for it.
-- Ensure `temp_s[i]` is computed sequentially using the previous iteration's `s` value.
-- The loop should compute `s` exactly as in the original: `s = (a[i] > 0) ? d[i]*d[i] : s;` and store `s` into `temp_s[i]` and `a[i]`.
-- Precompute `d_sq` vectorization is fine, but the first loop must use `d_sq[i]` correctly within the scalar recurrence.
-- Update the first loop to: `s = (a[i] > 0.0f) ? d_sq[i] : s;` then assign `temp_s[i] = s;` and `a[i] = s;`.
-- This ensures the recurrence dependency is preserved, fixing the mismatch in array `a`.
-- The second loop's vectorization can remain unchanged.
