@@ -1,0 +1,88 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s319` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s319(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)
+{
+    float sum;
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        sum = 0.;
+        for (int i = 0; i < LEN_1D; i++) {
+            float tmp_a = c[i] + d[i];
+            float tmp_b = c[i] + e[i];
+            a[i] = tmp_a;
+            b[i] = tmp_b;
+            sum += tmp_a;
+            sum += tmp_b;
+        }
+    }
+    return sum;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)
+{
+    float sum;
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        sum = 0.0f;
+
+        typedef float float4 __attribute__((vector_size(16)));
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+
+        float4 vsum = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        for (; i < limit; i += 4) {
+            float4 vc, vd, ve, tmp_a, tmp_b;
+
+            vc = (float4){c[i], c[i+1], c[i+2], c[i+3]};
+            vd = (float4){d[i], d[i+1], d[i+2], d[i+3]};
+            ve = (float4){e[i], e[i+1], e[i+2], e[i+3]};
+
+            tmp_a = vc + vd;
+            tmp_b = vc + ve;
+
+            a[i]   = tmp_a[0]; a[i+1] = tmp_a[1]; a[i+2] = tmp_a[2]; a[i+3] = tmp_a[3];
+            b[i]   = tmp_b[0]; b[i+1] = tmp_b[1]; b[i+2] = tmp_b[2]; b[i+3] = tmp_b[3];
+
+            vsum += tmp_a;
+        }
+
+        sum = vsum[0] + vsum[1] + vsum[2] + vsum[3];
+
+        for (; i < LEN_1D; i++) {
+            float tmp_a = c[i] + d[i];
+            float tmp_b = c[i] + e[i];
+            a[i] = tmp_a;
+            b[i] = tmp_b;
+            sum += tmp_a;
+        }
+    }
+    return sum;
+}
+        ```
+
+        Tester feedback:
+        - The original scalar loop accumulates `sum` over all iterations of the outer `nl` loop, but the vectorized version resets `sum = 0.0f` at the start of each `nl` iteration, so only the last iteration's sum is returned. However, looking at the reference behavior: the reference likely also resets sum each iteration (it's a local variable reset each nl loop), so that's probably fine.
+- The real issue: the reference scalar code computes `a[i] = c[i] + d[i]` and `b[i] = c[i] + e[i]`, and accumulates `sum += a[i]` (i.e., `c[i] + d[i]`). Check that `vsum` is accumulating `tmp_a` (which is `vc + vd`) — this looks correct.
+- The problem is likely that `typedef float float4 __attribute__((vector_size(16)));` is declared **inside the loop body** (inside the `nl` loop). While some compilers tolerate this, it can cause issues. Move the typedef **outside** all loops (to function scope or file scope).
+- The scalar reference for s319 accumulates `sum` across **all** `nl` iterations (sum is not reset each nl iteration in the reference). Move `sum = 0.0f` initialization **before** the `nl` loop, not inside it, and do not reset it each iteration.
+
+Specifically:
+- Move `float sum = 0.0f;` before the `nl` loop and remove the `sum = 0.0f;` reset inside the loop.
+- Move `float4 vsum = {0.0f, ...}` accumulation so it persists across `nl` iterations, or accumulate into `sum` after each inner loop completes but don't reset between `nl` iterations.
+- Move the `typedef float float4 __attribute__((vector_size(16)));` outside the `nl` loop (to function scope).
+
+        Return a corrected candidate function named `vectorized_s319`.

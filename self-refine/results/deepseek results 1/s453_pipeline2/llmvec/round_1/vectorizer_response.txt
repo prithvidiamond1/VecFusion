@@ -1,0 +1,32 @@
+```c
+#include <stdint.h>
+
+void vectorized_s453(int iterations, int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < iterations * 2; nl++) {
+        // First loop: compute a[i] = 2.0f * (i + 1), unrolled 4x
+        int i = 0;
+        for (; i <= LEN_1D - 4; i += 4) {
+            a[i + 0] = 2.0f * (float)(i + 1);
+            a[i + 1] = 2.0f * (float)(i + 2);
+            a[i + 2] = 2.0f * (float)(i + 3);
+            a[i + 3] = 2.0f * (float)(i + 4);
+        }
+        for (; i < LEN_1D; i++) {
+            a[i] = 2.0f * (float)(i + 1);
+        }
+
+        // Second loop: multiply with b[i], unrolled 4x
+        i = 0;
+        for (; i <= LEN_1D - 4; i += 4) {
+            a[i + 0] = a[i + 0] * b[i + 0];
+            a[i + 1] = a[i + 1] * b[i + 1];
+            a[i + 2] = a[i + 2] * b[i + 2];
+            a[i + 3] = a[i + 3] * b[i + 3];
+        }
+        for (; i < LEN_1D; i++) {
+            a[i] = a[i] * b[i];
+        }
+    }
+}
+```

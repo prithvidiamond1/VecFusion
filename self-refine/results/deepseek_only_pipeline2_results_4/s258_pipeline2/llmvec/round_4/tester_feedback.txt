@@ -1,0 +1,8 @@
+- The scalar recurrence loop incorrectly updates `a[i]` with `s` instead of `temp_s[i]`, causing a mismatch.
+- Change `a[i] = s;` to `a[i] = temp_s[i];` to match the original scalar semantics.
+- The condition `if (a[i] > 0.0f)` uses the original `a[i]` values, which are overwritten each iteration. Store original `a[i]` in a temporary variable before the loop or use a separate array.
+- Precompute `a_original[i] = a[i]` before the scalar recurrence loop to preserve the original values for the condition check.
+- Update the condition to `if (a_original[i] > 0.0f)` to ensure correct recurrence behavior.
+- Ensure `a_original` is declared with size 256 and filled before the scalar loop.
+- The scalar recurrence loop must compute `s` based on original `a` values, not the overwritten ones.
+- After fixing, verify that `temp_s[i]` and `a[i]` are assigned the same value as in the original scalar code.

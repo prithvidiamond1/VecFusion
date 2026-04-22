@@ -1,0 +1,85 @@
+
+Revise your candidate for `s319` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s319(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)
+{
+    float sum;
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        sum = 0.;
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum += a[i];
+            b[i] = c[i] + e[i];
+            sum += b[i];
+        }
+    }
+    return sum;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)
+{
+    float sum;
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        sum = 0.0f;
+
+        typedef float float4 __attribute__((vector_size(16)));
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+
+        float4 vsum = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        for (; i < limit; i += 4) {
+            float4 vc, vd, ve, va, vb;
+
+            vc = *(float4 *)(c + i);
+            vd = *(float4 *)(d + i);
+            ve = *(float4 *)(e + i);
+
+            va = vc + vd;
+            vb = vc + ve;
+
+            *(float4 *)(a + i) = va;
+            *(float4 *)(b + i) = vb;
+
+            vsum += va + vb;
+        }
+
+        sum += vsum[0] + vsum[1] + vsum[2] + vsum[3];
+
+        for (; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum += a[i];
+            b[i] = c[i] + e[i];
+            sum += b[i];
+        }
+    }
+    return sum;
+}
+        ```
+
+        Tester feedback:
+        - The scalar remainder loop computes `sum += a[i]` then `b[i] = c[i] + e[i]` then `sum += b[i]`, which matches the vectorized loop's `vsum += va + vb`. That part is consistent.
+- The bug is that `sum` is reset to `0.0f` at the start of each `nl` iteration, but the horizontal reduction `sum += vsum[0] + ...` only adds the vector partial sums — it never accumulates across `nl` iterations. However, since `sum` is returned after the last iteration, this is actually fine for the final value.
+- The real mismatch: in the vectorized loop `vsum += va + vb` accumulates `(c[i]+d[i]) + (c[i]+e[i])`, but the reference likely computes `sum += a[i] + b[i]` where `a[i] = c[i]+d[i]` and `b[i] = c[i]+e[i]`. These are equivalent, so the logic is correct.
+- The actual problem is **floating-point reassociation order**: the reference scalar loop does `sum += a[i]` first, then `sum += b[i]` (two separate additions), but the vectorized path does `vsum += va + vb` (one combined addition per lane). This changes the rounding and produces a different result.
+- Fix: split the vector accumulation into two separate steps to match the scalar order: first `vsum += va`, then `vsum += vb` (two separate statements instead of `vsum += va + vb`).
+- Also ensure the scalar remainder loop order exactly matches: `a[i] = c[i]+d[i]; sum += a[i]; b[i] = c[i]+e[i]; sum += b[i];` — which it already does, so no change needed there.
+
+**Specific fix:**
+```c
+// Replace:
+vsum += va + vb;
+// With:
+vsum += va;
+vsum += vb;
+```
+
+        Return a corrected candidate function named `vectorized_s319`.

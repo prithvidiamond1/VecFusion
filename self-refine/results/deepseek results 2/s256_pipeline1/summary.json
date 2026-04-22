@@ -1,0 +1,27 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s256_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s256(int iterations, float* a, float* d, float aa[256][256], float bb[256][256])\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        for (int i = 0; i < 256; i++) {\n            // j=1: a[1] = 1.0f - a[0]\n            // j=2: a[2] = 1.0f - a[1]\n            // Each iteration depends on previous a[j-1], so this is a recurrence.\n            // We cannot vectorize across j due to the dependency a[j] = 1.0f - a[j-1].\n            // However, we can observe:\n            // a[j] = 1.0f - a[j-1]\n            // a[j+1] = 1.0f - a[j] = 1.0f - (1.0f - a[j-1]) = a[j-1]\n            // So even indices of a[] (starting from j=2) equal a[0],\n            // and odd indices of a[] (starting from j=1) equal 1.0f - a[0].\n            // We can precompute the two values and fill a[] and aa[][] accordingly.\n\n            float a0 = a[0];\n            float val_odd  = 1.0f - a0;   // a[j] for odd j\n            float val_even = a0;           // a[j] for even j (j>=2)\n\n            // Process j=1..255\n            // For odd j: a[j] = val_odd, aa[j][i] = val_odd + bb[j][i]*d[j]\n            // For even j: a[j] = val_even, aa[j][i] = val_even + bb[j][i]*d[j]\n\n            // Unroll by 4 pairs (8 iterations at a time)\n            int j = 1;\n            for (; j + 7 < 256; j += 8) {\n                // j+0: odd\n                a[j+0] = val_odd;\n                aa[j+0][i] = val_odd  + bb[j+0][i] * d[j+0];\n                // j+1: even\n                a[j+1] = val_even;\n                aa[j+1][i] = val_even + bb[j+1][i] * d[j+1];\n                // j+2: odd\n                a[j+2] = val_odd;\n                aa[j+2][i] = val_odd  + bb[j+2][i] * d[j+2];\n                // j+3: even\n                a[j+3] = val_even;\n                aa[j+3][i] = val_even + bb[j+3][i] * d[j+3];\n                // j+4: odd\n                a[j+4] = val_odd;\n                aa[j+4][i] = val_odd  + bb[j+4][i] * d[j+4];\n                // j+5: even\n                a[j+5] = val_even;\n                aa[j+5][i] = val_even + bb[j+5][i] * d[j+5];\n                // j+6: odd\n                a[j+6] = val_odd;\n                aa[j+6][i] = val_odd  + bb[j+6][i] * d[j+6];\n                // j+7: even\n                a[j+7] = val_even;\n                aa[j+7][i] = val_even + bb[j+7][i] * d[j+7];\n            }\n            // Scalar tail\n            for (; j < 256; j++) {\n                float val = (j & 1) ? val_odd : val_even;\n                a[j] = val;\n                aa[j][i] = val + bb[j][i] * d[j];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s256_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s256",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s256_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s256_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s256_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

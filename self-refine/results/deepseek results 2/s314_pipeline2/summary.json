@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s314_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s314_opt(int iterations, int LEN_1D, float* a) {\n    float x;\n    for (int nl = 0; nl < iterations*5; nl++) {\n        float max_val = a[0];\n        int i;\n        \n        // Process in chunks to allow potential vectorization\n        for (i = 1; i < LEN_1D; i++) {\n            float current = a[i];\n            if (current > max_val) {\n                max_val = current;\n            }\n        }\n        \n        x = max_val;\n    }\n    return x;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s314_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s314_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s314_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <float.h>\n\nfloat vectorized_s314(int iterations, int LEN_1D, float* a) {\n    float x;\n    for (int nl = 0; nl < iterations * 5; nl++) {\n        float max_val = a[0];\n        int i = 1;\n\n        // Vector width: process 8 floats at a time\n        #define VEC_WIDTH 8\n        typedef float float8 __attribute__((vector_size(8 * sizeof(float))));\n\n        // Initialize vector of max values\n        float8 vmax = {max_val, max_val, max_val, max_val,\n                       max_val, max_val, max_val, max_val};\n\n        int limit = LEN_1D - VEC_WIDTH + 1;\n        for (; i < limit; i += VEC_WIDTH) {\n            float8 va;\n            __builtin_memcpy(&va, &a[i], sizeof(float8));\n            // Element-wise max using ternary via comparison\n            float8 mask = va > vmax;\n            // Use mask to select: mask is all-ones or all-zeros per element\n            // Portable approach: use conditional assignment per lane\n            vmax = (float8){\n                (va[0] > vmax[0]) ? va[0] : vmax[0],\n                (va[1] > vmax[1]) ? va[1] : vmax[1],\n                (va[2] > vmax[2]) ? va[2] : vmax[2],\n                (va[3] > vmax[3]) ? va[3] : vmax[3],\n                (va[4] > vmax[4]) ? va[4] : vmax[4],\n                (va[5] > vmax[5]) ? va[5] : vmax[5],\n                (va[6] > vmax[6]) ? va[6] : vmax[6],\n                (va[7] > vmax[7]) ? va[7] : vmax[7],\n            };\n        }\n\n        // Reduce vector max to scalar\n        float reduced = vmax[0];\n        for (int k = 1; k < VEC_WIDTH; k++) {\n            if (vmax[k] > reduced) reduced = vmax[k];\n        }\n        max_val = reduced;\n\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            float current = a[i];\n            if (current > max_val) {\n                max_val = current;\n            }\n        }\n\n        x = max_val;\n    }\n    return x;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s314_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s314",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s314_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s314_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s314_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

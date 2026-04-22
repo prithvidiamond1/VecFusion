@@ -1,0 +1,55 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s318_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s318_opt(int iterations,int LEN_1D, float* a, int inc) {\n    int k, index;\n    float max, chksum;\n    \n    for (int nl = 0; nl < iterations/2; nl++) {\n        k = 0;\n        index = 0;\n        max = fabsf(a[0]);\n        \n        // First pass: find maximum absolute value (reduction)\n        float max_val = max;\n        for (int i = 1; i < LEN_1D; i++) {\n            k += inc;\n            float abs_val = fabsf(a[k]);\n            if (abs_val > max_val) {\n                max_val = abs_val;\n            }\n        }\n        \n        // Second pass: find first index where value equals max_val\n        k = 0;\n        int found_idx = 0;\n        for (int i = 0; i < LEN_1D; i++) {\n            float abs_val = fabsf(a[k]);\n            if (abs_val == max_val && found_idx == 0) {\n                found_idx = i;\n            }\n            k += inc;\n        }\n        \n        max = max_val;\n        index = found_idx;\n        chksum = max + (float) index;\n    }\n    return max + index + 1;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s318_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s318_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s318_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <math.h>\n\nfloat vectorized_s318(int iterations, int LEN_1D, float* a, int inc) {\n    int k, index;\n    float max, chksum;\n\n    for (int nl = 0; nl < iterations/2; nl++) {\n        k = 0;\n        index = 0;\n        max = fabsf(a[0]);\n\n        // First pass: find maximum absolute value (reduction)\n        float max_val = max;\n\n        // Vectorized reduction for maximum absolute value\n        int i = 1;\n        typedef float v4f __attribute__((vector_size(16)));\n        v4f vmax = {max_val, max_val, max_val, max_val};\n\n        // Process in chunks of 4\n        for (; i + 3 < LEN_1D; i += 4) {\n            k += inc;\n            float abs_val0 = fabsf(a[k]);\n            k += inc;\n            float abs_val1 = fabsf(a[k]);\n            k += inc;\n            float abs_val2 = fabsf(a[k]);\n            k += inc;\n            float abs_val3 = fabsf(a[k]);\n\n            v4f vabs = {abs_val0, abs_val1, abs_val2, abs_val3};\n            v4f vcmp = vabs > vmax;\n\n            // Manual blend: vmax = vcmp ? vabs : vmax\n            int cmp_mask0 = vcmp[0] != 0;\n            int cmp_mask1 = vcmp[1] != 0;\n            int cmp_mask2 = vcmp[2] != 0;\n            int cmp_mask3 = vcmp[3] != 0;\n\n            vmax[0] = cmp_mask0 ? vabs[0] : vmax[0];\n            vmax[1] = cmp_mask1 ? vabs[1] : vmax[1];\n            vmax[2] = cmp_mask2 ? vabs[2] : vmax[2];\n            vmax[3] = cmp_mask3 ? vabs[3] : vmax[3];\n        }\n\n        // Extract horizontal maximum from vector\n        float vmax_arr[4];\n        vmax_arr[0] = vmax[0];\n        vmax_arr[1] = vmax[1];\n        vmax_arr[2] = vmax[2];\n        vmax_arr[3] = vmax[3];\n\n        for (int j = 0; j < 4; j++) {\n            if (vmax_arr[j] > max_val) {\n                max_val = vmax_arr[j];\n            }\n        }\n\n        // Scalar tail for first pass\n        for (; i < LEN_1D; i++) {\n            k += inc;\n            float abs_val = fabsf(a[k]);\n            if (abs_val > max_val) {\n                max_val = abs_val;\n            }\n        }\n\n        // Second pass: find first index where value equals max_val\n        k = 0;\n        int found_idx = 0;\n        int found = 0;\n\n        // Vectorized search for first occurrence\n        i = 0;\n        for (; i + 3 < LEN_1D && !found; i += 4) {\n            // Store k at start of chunk\n            int chunk_start_k = k;\n            \n            // Check first element\n            float abs_val0 = fabsf(a[k]);\n            if (abs_val0 == max_val) {\n                found_idx = i;\n                found = 1;\n                k = chunk_start_k; // Reset k to found element's position\n                continue;\n            }\n            k += inc;\n\n            // Check second element\n            float abs_val1 = fabsf(a[k]);\n            if (!found && abs_val1 == max_val) {\n                found_idx = i + 1;\n                found = 1;\n                k = chunk_start_k + inc; // k points to found element\n                continue;\n            }\n            k += inc;\n\n            // Check third element\n            float abs_val2 = fabsf(a[k]);\n            if (!found && abs_val2 == max_val) {\n                found_idx = i + 2;\n                found = 1;\n                k = chunk_start_k + 2 * inc; // k points to found element\n                continue;\n            }\n            k += inc;\n\n            // Check fourth element\n            float abs_val3 = fabsf(a[k]);\n            if (!found && abs_val3 == max_val) {\n                found_idx = i + 3;\n                found = 1;\n                k = chunk_start_k + 3 * inc; // k points to found element\n                continue;\n            }\n            \n            // No match in this chunk, advance to next chunk\n            k += inc;\n        }\n\n        // Scalar tail for second pass\n        for (; i < LEN_1D && !found; i++) {\n            float abs_val = fabsf(a[k]);\n            if (abs_val == max_val) {\n                found_idx = i;\n                found = 1;\n                break;\n            }\n            k += inc;\n        }\n\n        max = max_val;\n        index = found_idx;\n        chksum = max + (float) index;\n    }\n    return max + index + 1;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s318_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s318",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s318_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s318_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "float s318(int iterations,int LEN_1D, float* a, int inc)\n{\n    int k, index;\n    float max, chksum;\n    for (int nl = 0; nl < iterations/2; nl++) {\n        k = 0;\n        index = 0;\n        max = fabsf(a[0]);\n        k += inc;\n        for (int i = 1; i < LEN_1D; i++) {\n            if (fabsf(a[k]) <= max) {\n                goto L5;\n            }\n            index = i;\n            max = fabsf(a[k]);\nL5:\n            k += inc;\n        }\n        chksum = max + (float) index;\n    }\n    return max + index + 1;\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s318_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

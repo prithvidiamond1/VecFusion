@@ -1,0 +1,24 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/vectrans_only_suite/s315/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": false,
+      "candidate_code": null,
+      "summary": "",
+      "artifact_path": "",
+      "error": "VecTrans produced no verified final candidate"
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "float s315(int iterations,int LEN_1D, float* a)\n{\n    for (int i = 0; i < LEN_1D; i++)\n        a[i] = (i * 7) % LEN_1D;\n\n    float x, chksum;\n    int index;\n    for (int nl = 0; nl < iterations; nl++) {\n        x = a[0];\n        index = 0;\n        for (int i = 0; i < LEN_1D; ++i) {\n            if (a[i] > x) {\n                x = a[i];\n                index = i;\n            }\n        }\n        chksum = x + (float) index;\n    }\n    return index + x + 1;\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "artifact_path": "results/vectrans_only_suite/s315/compiler_baseline_input.c",
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s233_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s233_opt(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    for (int nl = 0; nl < 100*(iterations/256); nl++) {\n        // Process bb: horizontal recurrence - vectorizable along j dimension\n        for (int i = 1; i < 256; i++) {\n            for (int j = 1; j < 256; j++) {\n                bb[j][i] = bb[j][i-1] + cc[j][i];\n            }\n        }\n        \n        // Process aa: vertical recurrence - use temporary array to break dependency\n        for (int i = 1; i < 256; i++) {\n            float temp[256];\n            // Initialize temp[0] with aa[0][i]\n            temp[0] = aa[0][i];\n            \n            // Compute prefix sum in temp array - vectorizable\n            for (int j = 1; j < 256; j++) {\n                temp[j] = temp[j-1] + cc[j][i];\n            }\n            \n            // Copy results back to aa - vectorizable\n            for (int j = 1; j < 256; j++) {\n                aa[j][i] = temp[j];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s233_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s233_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s233_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s233(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    for (int nl = 0; nl < 100*(iterations/256); nl++) {\n        // Process bb: horizontal recurrence along j dimension\n        // bb[j][i] = bb[j][i-1] + cc[j][i]\n        // For each j, this is a sequential recurrence over i, but the j iterations are independent\n        for (int i = 1; i < 256; i++) {\n            // Vectorize over j (256 independent rows)\n            int j = 1;\n            for (; j <= 252; j += 4) {\n                bb[j+0][i] = bb[j+0][i-1] + cc[j+0][i];\n                bb[j+1][i] = bb[j+1][i-1] + cc[j+1][i];\n                bb[j+2][i] = bb[j+2][i-1] + cc[j+2][i];\n                bb[j+3][i] = bb[j+3][i-1] + cc[j+3][i];\n            }\n            for (; j < 256; j++) {\n                bb[j][i] = bb[j][i-1] + cc[j][i];\n            }\n        }\n\n        // Process aa: vertical recurrence\n        for (int i = 1; i < 256; i++) {\n            float temp[256];\n            temp[0] = aa[0][i];\n\n            // Sequential prefix sum - cannot vectorize directly\n            for (int j = 1; j < 256; j++) {\n                temp[j] = temp[j-1] + cc[j][i];\n            }\n\n            // Copy results back - vectorizable\n            int j = 1;\n            for (; j <= 252; j += 4) {\n                aa[j+0][i] = temp[j+0];\n                aa[j+1][i] = temp[j+1];\n                aa[j+2][i] = temp[j+2];\n                aa[j+3][i] = temp[j+3];\n            }\n            for (; j < 256; j++) {\n                aa[j][i] = temp[j];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s233_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s233",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s233_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s233_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s233_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

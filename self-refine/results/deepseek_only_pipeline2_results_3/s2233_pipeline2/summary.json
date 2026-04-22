@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s2233_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s2233_opt(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    for (int nl = 0; nl < 100*(iterations/256); nl++) {\n        // Process aa and bb updates in the original order (i outer loop)\n        for (int i = 1; i < 256; i++) {\n            // aa update: dependency on aa[j-1][i] prevents vectorization in j\n            // Keep as is for semantic correctness\n            for (int j = 1; j < 256; j++) {\n                aa[j][i] = aa[j-1][i] + cc[j][i];\n            }\n            \n            // bb update: dependency on bb[i-1][j] is loop-invariant for inner j loop\n            // This inner loop can be vectorized in j dimension\n            for (int j = 1; j < 256; j++) {\n                bb[i][j] = bb[i-1][j] + cc[i][j];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s2233_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s2233_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s2233_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s2233(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    int outer_loop_count = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_loop_count; nl++) {\n        // Process aa and bb updates in the original order\n        for (int i = 1; i < 256; i++) {\n            // aa update: dependency on aa[j-1][i] prevents vectorization in j\n            // Keep as scalar loop for semantic correctness\n            for (int j = 1; j < 256; j++) {\n                aa[j][i] = aa[j-1][i] + cc[j][i];\n            }\n\n            // bb update: dependency on bb[i-1][j] is loop-invariant for inner j loop\n            // Vectorize in j dimension using 4-element SIMD\n            int j;\n            for (j = 1; j <= 256 - 4; j += 4) {\n                // Load bb[i-1][j:j+3]\n                float bb_prev_0 = bb[i-1][j];\n                float bb_prev_1 = bb[i-1][j+1];\n                float bb_prev_2 = bb[i-1][j+2];\n                float bb_prev_3 = bb[i-1][j+3];\n                \n                // Load cc[i][j:j+3]\n                float cc_0 = cc[i][j];\n                float cc_1 = cc[i][j+1];\n                float cc_2 = cc[i][j+2];\n                float cc_3 = cc[i][j+3];\n                \n                // Compute bb[i][j:j+3] = bb[i-1][j:j+3] + cc[i][j:j+3]\n                bb[i][j]   = bb_prev_0 + cc_0;\n                bb[i][j+1] = bb_prev_1 + cc_1;\n                bb[i][j+2] = bb_prev_2 + cc_2;\n                bb[i][j+3] = bb_prev_3 + cc_3;\n            }\n            \n            // Scalar cleanup for remaining elements\n            for (; j < 256; j++) {\n                bb[i][j] = bb[i-1][j] + cc[i][j];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s2233_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s2233",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s2233_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s2233_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260419_214725/s2233_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260419_214725/s2233_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

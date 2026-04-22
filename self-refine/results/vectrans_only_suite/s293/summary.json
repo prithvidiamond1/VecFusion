@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s293/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s293_opt(int iterations,int LEN_1D, float* a) {\n    // Loop splitting: separate i=0 case from others\n    // i=0 case is self-assignment, can be removed entirely\n    // Broadcast a[0] to all other elements\n    float broadcast_val;\n    \n    for (int nl = 0; nl < 4*iterations; nl++) {\n        // Read a[0] once per outer iteration\n        broadcast_val = a[0];\n        \n        // Vector-friendly loop: no loop-carried dependency\n        // All writes are independent after reading a[0]\n        for (int i = 1; i < LEN_1D; i++) {\n            a[i] = broadcast_val;\n        }\n        // i=0 case is implicit: a[0] = broadcast_val (no-op)\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

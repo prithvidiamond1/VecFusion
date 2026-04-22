@@ -1,0 +1,19 @@
+The mismatch indicates the vectorized code computes different results than the reference. The reference loop is:
+
+```c
+for (int i = 0; i < LEN_1D - 5; i += 5)
+    for (int k = 0; k < 5; k++)
+        a[i+k] = a[i+k+1] * a[i+k];
+```
+
+- **The computation is correct** (`a[i+k] = a[i+k+1] * a[i+k]`), but the **loop bound is wrong**: the reference uses `i < LEN_1D - 5` (i.e., `limit = LEN_1D - 5`), so `num_groups = (LEN_1D - 5) / 5`. However, the last valid group starts at `i = LEN_1D - 10` (since it reads `a[i+5]` which must be `< LEN_1D`). The current `limit / 5` may include a group starting at index `LEN_1D - 5`, which would read `a[LEN_1D]` — out of bounds and wrong.
+
+- **Fix `num_groups`**: change `int limit = LEN_1D - 5; int num_groups = limit / 5;` to `int num_groups = (LEN_1D - 5) / 5;` — this is actually the same, so the real issue is different.
+
+- **The actual bug**: index 73 mismatches with `LEN_1D` likely being 128. The reference loop runs `i = 0, 5, 10, ..., 120` (since `120 < 123`). With `num_groups = (128-5)/5 = 24`, groups go `i = 0..115` — but the reference goes up to `i=120`. Change `num_groups = (LEN_1D - 5) / 5` to `num_groups = LEN_1D / 5 - 1` or more precisely: count groups where `i + 5 < LEN_1D`, i.e., `i < LEN_1D - 5`, so `num_groups = (LEN_1D - 6) / 5 + 1` — simply use `num_groups = (LEN_1D - 1) / 5 - 0`... 
+
+- **Correct fix**: The reference iterates `i = 0, 5, ...,` while `i < LEN_1D - 5`. So the number of groups is `(LEN_1D - 5 + 4) / 5` using ceiling, i.e., `num_groups = (LEN_1D - 1) / 5`. Change `int num_groups = limit / 5;` to `int num_groups = (LEN_1D - 1) / 5;`.
+
+- **Verify**: For `LEN_1D=128`: `(128-1)/5 = 25`, last group `i=120`, reads `a[125]` which is valid. Current code gives `123/5=24` groups, missing the last group at `i=120`, causing mismatch at index 120–124 (index 73 could be a different `LEN_1D`).
+
+- **Summary of fix**: Replace `int limit = LEN_1D - 5; int num_groups = limit / 5;` with `int num_groups = (LEN_1D - 1) / 5;`.

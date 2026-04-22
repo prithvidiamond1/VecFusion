@@ -1,0 +1,20 @@
+void vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {
+    for (int nl = 0; nl < 3 * iterations; nl++) {
+        // This loop has a loop-carried dependency: a[i+1] depends on a[i] from previous iteration
+        // (going backwards: a[i+1] = a[i] + b[i], then a[i] = a[i-1] + b[i-1], etc.)
+        // The dependency chain means each iteration depends on the previous one,
+        // so true vectorization is not possible. We unroll manually for better pipelining.
+        int i = LEN_1D - 2;
+        // Process in chunks of 4 with unrolling, but since there's a dependency,
+        // we must process sequentially. Unroll by 4 for instruction-level parallelism hints.
+        for (; i >= 3; i -= 4) {
+            a[i + 1] = a[i] + b[i];
+            a[i]     = a[i - 1] + b[i - 1];
+            a[i - 1] = a[i - 2] + b[i - 2];
+            a[i - 2] = a[i - 3] + b[i - 3];
+        }
+        for (; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+    }
+}

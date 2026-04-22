@@ -1,0 +1,45 @@
+```c
+#include <stddef.h>
+
+void vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {
+    int outer_iterations = 3 * iterations;
+    int len = LEN_1D - 1;
+    
+    for (int nl = 0; nl < outer_iterations; nl++) {
+        // Store original values to break dependency
+        float temp[LEN_1D];
+        
+        // Vectorized copy loop
+        int i = 0;
+        typedef float v4f __attribute__((vector_size(16)));
+        const int VEC_SIZE = 4;
+        int vec_limit = len - (len % VEC_SIZE);
+        
+        for (; i < vec_limit; i += VEC_SIZE) {
+            v4f a_vec = *(v4f*)&a[i];
+            *(v4f*)&temp[i] = a_vec;
+        }
+        
+        // Scalar tail for copy
+        for (; i < len; i++) {
+            temp[i] = a[i];
+        }
+        
+        // Vectorized computation loop
+        i = 0;
+        vec_limit = len - (len % VEC_SIZE);
+        
+        for (; i < vec_limit; i += VEC_SIZE) {
+            v4f temp_vec = *(v4f*)&temp[i];
+            v4f b_vec = *(v4f*)&b[i];
+            v4f result_vec = temp_vec + b_vec;
+            *(v4f*)&a[i + 1] = result_vec;
+        }
+        
+        // Scalar tail for computation
+        for (; i < len; i++) {
+            a[i + 1] = temp[i] + b[i];
+        }
+    }
+}
+```

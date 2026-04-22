@@ -1,0 +1,41 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s319_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "sum = 0.;\nfor (int i = 0; i < LEN_1D; i++) {\n    a[i] = c[i] + d[i];\n    sum += a[i];\n    b[i] = c[i] + e[i];\n    sum += b[i];\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile failed.\n            Command: clang results/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/candidate_round_4\n            stderr:\n            results/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/candidate_round_4.c:23:9: error: type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]\n   23 |         sum = 0.;\n      |         ^\n      |         int\nresults/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/candidate_round_4.c:24:1: error: expected identifier or '('\n   24 | for (int i = 0; i < LEN_1D; i++) {\n      | ^\nresults/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/candidate_round_4.c:61:119: error: call to undeclared function 'vectorized_s319'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]\n   61 |                 ret_scalar = s319(iterations, LEN_1D, a_scalar, b_scalar, c_scalar, d_scalar, e_scalar); ret_vector = vectorized_s319(iterations, LEN_1D, a_vector, b_vector, c_vector, d_vector, e_vector); if (fabsf(ret_scalar - ret_vector) > 1e-5f) {\n      |                                                                                                                       ^\n3 errors generated.",
+      "unit_test_output": "Compile failed.\n            Command: clang results/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/candidate_round_4\n            stderr:\n            results/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/candidate_round_4.c:23:9: error: type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]\n   23 |         sum = 0.;\n      |         ^\n      |         int\nresults/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/candidate_round_4.c:24:1: error: expected identifier or '('\n   24 | for (int i = 0; i < LEN_1D; i++) {\n      | ^\nresults/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/candidate_round_4.c:61:119: error: call to undeclared function 'vectorized_s319'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]\n   61 |                 ret_scalar = s319(iterations, LEN_1D, a_scalar, b_scalar, c_scalar, d_scalar, e_scalar); ret_vector = vectorized_s319(iterations, LEN_1D, a_vector, b_vector, c_vector, d_vector, e_vector); if (fabsf(ret_scalar - ret_vector) > 1e-5f) {\n      |                                                                                                                       ^\n3 errors generated.",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s319",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s319_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s319_opt(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)\n{\n    float sum;\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        float sum_a = 0.0f;\n        float sum_b = 0.0f;\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = c[i] + d[i];\n            sum_a += a[i];\n        }\n        for (int i = 0; i < LEN_1D; i++) {\n            b[i] = c[i] + e[i];\n            sum_b += b[i];\n        }\n        sum = sum_a + sum_b;\n    }\n    return sum;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s319_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s319_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s319_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

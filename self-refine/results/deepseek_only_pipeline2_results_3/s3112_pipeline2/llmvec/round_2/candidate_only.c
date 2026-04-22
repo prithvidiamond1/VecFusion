@@ -1,0 +1,31 @@
+float vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)
+{
+    float sum = 0.0f;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // Vector-friendly reduction
+        float temp_sum = 0.0f;
+        int i = 0;
+
+        // Process chunks of 4 for better vectorization potential
+        for (; i + 3 < LEN_1D; i += 4) {
+            temp_sum += a[i] + a[i+1] + a[i+2] + a[i+3];
+        }
+
+        // Scalar tail for reduction
+        for (; i < LEN_1D; i++) {
+            temp_sum += a[i];
+        }
+
+        sum = temp_sum;
+
+        // Prefix sum - must remain sequential due to dependency
+        float prefix_sum = 0.0f;
+        for (i = 0; i < LEN_1D; i++) {
+            prefix_sum += a[i];
+            b[i] = prefix_sum;
+        }
+    }
+
+    return sum;
+}

@@ -1,0 +1,155 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s281` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s281(int iterations,int LEN_1D, float* a,float* b,float* c)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        // Process symmetric pairs together to break the dependency
+        int i = 0;
+        int j = LEN_1D - 1;
+
+        // Process pairs from both ends towards the middle
+        for (; i < j; i++, j--) {
+            // Process element i (reads from original a[j])
+            float x_i = a[j] + b[i] * c[i];
+            a[i] = x_i - 1.0f;
+            b[i] = x_i;
+
+            // Process element j (reads from original a[i] which hasn't been updated yet)
+            float x_j = a[i] + b[j] * c[j];
+            a[j] = x_j - 1.0f;
+            b[j] = x_j;
+        }
+
+        // Handle middle element when LEN_1D is odd
+        if (i == j) {
+            float x = a[i] + b[i] * c[i];
+            a[i] = x - 1.0f;
+            b[i] = x;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+void vectorized_s281(int iterations, int LEN_1D, float* a, float* b, float* c) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        int j = LEN_1D - 1;
+
+        // Process 4 pairs at a time using vectorization
+        for (; i + 3 < j - 3; i += 4, j -= 4) {
+            // Load original a[i..i+3] values BEFORE they are updated
+            float a_i0_orig = a[i];
+            float a_i1_orig = a[i+1];
+            float a_i2_orig = a[i+2];
+            float a_i3_orig = a[i+3];
+
+            // Load b[i..i+3] and c[i..i+3]
+            float b_i0 = b[i];
+            float b_i1 = b[i+1];
+            float b_i2 = b[i+2];
+            float b_i3 = b[i+3];
+
+            float c_i0 = c[i];
+            float c_i1 = c[i+1];
+            float c_i2 = c[i+2];
+            float c_i3 = c[i+3];
+
+            // Load b[j-3..j] and c[j-3..j]
+            float b_j3 = b[j-3];
+            float b_j2 = b[j-2];
+            float b_j1 = b[j-1];
+            float b_j0 = b[j];
+
+            float c_j3 = c[j-3];
+            float c_j2 = c[j-2];
+            float c_j1 = c[j-1];
+            float c_j0 = c[j];
+
+            // Load a[j..j-3] for i elements (reverse order)
+            float a_j0 = a[j];
+            float a_j1 = a[j-1];
+            float a_j2 = a[j-2];
+            float a_j3 = a[j-3];
+
+            // Compute x_i = a[j] + b[i] * c[i]
+            float x_i0 = a_j0 + b_i0 * c_i0;
+            float x_i1 = a_j1 + b_i1 * c_i1;
+            float x_i2 = a_j2 + b_i2 * c_i2;
+            float x_i3 = a_j3 + b_i3 * c_i3;
+
+            // Store a[i] = x_i - 1.0f and b[i] = x_i
+            a[i] = x_i0 - 1.0f;
+            a[i+1] = x_i1 - 1.0f;
+            a[i+2] = x_i2 - 1.0f;
+            a[i+3] = x_i3 - 1.0f;
+
+            b[i] = x_i0;
+            b[i+1] = x_i1;
+            b[i+2] = x_i2;
+            b[i+3] = x_i3;
+
+            // Compute x_j = a[i]_orig + b[j] * c[j] using original a[i] values
+            float x_j3 = a_i0_orig + b_j3 * c_j3;  // j-3
+            float x_j2 = a_i1_orig + b_j2 * c_j2;  // j-2
+            float x_j1 = a_i2_orig + b_j1 * c_j1;  // j-1
+            float x_j0 = a_i3_orig + b_j0 * c_j0;  // j
+
+            // Store a[j] = x_j - 1.0f and b[j] = x_j
+            a[j-3] = x_j3 - 1.0f;
+            a[j-2] = x_j2 - 1.0f;
+            a[j-1] = x_j1 - 1.0f;
+            a[j] = x_j0 - 1.0f;
+
+            b[j-3] = x_j3;
+            b[j-2] = x_j2;
+            b[j-1] = x_j1;
+            b[j] = x_j0;
+        }
+
+        // Process remaining pairs
+        for (; i < j; i++, j--) {
+            float x_i = a[j] + b[i] * c[i];
+            a[i] = x_i - 1.0f;
+            b[i] = x_i;
+
+            float x_j = a[i] + b[j] * c[j];
+            a[j] = x_j - 1.0f;
+            b[j] = x_j;
+        }
+
+        // Handle middle element when LEN_1D is odd
+        if (i == j) {
+            float x = a[i] + b[i] * c[i];
+            a[i] = x - 1.0f;
+            b[i] = x;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop incorrectly uses `a[j]` for computing `x_i` before `a[j]` is updated, but the original scalar code uses the *updated* `a[i]` when computing `x_j` after `a[i]` has been changed.
+- In the scalar loop, `x_j = a[i] + b[j] * c[j]` uses the *new* `a[i]` (just computed as `x_i - 1.0f`), not the original `a[i]`.
+- The candidate incorrectly saves original `a[i]` values and uses them for `x_j` computation, but it should use the *updated* `a[i]` values (which are `x_i - 1.0f`).
+- Fix: compute `x_j` using the updated `a[i]` values (`x_i0 - 1.0f`, etc.) instead of the original `a_i0_orig`.
+- Specifically, replace `x_j3 = a_i0_orig + b_j3 * c_j3;` with `x_j3 = (x_i0 - 1.0f) + b_j3 * c_j3;` and similarly for the other three.
+- This ensures the same data dependency as the original scalar loop where `a[i]` is updated before being used in the `x_j` calculation.
+- The remaining scalar loop already matches this dependency pattern correctly.
+- After this fix, re-run the test to verify correctness.
+
+PASS
+
+        Return a corrected candidate function named `vectorized_s281`.

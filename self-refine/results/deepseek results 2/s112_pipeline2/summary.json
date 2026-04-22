@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s112_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s112_opt(float *a, float *b, int iterations, int LEN_1D) {\n    float *temp = (float*)malloc(LEN_1D * sizeof(float));\n    \n    for (int nl = 0; nl < 3 * iterations; nl++) {\n        // Copy original 'a' values to temp before modification\n        for (int i = 0; i < LEN_1D; i++) {\n            temp[i] = a[i];\n        }\n        \n        // Process all iterations in forward order using original values\n        for (int i = 0; i < LEN_1D - 1; i++) {\n            a[i + 1] = temp[i] + b[i];\n        }\n    }\n    \n    free(temp);\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s112_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s112_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s112_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdlib.h>\n#include <string.h>\n\nvoid vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {\n    float *temp = (float*)malloc(LEN_1D * sizeof(float));\n\n    for (int nl = 0; nl < 3 * iterations; nl++) {\n        // Copy original 'a' values to temp before modification\n        memcpy(temp, a, LEN_1D * sizeof(float));\n\n        // Process all iterations in forward order using original values\n        // a[i+1] = temp[i] + b[i] for i in [0, LEN_1D-2]\n        // This is: a[1..LEN_1D-1] = temp[0..LEN_1D-2] + b[0..LEN_1D-2]\n        // No loop-carried dependency since we use temp[], so vectorizable.\n        int i = 0;\n        int n = LEN_1D - 1;\n\n#if defined(__clang__) || defined(__GNUC__)\n        typedef float float4 __attribute__((vector_size(16)));\n        int vec_end = n - (n % 4);\n        for (; i < vec_end; i += 4) {\n            float4 t, bv, res;\n            __builtin_memcpy(&t,  temp + i, 16);\n            __builtin_memcpy(&bv, b    + i, 16);\n            res = t + bv;\n            __builtin_memcpy(a + i + 1, &res, 16);\n        }\n#endif\n        // Scalar tail\n        for (; i < n; i++) {\n            a[i + 1] = temp[i] + b[i];\n        }\n    }\n\n    free(temp);\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s112_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s112",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s112_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s112_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s112_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

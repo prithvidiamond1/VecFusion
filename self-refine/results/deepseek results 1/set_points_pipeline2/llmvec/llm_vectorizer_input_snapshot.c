@@ -1,0 +1,43 @@
+void set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed,
+                    int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,
+                    bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    float normal_scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    float shrink_scale = dstLen / ((float) srcFixed);
+    
+    int use_normal = srcFixed <= dstLen;
+    scale = use_normal ? normal_scale : shrink_scale;
+
+    src[0] = srcStart;
+    dst[0] = dstStart;
+    
+    // Pre-calculate all src[i+1] and srcDelta values
+    for (int i = 0; i < divCount; i++) {
+        src[i + 1] = divs[i];
+    }
+    
+    // Calculate all dstDelta values without dependencies
+    float dstDelta[divCount];
+    int current_scalable = isScalable;
+    
+    for (int i = 0; i < divCount; i++) {
+        int srcDelta = src[i + 1] - src[i];
+        
+        if (use_normal) {
+            dstDelta[i] = current_scalable ? scale * srcDelta : srcDelta;
+        } else {
+            dstDelta[i] = current_scalable ? 0.0f : scale * srcDelta;
+        }
+        
+        current_scalable = !current_scalable;
+    }
+    
+    // Sequential accumulation for dst[i+1]
+    for (int i = 0; i < divCount; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+
+    src[divCount + 1] = srcEnd;
+    dst[divCount + 1] = dstEnd;
+}

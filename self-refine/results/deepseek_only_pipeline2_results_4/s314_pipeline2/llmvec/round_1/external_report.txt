@@ -1,0 +1,13 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline2_20260418_234731/s314_pipeline2/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline2_20260418_234731/s314_pipeline2/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline2_20260418_234731/s314_pipeline2/llmvec/candidate_round_1.c:48:27: error: invalid operands to binary expression ('v4f' (vector of 4 'float' values) and 'v4f')
+   48 |                 vmax = (v & cmp) | (vmax & ~cmp);
+      |                         ~ ^ ~~~
+results/all_tests_pipeline2_20260418_234731/s314_pipeline2/llmvec/candidate_round_1.c:48:44: error: invalid argument type 'v4f' (vector of 4 'float' values) to unary expression
+   48 |                 vmax = (v & cmp) | (vmax & ~cmp);
+      |                                            ^~~~
+results/all_tests_pipeline2_20260418_234731/s314_pipeline2/llmvec/candidate_round_1.c:41:20: warning: comparison of integers of different signs: 'int' and 'const size_t' (aka 'const unsigned long') [-Wsign-compare]
+   41 |         if (LEN_1D >= vlen) {
+      |             ~~~~~~ ^  ~~~~
+1 warning and 2 errors generated.

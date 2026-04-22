@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s342/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s342_opt(int iterations,int LEN_1D, float* a, float *b)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Temporary array to store original a values\n        float orig_a[LEN_1D];\n        \n        // First loop: compute mask - fully vectorizable\n        int mask[LEN_1D];\n        for (int i = 0; i < LEN_1D; i++) {\n            mask[i] = a[i] > (float)0.;\n            orig_a[i] = a[i];\n        }\n        \n        // Second loop: prefix sum to compute write indices - sequential\n        int write_idx[LEN_1D];\n        int count = 0;\n        for (int i = 0; i < LEN_1D; i++) {\n            write_idx[i] = count;\n            count += mask[i];\n        }\n        \n        // Third loop: compute new values without branching - vectorizable\n        for (int i = 0; i < LEN_1D; i++) {\n            // Use arithmetic masking instead of conditional branch\n            float b_value = b[write_idx[i]];\n            a[i] = mask[i] * b_value + (1 - mask[i]) * orig_a[i];\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

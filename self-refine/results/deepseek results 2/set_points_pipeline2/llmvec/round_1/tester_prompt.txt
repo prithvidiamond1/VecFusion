@@ -1,0 +1,109 @@
+Candidate code:
+```c
+#include <stdint.h>
+#include <stdbool.h>
+#include <alloca.h>
+#include <string.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed,
+                int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,
+                bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normal_case = srcFixed <= dstLen;
+
+    if (normal_case) {
+        scale = (dstLen - ((float)srcFixed)) / ((float)srcScalable);
+    } else {
+        scale = dstLen / ((float)srcFixed);
+    }
+
+    src[0] = srcStart;
+    dst[0] = dstStart;
+
+    // Vectorizable: fill src[1..divCount] from divs
+    for (int i = 0; i < divCount; i++) {
+        src[i + 1] = divs[i];
+    }
+
+    // Compute srcDeltas
+    int* srcDeltas = (int*)alloca(divCount * sizeof(int));
+    if (divCount > 0) {
+        srcDeltas[0] = src[1] - srcStart;
+    }
+    for (int i = 1; i < divCount; i++) {
+        srcDeltas[i] = src[i + 1] - src[i];
+    }
+
+    // Compute dstDeltas using vectorized even/odd pattern
+    float* dstDeltas = (float*)alloca(divCount * sizeof(float));
+
+    if (normal_case) {
+        if (isScalable) {
+            // even: scale * srcDeltas[i], odd: (float)srcDeltas[i]
+            int i = 0;
+            for (; i + 3 < divCount; i += 4) {
+                dstDeltas[i + 0] = scale * (float)srcDeltas[i + 0];
+                dstDeltas[i + 1] = (float)srcDeltas[i + 1];
+                dstDeltas[i + 2] = scale * (float)srcDeltas[i + 2];
+                dstDeltas[i + 3] = (float)srcDeltas[i + 3];
+            }
+            for (; i < divCount; i++) {
+                dstDeltas[i] = (i % 2 == 0) ? (scale * (float)srcDeltas[i]) : (float)srcDeltas[i];
+            }
+        } else {
+            // even: (float)srcDeltas[i], odd: scale * srcDeltas[i]
+            int i = 0;
+            for (; i + 3 < divCount; i += 4) {
+                dstDeltas[i + 0] = (float)srcDeltas[i + 0];
+                dstDeltas[i + 1] = scale * (float)srcDeltas[i + 1];
+                dstDeltas[i + 2] = (float)srcDeltas[i + 2];
+                dstDeltas[i + 3] = scale * (float)srcDeltas[i + 3];
+            }
+            for (; i < divCount; i++) {
+                dstDeltas[i] = (i % 2 == 0) ? (float)srcDeltas[i] : (scale * (float)srcDeltas[i]);
+            }
+        }
+    } else {
+        if (isScalable) {
+            // even: 0.0f, odd: scale * srcDeltas[i]
+            int i = 0;
+            for (; i + 3 < divCount; i += 4) {
+                dstDeltas[i + 0] = 0.0f;
+                dstDeltas[i + 1] = scale * (float)srcDeltas[i + 1];
+                dstDeltas[i + 2] = 0.0f;
+                dstDeltas[i + 3] = scale * (float)srcDeltas[i + 3];
+            }
+            for (; i < divCount; i++) {
+                dstDeltas[i] = (i % 2 == 0) ? 0.0f : (scale * (float)srcDeltas[i]);
+            }
+        } else {
+            // even: scale * srcDeltas[i], odd: 0.0f
+            int i = 0;
+            for (; i + 3 < divCount; i += 4) {
+                dstDeltas[i + 0] = scale * (float)srcDeltas[i + 0];
+                dstDeltas[i + 1] = 0.0f;
+                dstDeltas[i + 2] = scale * (float)srcDeltas[i + 2];
+                dstDeltas[i + 3] = 0.0f;
+            }
+            for (; i < divCount; i++) {
+                dstDeltas[i] = (i % 2 == 0) ? (scale * (float)srcDeltas[i]) : 0.0f;
+            }
+        }
+    }
+
+    // Sequential prefix sum for dst
+    for (int i = 0; i < divCount; i++) {
+        dst[i + 1] = dst[i] + dstDeltas[i];
+    }
+
+    src[divCount + 1] = srcEnd;
+    dst[divCount + 1] = dstEnd;
+}
+```
+
+External compile/test report:
+Compile succeeded for round 1.
+Exit code: -6
+stderr:
+Mismatch in parameter src on trial 0 at index 0

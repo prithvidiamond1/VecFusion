@@ -1,0 +1,63 @@
+#include <stdint.h>
+#include <string.h>
+
+void vectorized_s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256]) {
+    int loop_count = 10 * (iterations / 256);
+    
+    for (int nl = 0; nl < loop_count; nl++) {
+        // Precompute condition mask as boolean flags
+        int update_col[256];
+        for (int i = 0; i < 256; i++) {
+            update_col[i] = (aa[0][i] > 0.0f);
+        }
+        
+        // Process each row j from 1 to 255
+        for (int j = 1; j < 256; j++) {
+            // Vector-friendly loop with explicit bounds
+            int i = 0;
+            // Process in chunks where possible
+            for (; i + 3 < 256; i += 4) {
+                // Load condition flags for this chunk
+                int c0 = update_col[i];
+                int c1 = update_col[i+1];
+                int c2 = update_col[i+2];
+                int c3 = update_col[i+3];
+                
+                // Load data for this chunk
+                float prev0 = aa[j-1][i];
+                float prev1 = aa[j-1][i+1];
+                float prev2 = aa[j-1][i+2];
+                float prev3 = aa[j-1][i+3];
+                
+                float bb0 = bb[j][i];
+                float bb1 = bb[j][i+1];
+                float bb2 = bb[j][i+2];
+                float bb3 = bb[j][i+3];
+                
+                float cc0 = cc[j][i];
+                float cc1 = cc[j][i+1];
+                float cc2 = cc[j][i+2];
+                float cc3 = cc[j][i+3];
+                
+                // Compute new values
+                float new0 = prev0 + bb0 * cc0;
+                float new1 = prev1 + bb1 * cc1;
+                float new2 = prev2 + bb2 * cc2;
+                float new3 = prev3 + bb3 * cc3;
+                
+                // Store conditionally
+                if (c0) aa[j][i] = new0;
+                if (c1) aa[j][i+1] = new1;
+                if (c2) aa[j][i+2] = new2;
+                if (c3) aa[j][i+3] = new3;
+            }
+            
+            // Scalar cleanup for remaining elements
+            for (; i < 256; i++) {
+                if (update_col[i]) {
+                    aa[j][i] = aa[j-1][i] + bb[j][i] * cc[j][i];
+                }
+            }
+        }
+    }
+}

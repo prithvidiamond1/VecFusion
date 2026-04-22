@@ -1,0 +1,49 @@
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b)
+{
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = (float)0.;
+        for (int i = 0; i < LEN_1D; i += 5) {
+            dot = dot + a[i] * b[i] + a[i + 1] * b[i + 1] + a[i + 2]
+                * b[i + 2] + a[i + 3] * b[i + 3] + a[i + 4] * b[i + 4];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float* b)
+{
+    float dot;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        dot = 0.0f;
+        for (int i = 0; i < LEN_1D; i += 5) {
+            dot = dot + a[i] * b[i] + a[i + 1] * b[i + 1] + a[i + 2]
+                * b[i + 2] + a[i + 3] * b[i + 3] + a[i + 4] * b[i + 4];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The loop increments `i` by 5 each iteration, but `LEN_1D` may not be a multiple of 5, causing out-of-bounds access and wrong results. Use a standard `i += 1` stride and accumulate `a[i] * b[i]` normally, or ensure the unrolled loop only runs when `i + 4 < LEN_1D`.
+- The reference implementation almost certainly uses `i++` (stride 1) for a simple dot product. Change `i += 5` back to `i++` and remove the manual 5-element unrolling, keeping just `dot += a[i] * b[i]`.
+- The manual unroll by 5 assumes `LEN_1D % 5 == 0`; since the test data doesn't satisfy this, the result diverges from the reference. Removing the unroll fixes both the out-of-bounds and the value mismatch.
+
+Corrected inner loop:
+```c
+for (int i = 0; i < LEN_1D; i++) {
+    dot = dot + a[i] * b[i];
+}
+```
+
+        Return a corrected candidate function named `vectorized_s352`.

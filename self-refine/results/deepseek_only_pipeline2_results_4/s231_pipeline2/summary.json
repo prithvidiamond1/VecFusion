@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s231_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s231_opt(int iterations, float aa[256][256], float bb[256][256])\n{\n    int loop_count = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < loop_count; nl++) {\n        // Process each column independently - enables vectorization across columns\n        for (int j = 1; j < 256; j++) {\n            for (int i = 0; i < 256; i++) {\n                aa[j][i] = aa[j - 1][i] + bb[j][i];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s231_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s231_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s231_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s231(int iterations, float aa[256][256], float bb[256][256]) {\n    int loop_count = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < loop_count; nl++) {\n        for (int j = 1; j < 256; j++) {\n            int i = 0;\n            // Vectorized loop\n            for (; i + 3 < 256; i += 4) {\n                float prev0 = aa[j-1][i];\n                float prev1 = aa[j-1][i+1];\n                float prev2 = aa[j-1][i+2];\n                float prev3 = aa[j-1][i+3];\n                \n                float bb0 = bb[j][i];\n                float bb1 = bb[j][i+1];\n                float bb2 = bb[j][i+2];\n                float bb3 = bb[j][i+3];\n                \n                aa[j][i] = prev0 + bb0;\n                aa[j][i+1] = prev1 + bb1;\n                aa[j][i+2] = prev2 + bb2;\n                aa[j][i+3] = prev3 + bb3;\n            }\n            // Scalar cleanup\n            for (; i < 256; i++) {\n                aa[j][i] = aa[j-1][i] + bb[j][i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s231_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s231",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s231_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s231_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s231_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s231_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

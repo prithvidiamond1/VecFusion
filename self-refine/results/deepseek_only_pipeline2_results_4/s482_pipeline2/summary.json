@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s482_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s482_opt(int iterations, int LEN_1D, float* a, float *b, float *c)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // First loop: find break point without vectorization\n        int break_index = LEN_1D;\n        for (int i = 0; i < LEN_1D; i++) {\n            if (c[i] > b[i]) {\n                break_index = i;\n                break;\n            }\n        }\n        \n        // Second loop: vectorizable computation up to break point\n        for (int i = 0; i < break_index; i++) {\n            a[i] += b[i] * c[i];\n        }\n        \n        // Handle the break point iteration if it exists\n        if (break_index < LEN_1D) {\n            a[break_index] += b[break_index] * c[break_index];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s482_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s482_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s482_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s482(int iterations, int LEN_1D, float* a, float *b, float *c) {\n    typedef float v4f __attribute__((vector_size(16)));\n    const size_t VF = 4;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        // First loop: find break point (remains scalar)\n        int break_index = LEN_1D;\n        for (int i = 0; i < LEN_1D; i++) {\n            if (c[i] > b[i]) {\n                break_index = i;\n                break;\n            }\n        }\n        \n        // Second loop: vectorized computation up to break point\n        int i = 0;\n        if (break_index >= VF) {\n            for (; i <= break_index - VF; i += VF) {\n                v4f b_vec = *(v4f*)&b[i];\n                v4f c_vec = *(v4f*)&c[i];\n                v4f a_vec = *(v4f*)&a[i];\n                a_vec += b_vec * c_vec;\n                *(v4f*)&a[i] = a_vec;\n            }\n        }\n        \n        // Scalar cleanup for remaining iterations\n        for (; i < break_index; i++) {\n            a[i] += b[i] * c[i];\n        }\n        \n        // Handle the break point iteration if it exists\n        if (break_index < LEN_1D) {\n            a[break_index] += b[break_index] * c[break_index];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s482_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s482",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s482_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s482_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s482_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s482_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

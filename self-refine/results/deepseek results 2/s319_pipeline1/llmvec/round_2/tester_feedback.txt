@@ -1,0 +1,11 @@
+- The scalar cleanup loop computes `a[i] = c[i] + d[i]` and `b[i] = c[i] + e[i]` correctly, but the vectorized loop accumulates both `va` (= `a[i]`) and `vb` (= `b[i]`) into `vsum`. Check whether the reference function also sums both `a[i]` and `b[i]` — the original s319 typically only sums `a[i]`, not `b[i]`. Remove `vsum += vb;` from the vectorized loop and `sum += b[i];` from the scalar cleanup loop if the reference only accumulates `a[i]`.
+
+- Specifically: in the scalar tail loop, remove `sum += b[i];` so it matches the reference behavior of only summing `a[i]`.
+
+- In the vectorized loop, remove the line `vsum += vb;` so only `va` (the `a` array values) contributes to the sum.
+
+- The `sum += vsum[...]` horizontal reduction line should remain, but only reflects the `a` array partial sums after the above fix.
+
+- Verify the initial `sum = 0.0f` is inside the `nl` loop (it is — that's correct).
+
+- The `typedef` inside the loop body is legal but unconventional; move it outside the loops to avoid any compiler-specific issues, though this is unlikely the cause of the mismatch.

@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s221/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s221_opt(int iterations, int LEN_1D, float*a,float*b,float*c,float*d)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        // Split: compute a[i] update first (independent, vectorizable)\n        for (int i = 1; i < LEN_1D; i++) {\n            a[i] += c[i] * d[i];\n        }\n        // Then compute b[i] sequentially (carried dependency preserved)\n        for (int i = 1; i < LEN_1D; i++) {\n            b[i] = b[i - 1] + a[i] + d[i];\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

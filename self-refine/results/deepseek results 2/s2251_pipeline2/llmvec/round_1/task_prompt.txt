@@ -1,0 +1,28 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Vectorize the scalar C function `s2251` below.
+
+        Scalar source:
+        ```c
+        void s2251(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e) {
+    for (int nl = 0; nl < iterations; nl++) {
+        // Precompute all s values to break the recurrence chain
+        float s_prev = 0.0f;
+
+        // Vectorizable loop for s_next precomputation
+        for (int i = 0; i < LEN_1D; i++) {
+            float s_next = b[i] + c[i];
+            a[i] = s_prev * e[i];
+            b[i] = a[i] + d[i];
+            s_prev = s_next;
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s2251`.

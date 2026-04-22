@@ -1,0 +1,33 @@
+#include <string.h>
+
+void vectorized_s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+{
+    for (int nl = 0; nl < 10*(iterations/256); nl++) {
+        // Process columns in groups of 4 for vectorization
+        int i = 0;
+        for (; i <= 252; i += 4) {
+            // Check condition for each of the 4 columns
+            int c0 = aa[0][i+0] > 0.0f;
+            int c1 = aa[0][i+1] > 0.0f;
+            int c2 = aa[0][i+2] > 0.0f;
+            int c3 = aa[0][i+3] > 0.0f;
+
+            if (c0 || c1 || c2 || c3) {
+                for (int j = 1; j < 256; j++) {
+                    if (c0) aa[j][i+0] = aa[j-1][i+0] + bb[j][i+0] * cc[j][i+0];
+                    if (c1) aa[j][i+1] = aa[j-1][i+1] + bb[j][i+1] * cc[j][i+1];
+                    if (c2) aa[j][i+2] = aa[j-1][i+2] + bb[j][i+2] * cc[j][i+2];
+                    if (c3) aa[j][i+3] = aa[j-1][i+3] + bb[j][i+3] * cc[j][i+3];
+                }
+            }
+        }
+        // Scalar cleanup
+        for (; i < 256; i++) {
+            if (aa[0][i] > 0.0f) {
+                for (int j = 1; j < 256; j++) {
+                    aa[j][i] = aa[j-1][i] + bb[j][i] * cc[j][i];
+                }
+            }
+        }
+    }
+}

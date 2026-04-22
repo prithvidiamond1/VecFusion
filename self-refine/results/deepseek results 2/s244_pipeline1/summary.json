@@ -1,0 +1,27 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s244_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // This loop has loop-carried dependencies through a[i+1] and b[i],\n        // so we cannot vectorize across iterations of i.\n        // We unroll manually but keep scalar semantics.\n        int i = 0;\n        // Process pairs of iterations unrolled\n        for (; i < LEN_1D - 2; i += 2) {\n            // Iteration i\n            float bi0 = b[i];\n            float ci0 = c[i];\n            float di0 = d[i];\n            float ai0 = b[i] + ci0 * di0;\n            a[i] = ai0;\n            float bi0_new = ci0 + bi0;\n            b[i] = bi0_new;\n            float ai1_old = a[i+1];\n            float ai1_new = bi0_new + ai1_old * di0;\n            a[i+1] = ai1_new;\n\n            // Iteration i+1\n            float bi1 = b[i+1];\n            float ci1 = c[i+1];\n            float di1 = d[i+1];\n            float ai1_final = bi1 + ci1 * di1;\n            a[i+1] = ai1_final;\n            float bi1_new = ci1 + bi1;\n            b[i+1] = bi1_new;\n            float ai2_old = a[i+2];\n            float ai2_new = bi1_new + ai2_old * di1;\n            a[i+2] = ai2_new;\n        }\n        // Scalar cleanup\n        for (; i < LEN_1D - 1; i++) {\n            a[i] = b[i] + c[i] * d[i];\n            b[i] = c[i] + b[i];\n            a[i+1] = b[i] + a[i+1] * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s244_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s244",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s244_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s244_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s244_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

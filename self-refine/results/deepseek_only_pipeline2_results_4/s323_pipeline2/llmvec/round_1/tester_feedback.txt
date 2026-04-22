@@ -1,0 +1,8 @@
+- The vectorized loop incorrectly constructs `b_prev_vec`. It should be `{b_prev, b[i], b[i+1], b[i+2]}` as the comment says, but it's initialized with zeros after the first element.
+- The loop uses `b_prev` from the previous scalar iteration, but the vectorized version needs to load the previous `b` values correctly for the recurrence.
+- The recurrence `b_prev = b[i-1]` means each vector lane depends on the previous scalar element, which requires a different vectorization strategy.
+- Since this is a first-order recurrence, consider using a scalar loop for the entire operation or a different vectorization pattern that handles recurrences.
+- For now, revert the vectorized loop to scalar to ensure correctness, as the current vectorization breaks the dependency chain.
+- The scalar cleanup loop is correct, but the main vectorized loop must be removed or rewritten to handle the recurrence properly.
+- The mismatch at index 2 indicates the error propagates quickly due to incorrect `b_prev` values in the vector lanes.
+- Focus on fixing the recurrence by either: 1) keeping the loop scalar, or 2) implementing a vectorized recurrence reduction if supported.

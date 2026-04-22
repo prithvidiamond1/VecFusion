@@ -1,0 +1,52 @@
+```c
+#include <stdint.h>
+
+void vectorized_s233(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+{
+    int nl_iters = 100 * (iterations / 256);
+    
+    for (int nl = 0; nl < nl_iters; nl++) {
+        // Process aa updates - vertical recurrence in j dimension
+        // This has a loop-carried dependency in j, but we can vectorize in i
+        for (int i = 1; i < 256; i++) {
+            // Vectorize the inner j loop by processing multiple i columns at once
+            // Since the recurrence is in j, we keep j as the inner loop
+            for (int j = 1; j < 256; j++) {
+                aa[j][i] = aa[j-1][i] + cc[j][i];
+            }
+        }
+        
+        // Process bb updates - horizontal recurrence in i dimension
+        // This has a loop-carried dependency in i, but we can vectorize in j
+        for (int i = 1; i < 256; i++) {
+            // Vectorize in j dimension using compiler vector types
+            // Process 4 j elements at a time (assuming 128-bit vectors)
+            typedef float v4f __attribute__((vector_size(16)));
+            int j;
+            
+            // Vectorized loop
+            for (j = 1; j <= 256 - 4; j += 4) {
+                // Load bb[j][i-1] for 4 consecutive j values
+                v4f bb_prev = {bb[j][i-1], bb[j+1][i-1], bb[j+2][i-1], bb[j+3][i-1]};
+                
+                // Load cc[j][i] for 4 consecutive j values
+                v4f cc_vec = {cc[j][i], cc[j+1][i], cc[j+2][i], cc[j+3][i]};
+                
+                // Compute bb[j][i] = bb[j][i-1] + cc[j][i]
+                v4f result = bb_prev + cc_vec;
+                
+                // Store results
+                bb[j][i] = result[0];
+                bb[j+1][i] = result[1];
+                bb[j+2][i] = result[2];
+                bb[j+3][i] = result[3];
+            }
+            
+            // Scalar cleanup for remaining j values
+            for (; j < 256; j++) {
+                bb[j][i] = bb[j][i-1] + cc[j][i];
+            }
+        }
+    }
+}
+```

@@ -1,0 +1,7 @@
+Compile failed.
+            Command: clang results/all_tests_rerun_20260418_133434/s316_pipeline2/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260418_133434/s316_pipeline2/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_rerun_20260418_133434/s316_pipeline2/llmvec/candidate_round_1.c:57:30: error: used type '__attribute__((__vector_size__(8 * sizeof(int)))) int' (vector of 8 'int' values) where arithmetic or pointer type is required
+   57 |             vmin = va < vmin ? va : vmin;
+      |                    ~~~~~~~~~ ^
+1 error generated.

@@ -1,0 +1,7 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_5.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_5
+            stderr:
+            results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_5.c:84:72: error: used type '__attribute__((__vector_size__(4 * sizeof(int)))) int' (vector of 4 'int' values) where arithmetic or pointer type is required
+   84 |             v4f selected_vec = (mask != (v4f){0.0f, 0.0f, 0.0f, 0.0f}) ? d_vec : e_vec;
+      |                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^
+1 error generated.

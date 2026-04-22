@@ -1,0 +1,105 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s3113` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s3113(int iterations,int LEN_1D, float* a)
+{
+    float max;
+    float current_max;
+
+    for (int nl = 0; nl < iterations*4; nl++) {
+        current_max = fabsf(a[0]);
+
+        for (int i = 0; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[i]);
+            if (abs_val > current_max) {
+                current_max = abs_val;
+            }
+        }
+
+        max = current_max;
+    }
+
+    return max;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+#include <stdint.h>
+
+float vectorized_s3113(int iterations, int LEN_1D, float* a) {
+    float max;
+    float current_max;
+
+    for (int nl = 0; nl < iterations * 4; nl++) {
+        current_max = fabsf(a[0]);
+
+        // Vectorized reduction for the main loop
+        int i = 0;
+        typedef float v4f __attribute__((vector_size(16)));
+        const int VF = 4;
+
+        // Initialize vector maximum with the scalar current_max
+        v4f vmax = (v4f){current_max, current_max, current_max, current_max};
+
+        // Process vectorizable iterations
+        for (; i + VF <= LEN_1D; i += VF) {
+            v4f va = *(v4f*)&a[i];
+            // Compute absolute values using bitwise AND to clear sign bit
+            v4f vabs = __builtin_fabsf(va);
+
+            // Compare and select maximum
+            v4f cmp = vabs > vmax;
+            vmax = cmp ? vabs : vmax;
+        }
+
+        // Reduce vector maximum to scalar
+        float vmax_arr[VF];
+        *(v4f*)vmax_arr = vmax;
+        float vec_max = vmax_arr[0];
+        for (int j = 1; j < VF; j++) {
+            if (vmax_arr[j] > vec_max) {
+                vec_max = vmax_arr[j];
+            }
+        }
+
+        // Update current_max with vector reduction result
+        if (vec_max > current_max) {
+            current_max = vec_max;
+        }
+
+        // Process remaining elements
+        for (; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[i]);
+            if (abs_val > current_max) {
+                current_max = abs_val;
+            }
+        }
+
+        max = current_max;
+    }
+
+    return max;
+}
+        ```
+
+        Tester feedback:
+        - Fix the `__builtin_fabsf` call: it expects a scalar `float`, but `va` is a vector. Use `__builtin_fabsf` on each element via a loop or use a vector absolute intrinsic like `__builtin_fabsf` is not vector-aware; instead, compute absolute by masking the sign bit: `v4f vabs = va & (v4f){-0.0f, -0.0f, -0.0f, -0.0f};` (using a constant mask for sign bit clearing).
+- The ternary operator `cmp ? vabs : vmax` is invalid for vector types. Replace with a blend operation: `vmax = (vabs > vmax) ? vabs : vmax;` is not allowed; use `vmax = __builtin_shufflevector(vabs, vmax, cmp ? 0 : 1, ...)` or simpler, use `vmax = __builtin_ia32_blendps(vmax, vabs, cmp);` if available, or emulate with bitwise: `vmax = (cmp & vabs) | (~cmp & vmax);` (but ensure `cmp` is a vector of integer masks).
+- Actually, for the blend, since `cmp` is a vector of `int` (from comparison), you can use: `vmax = __builtin_shufflevector(vabs, vmax, cmp[0] ? 0 : 4, cmp[1] ? 1 : 5, cmp[2] ? 2 : 6, cmp[3] ? 3 : 7);` but that's complex. Better: use `vmax = __builtin_ia32_maxps(vmax, vabs);` if targeting SSE, which does a max operation directly.
+- Since the goal is to compute max of absolute values, you can use `__builtin_ia32_maxps` after computing `vabs`. Ensure you include appropriate headers or use builtins available in clang. Alternatively, use `vmax = vabs > vmax ? vabs : vmax;` is actually supported in GCC/clang for vector types? The error says it's not. So use `vmax = __builtin_ia32_maxps(vmax, vabs);` and define `vabs` correctly.
+- To compute `vabs` without `__builtin_fabsf`, create a mask for sign bit: `v4f sign_mask = (v4f){-0.0f, -0.0f, -0.0f, -0.0f};` then `vabs = va & ~sign_mask;` but note `~` on float vector may not work; use `vabs = va & (v4f){0x7fffffff, ...}` as integer reinterpretation. Safer: `vabs = __builtin_fabsf(va);` is actually valid for vector types in clang? The error says no. So use `vabs = __builtin_ia32_andnps(sign_mask, va);` or `vabs = va & (v4f){__builtin_nanf("")}`? No.
+- Simpler: use `vabs = __builtin_fabsf(va);` is not allowed; instead, use `vabs = __builtin_elementwise_abs(va);` which works on vectors in clang. Replace line 51 with `v4f vabs = __builtin_elementwise_abs(va);`.
+- For the max, use `vmax = __builtin_elementwise_max(vabs, vmax);` which also works on vectors. Replace line 55 with `vmax = __builtin_elementwise_max(vabs, vmax);`.
+- Ensure the code compiles with `-std=c11`; `__builtin_elementwise_abs` and `__builtin_elementwise_max` are clang extensions, so it should work.
+
+        Return a corrected candidate function named `vectorized_s3113`.

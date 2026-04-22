@@ -1,0 +1,30 @@
+float s332_opt(int iterations,int LEN_1D,int t, float* a)
+{
+    int index;
+    float value;
+    float chksum;
+    
+    for (int nl = 0; nl < iterations; nl++) {
+        index = -2;
+        value = -1.0f;
+        
+        // Split: search loop without goto
+        int found_index = -2;
+        float found_value = -1.0f;
+        
+        for (int i = 0; i < LEN_1D; i++) {
+            if (a[i] > t) {
+                found_index = i;
+                found_value = a[i];
+                break;
+            }
+        }
+        
+        // Assignment after search completes
+        index = found_index;
+        value = found_value;
+        
+        chksum = value + (float)index;
+    }
+    return value;
+}

@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s256/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s256_opt(int iterations, float* a, float* d, float aa[256][256], float bb[256][256]) {\n    for (int nl = 0; nl < 10 * (iterations / 256); nl++) {\n        // Solve recurrence: a[j] = 1 - a[j-1] with a[0] fixed\n        float a0 = a[0];\n        float even_val = a0;\n        float odd_val = 1.0f - a0;\n        \n        // Vector-friendly initialization of a_temp\n        float a_temp[256];\n        a_temp[0] = a0;\n        for (int j = 1; j < 256; j++) {\n            a_temp[j] = (j & 1) ? odd_val : even_val;\n        }\n        \n        // Copy back to original array\n        for (int j = 0; j < 256; j++) {\n            a[j] = a_temp[j];\n        }\n        \n        // Loop distribution: separate j=0 case if needed (here j starts at 1)\n        // Interchange loops for vectorization\n        for (int j = 1; j < 256; j++) {\n            float a_val = a_temp[j];\n            float d_val = d[j];\n            // This inner loop is fully vectorizable\n            for (int i = 0; i < 256; i++) {\n                aa[j][i] = a_val + bb[j][i] * d_val;\n            }\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

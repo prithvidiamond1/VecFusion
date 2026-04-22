@@ -1,0 +1,70 @@
+void vectorized_s442(int iterations, int LEN_1D, float* a, float *b, float* c, float *d, float* e, int* indx)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        int i = 0;
+        /* Process 4 elements at a time */
+        for (; i <= LEN_1D - 4; i += 4) {
+            /* Element i+0 */
+            {
+                int idx = indx[i];
+                float val;
+                if (idx == 1) { val = b[i]; a[i] += val * val; }
+                else if (idx == 2) { val = c[i]; a[i] += val * val; }
+                else if (idx == 3) { val = d[i]; a[i] += val * val; }
+                else if (idx == 4) { val = e[i]; a[i] += val * val; }
+                else {
+                    /* fall-through: same as case 1 label L15 reached by default */
+                    val = b[i]; a[i] += val * val;
+                }
+            }
+            /* Element i+1 */
+            {
+                int idx = indx[i+1];
+                float val;
+                if (idx == 1) { val = b[i+1]; a[i+1] += val * val; }
+                else if (idx == 2) { val = c[i+1]; a[i+1] += val * val; }
+                else if (idx == 3) { val = d[i+1]; a[i+1] += val * val; }
+                else if (idx == 4) { val = e[i+1]; a[i+1] += val * val; }
+                else {
+                    val = b[i+1]; a[i+1] += val * val;
+                }
+            }
+            /* Element i+2 */
+            {
+                int idx = indx[i+2];
+                float val;
+                if (idx == 1) { val = b[i+2]; a[i+2] += val * val; }
+                else if (idx == 2) { val = c[i+2]; a[i+2] += val * val; }
+                else if (idx == 3) { val = d[i+2]; a[i+2] += val * val; }
+                else if (idx == 4) { val = e[i+2]; a[i+2] += val * val; }
+                else {
+                    val = b[i+2]; a[i+2] += val * val;
+                }
+            }
+            /* Element i+3 */
+            {
+                int idx = indx[i+3];
+                float val;
+                if (idx == 1) { val = b[i+3]; a[i+3] += val * val; }
+                else if (idx == 2) { val = c[i+3]; a[i+3] += val * val; }
+                else if (idx == 3) { val = d[i+3]; a[i+3] += val * val; }
+                else if (idx == 4) { val = e[i+3]; a[i+3] += val * val; }
+                else {
+                    val = b[i+3]; a[i+3] += val * val;
+                }
+            }
+        }
+        /* Scalar cleanup */
+        for (; i < LEN_1D; i++) {
+            int idx = indx[i];
+            float val;
+            if (idx == 1) { val = b[i]; a[i] += val * val; }
+            else if (idx == 2) { val = c[i]; a[i] += val * val; }
+            else if (idx == 3) { val = d[i]; a[i] += val * val; }
+            else if (idx == 4) { val = e[i]; a[i] += val * val; }
+            else {
+                val = b[i]; a[i] += val * val;
+            }
+        }
+    }
+}

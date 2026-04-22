@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s13110/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nfloat s13110_opt(int iterations, float aa[256][256]) {\n    int xindex, yindex;\n    float max, chksum;\n    int outer_iters = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_iters; nl++) {\n        float row_max[256];\n        int row_yindex[256];\n        \n        // First pass: find max and its first occurrence in each row\n        for (int i = 0; i < 256; i++) {\n            float local_max = aa[i][0];\n            int local_yindex = 0;\n            \n            // Vectorizable max reduction - find max value in row\n            for (int j = 1; j < 256; j++) {\n                float current_val = aa[i][j];\n                if (current_val > local_max) {\n                    local_max = current_val;\n                }\n            }\n            \n            // Find first occurrence of max value - restructured to avoid early break\n            int found_idx = 0;\n            for (int j = 0; j < 256; j++) {\n                // Use conditional assignment without break for better vectorization\n                int is_match = (aa[i][j] == local_max) && (found_idx == 0);\n                found_idx = is_match ? j : found_idx;\n            }\n            \n            row_max[i] = local_max;\n            row_yindex[i] = found_idx;\n        }\n        \n        // Second pass: find max across rows\n        float final_max = row_max[0];\n        \n        // Vectorizable reduction to find global max value\n        for (int i = 1; i < 256; i++) {\n            if (row_max[i] > final_max) {\n                final_max = row_max[i];\n            }\n        }\n        \n        // Find first row with global max - restructured to avoid early break\n        int final_idx = 0;\n        for (int i = 0; i < 256; i++) {\n            // Use conditional assignment without break\n            int is_match = (row_max[i] == final_max) && (final_idx == 0);\n            final_idx = is_match ? i : final_idx;\n        }\n        \n        max = final_max;\n        xindex = final_idx;\n        yindex = row_yindex[final_idx];\n        chksum = max + (float)xindex + (float)yindex;\n    }\n    \n    return max + xindex + 1 + yindex + 1;\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

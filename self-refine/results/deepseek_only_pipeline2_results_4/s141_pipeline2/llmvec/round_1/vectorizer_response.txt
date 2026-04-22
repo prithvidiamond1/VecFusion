@@ -1,0 +1,27 @@
+```c
+#include <stddef.h>
+
+void vectorized_s141(int iterations, float * flat_2d_array, float bb[256][256]) {
+    int nl_iterations = 200 * (iterations / 256);
+    
+    for (int nl = 0; nl < nl_iterations; nl++) {
+        for (int j = 0; j < 256; j++) {
+            int base_k = j * (j + 1) / 2;
+            int i = 0;
+            
+            // Vectorized main loop
+            for (; i + 3 <= j; i += 4) {
+                flat_2d_array[base_k + i] += bb[j][i];
+                flat_2d_array[base_k + i + 1] += bb[j][i + 1];
+                flat_2d_array[base_k + i + 2] += bb[j][i + 2];
+                flat_2d_array[base_k + i + 3] += bb[j][i + 3];
+            }
+            
+            // Scalar cleanup for remaining elements
+            for (; i <= j; i++) {
+                flat_2d_array[base_k + i] += bb[j][i];
+            }
+        }
+    }
+}
+```

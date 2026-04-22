@@ -1,0 +1,96 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s116` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s116(int iterations, int LEN_1D, float* a) {
+    for (int nl = 0; nl < iterations * 10; nl++) {
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            // First, load all needed values into temporaries
+            float t0 = a[i];
+            float t1 = a[i + 1];
+            float t2 = a[i + 2];
+            float t3 = a[i + 3];
+            float t4 = a[i + 4];
+            float t5 = a[i + 5];
+
+            // Then compute all results
+            float r0 = t1 * t0;
+            float r1 = t2 * t1;
+            float r2 = t3 * t2;
+            float r3 = t4 * t3;
+            float r4 = t5 * t4;
+
+            // Finally, store all results
+            a[i] = r0;
+            a[i + 1] = r1;
+            a[i + 2] = r2;
+            a[i + 3] = r3;
+            a[i + 4] = r4;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        void vectorized_s116(int iterations, int LEN_1D, float* a) {
+    typedef float v4f __attribute__((vector_size(16)));
+    const int vlen = 4;
+
+    for (int nl = 0; nl < iterations * 10; nl++) {
+        int i = 0;
+        int limit = LEN_1D - 1;
+
+        // Vectorized main loop
+        for (; i + vlen * 4 <= limit; i += vlen * 4) {
+            // Load current vectors
+            v4f v0 = *(v4f*)&a[i];
+            v4f v1 = *(v4f*)&a[i + vlen];
+            v4f v2 = *(v4f*)&a[i + 2 * vlen];
+            v4f v3 = *(v4f*)&a[i + 3 * vlen];
+
+            // Load next vectors (shifted by 1)
+            v4f v0_next = *(v4f*)&a[i + 1];
+            v4f v1_next = *(v4f*)&a[i + vlen + 1];
+            v4f v2_next = *(v4f*)&a[i + 2 * vlen + 1];
+            v4f v3_next = *(v4f*)&a[i + 3 * vlen + 1];
+
+            // Compute results: a[i] = a[i+1] * a[i]
+            v4f r0 = v0_next * v0;
+            v4f r1 = v1_next * v1;
+            v4f r2 = v2_next * v2;
+            v4f r3 = v3_next * v3;
+
+            // Store results
+            *(v4f*)&a[i] = r0;
+            *(v4f*)&a[i + vlen] = r1;
+            *(v4f*)&a[i + 2 * vlen] = r2;
+            *(v4f*)&a[i + 3 * vlen] = r3;
+        }
+
+        // Scalar cleanup for remaining elements
+        for (; i < limit; ++i) {
+            a[i] = a[i + 1] * a[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop accesses `a[i + 3 * vlen + 1]` which can read beyond the array bounds when `i + 3 * vlen + 1 > limit`. The test shows a mismatch at index 77, likely due to reading out-of-bounds data.
+- Adjust the main loop condition to ensure all reads `a[i + k * vlen + 1]` stay within `limit`. Since the largest offset is `i + 3 * vlen + 1`, the condition should be `i + 3 * vlen + 1 <= limit`.
+- Change the loop condition from `i + vlen * 4 <= limit` to `i + 3 * vlen + 1 <= limit` to prevent over-reading.
+- Update the loop increment accordingly to `i += vlen * 4` remains correct because the loop processes 4 vectors per iteration.
+- The scalar cleanup loop already handles up to `limit`, so it remains correct for the remaining elements.
+- Verify that the new condition ensures all vector loads are within bounds for each iteration.
+- After the fix, re-run the test to confirm no out-of-bounds accesses occur.
+- Ensure the fix maintains the same semantics as the original scalar loop: `a[i] = a[i+1] * a[i]` for `i` from `0` to `LEN_1D - 2`.
+
+        Return a corrected candidate function named `vectorized_s116`.

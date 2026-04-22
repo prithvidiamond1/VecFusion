@@ -1,0 +1,70 @@
+#include <stdint.h>
+#include <string.h>
+
+float vectorized_s3110(int iterations, float aa[256][256]) {
+    int xindex, yindex;
+    float max, chksum;
+    
+    for (int nl = 0; nl < 100 * (iterations / 256); nl++) {
+        // Initialize with first element
+        max = aa[0][0];
+        xindex = 0;
+        yindex = 0;
+        
+        // Vectorized maximum reduction
+        for (int i = 0; i < 256; i++) {
+            // Process 8 elements at a time
+            for (int j = 0; j < 256; j += 8) {
+                // Load 8 consecutive floats
+                float val0 = aa[i][j];
+                float val1 = aa[i][j+1];
+                float val2 = aa[i][j+2];
+                float val3 = aa[i][j+3];
+                float val4 = aa[i][j+4];
+                float val5 = aa[i][j+5];
+                float val6 = aa[i][j+6];
+                float val7 = aa[i][j+7];
+                
+                // Compare and update max
+                if (val0 > max) max = val0;
+                if (val1 > max) max = val1;
+                if (val2 > max) max = val2;
+                if (val3 > max) max = val3;
+                if (val4 > max) max = val4;
+                if (val5 > max) max = val5;
+                if (val6 > max) max = val6;
+                if (val7 > max) max = val7;
+            }
+        }
+        
+        // Vectorized search for first occurrence of max
+        int found = 0;
+        for (int i = 0; i < 256 && !found; i++) {
+            for (int j = 0; j < 256 && !found; j += 8) {
+                // Check 8 elements in parallel
+                int found0 = (aa[i][j] == max) && !found;
+                int found1 = (aa[i][j+1] == max) && !found;
+                int found2 = (aa[i][j+2] == max) && !found;
+                int found3 = (aa[i][j+3] == max) && !found;
+                int found4 = (aa[i][j+4] == max) && !found;
+                int found5 = (aa[i][j+5] == max) && !found;
+                int found6 = (aa[i][j+6] == max) && !found;
+                int found7 = (aa[i][j+7] == max) && !found;
+                
+                // Update indices for first found element
+                if (found0) { xindex = i; yindex = j; found = 1; }
+                if (found1 && !found) { xindex = i; yindex = j+1; found = 1; }
+                if (found2 && !found) { xindex = i; yindex = j+2; found = 1; }
+                if (found3 && !found) { xindex = i; yindex = j+3; found = 1; }
+                if (found4 && !found) { xindex = i; yindex = j+4; found = 1; }
+                if (found5 && !found) { xindex = i; yindex = j+5; found = 1; }
+                if (found6 && !found) { xindex = i; yindex = j+6; found = 1; }
+                if (found7 && !found) { xindex = i; yindex = j+7; found = 1; }
+            }
+        }
+        
+        chksum = max + (float)xindex + (float)yindex;
+    }
+    
+    return max + xindex + 1 + yindex + 1;
+}

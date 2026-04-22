@@ -1,0 +1,24 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/vectrans_only_suite/s244/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": false,
+      "candidate_code": null,
+      "summary": "",
+      "artifact_path": "",
+      "error": "VecTrans produced no verified final candidate"
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s244(int iterations, int LEN_1D, float* a,float* b,float* c,float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        for (int i = 0; i < LEN_1D-1; ++i) {\n            a[i] = b[i] + c[i] * d[i];\n            b[i] = c[i] + b[i];\n            a[i+1] = b[i] + a[i+1] * d[i];\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "artifact_path": "results/vectrans_only_suite/s244/compiler_baseline_input.c",
+      "error": null
+    }
+  ]
+}

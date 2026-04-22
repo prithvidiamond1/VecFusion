@@ -1,0 +1,72 @@
+Revise your candidate for `s442` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s442(int iterations,int LEN_1D, float* a, float *b,float* c, float *d, float* e, int* indx)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            switch (indx[i]) {
+                case 1:  goto L15;
+                case 2:  goto L20;
+                case 3:  goto L30;
+                case 4:  goto L40;
+            }
+L15:
+            a[i] += b[i] * b[i];
+            goto L50;
+L20:
+            a[i] += c[i] * c[i];
+            goto L50;
+L30:
+            a[i] += d[i] * d[i];
+            goto L50;
+L40:
+            a[i] += e[i] * e[i];
+L50:
+            ;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        void vectorized_s442(int iterations, int LEN_1D, float* a, float *b, float* c, float *d, float* e, int* indx)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            int idx = indx[i];
+            float val;
+            switch (idx) {
+                case 1:
+                    val = b[i] * b[i];
+                    break;
+                case 2:
+                    val = c[i] * c[i];
+                    break;
+                case 3:
+                    val = d[i] * d[i];
+                    break;
+                case 4:
+                    val = e[i] * e[i];
+                    break;
+                default:
+                    /* Original code falls through to L15 for default case */
+                    val = b[i] * b[i];
+                    break;
+            }
+            a[i] += val;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The default case in the original `s442` loop uses `a[i] = b[i]` (not `b[i] * b[i]`) when `indx[i]` doesn't match 1–4; check the reference implementation's default/fallthrough behavior.
+- More critically, the original `s442` likely does **no update** (or a different assignment) for the default case — the mismatch at index 0 on trial 0 suggests the very first element is wrong, meaning `indx[0]` hits the default path with incorrect logic.
+- The switch cases for 1–4 likely use **addition assignment** (`a[i] += ...`) but the default case may need `a[i] = b[i]` (plain assignment, no squaring) or simply skip the update — fix the default `val` to `b[i]` (no multiply) or remove the `a[i] +=` for the default path.
+- Verify whether the original code's `case 1` through `case 4` use `a[i] +=` or `a[i] =`; if the reference uses plain assignment (`a[i] = val`) rather than accumulation, change `a[i] += val` to `a[i] = val`.
+- The iteration count `iterations/2` may be wrong — confirm the reference loop runs `iterations` times (not halved); if the original uses `iterations` directly, remove the `/2`.
+
+        Return a corrected candidate function named `vectorized_s442`.

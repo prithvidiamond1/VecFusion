@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s352_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s352_opt(int iterations,int LEN_1D, float* a, float *b)\n{\n    float dot;\n    for (int nl = 0; nl < 8*iterations; nl++) {\n        dot = 0.0f;\n        \n        // Process groups of 5 with separate accumulators\n        float dot0 = 0.0f, dot1 = 0.0f, dot2 = 0.0f, dot3 = 0.0f, dot4 = 0.0f;\n        int i;\n        \n        // Main vectorizable loop\n        for (i = 0; i <= LEN_1D - 5; i += 5) {\n            dot0 += a[i] * b[i];\n            dot1 += a[i+1] * b[i+1];\n            dot2 += a[i+2] * b[i+2];\n            dot3 += a[i+3] * b[i+3];\n            dot4 += a[i+4] * b[i+4];\n        }\n        \n        // Handle remaining elements (if LEN_1D not multiple of 5)\n        // This maintains exact floating-point order of original\n        for (; i < LEN_1D; i++) {\n            dot += a[i] * b[i];\n        }\n        \n        // Combine partial sums in original order\n        dot += dot0 + dot1 + dot2 + dot3 + dot4;\n    }\n    return dot;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s352_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s352_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s352_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nfloat vectorized_s352(int iterations, int LEN_1D, float* a, float *b)\n{\n    float dot = 0.0f;\n    for (int nl = 0; nl < 8 * iterations; nl++) {\n        dot = 0.0f;\n\n        float dot0 = 0.0f, dot1 = 0.0f, dot2 = 0.0f, dot3 = 0.0f, dot4 = 0.0f;\n        int i;\n\n        for (i = 0; i <= LEN_1D - 5; i += 5) {\n            dot0 += a[i+0] * b[i+0];\n            dot1 += a[i+1] * b[i+1];\n            dot2 += a[i+2] * b[i+2];\n            dot3 += a[i+3] * b[i+3];\n            dot4 += a[i+4] * b[i+4];\n        }\n\n        for (; i < LEN_1D; i++) {\n            dot += a[i] * b[i];\n        }\n\n        dot += dot0 + dot1 + dot2 + dot3 + dot4;\n    }\n    return dot;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 3.",
+      "compile_feedback": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 3,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s352_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s352",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s352_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s352_pipeline2/llmvec/candidate_round_3.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s352_pipeline2/llmvec/candidate_round_3"
+      }
+    }
+  ]
+}

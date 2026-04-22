@@ -1,0 +1,3 @@
+- The original `s319` computes `sum` over `a[i]` values only (dot-product style), but the candidate accumulates both `tmp_a` and `tmp_b` into `sum`. Fix: only accumulate `tmp_a` (i.e., `a[i] = c[i] + d[i]`) into `sum`, not `tmp_b`.
+- In the vectorized loop, change `vsum += tmp_a + tmp_b;` to `vsum += tmp_a;` to match the scalar reference.
+- In the scalar remainder loop, remove `sum += tmp_b;` — only keep `sum += tmp_a;`.

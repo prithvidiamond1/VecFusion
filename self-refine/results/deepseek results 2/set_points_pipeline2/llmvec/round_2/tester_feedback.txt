@@ -1,0 +1,17 @@
+The test is failing because `src[i]` is being set to `divs[i]` directly, but the original logic sets `src[i]` to the **cumulative** value from `srcStart`, not the raw div value. Looking at the semantics: `src` should hold the actual source pixel positions (i.e., `divs[i]` values are already absolute positions, so `src[i] = divs[i]` seems right), but the mismatch suggests `src` should store something different.
+
+- The `src` array likely stores the **source segment endpoints** starting from `srcStart`. The correct assignment is `src[0] = srcStart`, then `src[i+1] = divs[i]` for `i in [0, divCount)`, and `src[divCount+1] = srcEnd` — mirroring the `dst` layout (size `divCount+2`).
+
+- Change the `src` fill loop: instead of `src[i] = divs[i]`, do `src[0] = srcStart;` then `for (int i = 0; i < divCount; i++) src[i+1] = divs[i];` then `src[divCount+1] = srcEnd;`.
+
+- The `srcDeltas` computation is currently correct relative to `divs[]` and `srcStart`, so that part does not need to change.
+
+- The `dst` array also needs `dst[divCount+1] = dstEnd` (already done as `dst[divCount] = dstEnd`), but with the new `src` indexing `dst` should also be size `divCount+2` — verify the final `dst[divCount+1] = dstEnd` (change index from `divCount` to `divCount+1` if `dst` is `divCount+2` sized).
+
+- Specifically fix: replace the src fill block with:
+  ```c
+  src[0] = srcStart;
+  for (int i = 0; i < divCount; i++) src[i + 1] = divs[i];
+  src[divCount + 1] = srcEnd;
+  ```
+  and change `dst[divCount] = dstEnd;` to `dst[divCount + 1] = dstEnd;` with the prefix sum running to `divCount+1` total entries.

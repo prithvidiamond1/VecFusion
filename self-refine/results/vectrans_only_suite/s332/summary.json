@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s332/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nfloat s332_opt(int iterations, int LEN_1D, int t, float* a) {\n    int index;\n    float value;\n    float chksum;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        index = -2;\n        value = -1.0f;\n        \n        // Vectorizable loop: find first element > t\n        int found_index = LEN_1D;  // Use sentinel value\n        \n        // Single loop without early exit - fully vectorizable\n        for (int i = 0; i < LEN_1D; i++) {\n            // Branchless computation of minimum index where condition is true\n            int cond = a[i] > t;\n            // If condition is true and i < found_index, update found_index\n            int candidate = cond ? i : LEN_1D;\n            found_index = candidate < found_index ? candidate : found_index;\n        }\n        \n        // Handle results after loop\n        if (found_index < LEN_1D) {\n            index = found_index;\n            value = a[found_index];\n        }\n        \n        chksum = value + (float)index;\n    }\n    return value;\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

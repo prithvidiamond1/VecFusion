@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s453_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s453_opt(int iterations, int LEN_1D, float* a, float *b)\n{\n    float s;\n    for (int nl = 0; nl < iterations*2; nl++) {\n        s = 0.;\n        // Separate the accumulation of s from the multiplication\n        for (int i = 0; i < LEN_1D; i++) {\n            s += (float)2.;\n            // Store intermediate s values in a[i] temporarily\n            a[i] = s;\n        }\n        // Independent multiplication loop (easily vectorizable)\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = a[i] * b[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s453_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s453_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s453_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s453(int iterations, int LEN_1D, float* a, float *b) {\n    typedef float v4f __attribute__((vector_size(16)));\n    typedef int v4i __attribute__((vector_size(16)));\n\n    const int VEC_SIZE = 4;\n    const v4f vtwo = (v4f){2.0f, 2.0f, 2.0f, 2.0f};\n    const v4f voffset = (v4f){1.0f, 2.0f, 3.0f, 4.0f};\n\n    for (int nl = 0; nl < iterations*2; nl++) {\n        float s = 0.0f;\n\n        // Vectorized accumulation and store loop\n        int i = 0;\n        for (; i + VEC_SIZE <= LEN_1D; i += VEC_SIZE) {\n            // Compute s values for this vector: s + 2.0f * {1,2,3,4}\n            v4f s_vec = (v4f){s, s, s, s} + vtwo * voffset;\n\n            // Store vector to a[i..i+3]\n            v4f* a_vec = (v4f*)(&a[i]);\n            *a_vec = s_vec;\n\n            // Update scalar s for next iteration\n            s += 2.0f * VEC_SIZE;\n        }\n\n        // Scalar tail for accumulation\n        for (; i < LEN_1D; i++) {\n            s += 2.0f;\n            a[i] = s;\n        }\n\n        // Vectorized multiplication loop\n        i = 0;\n        for (; i + VEC_SIZE <= LEN_1D; i += VEC_SIZE) {\n            v4f* a_vec = (v4f*)(&a[i]);\n            v4f* b_vec = (v4f*)(&b[i]);\n            *a_vec = *a_vec * *b_vec;\n        }\n\n        // Scalar tail for multiplication\n        for (; i < LEN_1D; i++) {\n            a[i] = a[i] * b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 3.",
+      "compile_feedback": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 3,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s453_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s453",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s453_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s453_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s453_pipeline2/llmvec/candidate_round_3.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s453_pipeline2/llmvec/candidate_round_3"
+      }
+    }
+  ]
+}

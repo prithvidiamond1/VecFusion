@@ -1,0 +1,103 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Revise your candidate for `s2251` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s2251(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = (float)0.0;
+
+        // Precompute b[i] + c[i] for all i
+        float* tmp = (float*)malloc(LEN_1D * sizeof(float));
+        for (int i = 0; i < LEN_1D; i++) {
+            tmp[i] = b[i] + c[i];
+        }
+
+        // First iteration
+        a[0] = s * e[0];
+        b[0] = a[0] + d[0];
+        s = tmp[0];
+
+        // Main loop - now s comes from precomputed tmp[i-1]
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] = s * e[i];
+            b[i] = a[i] + d[i];
+            s = tmp[i];
+        }
+
+        free(tmp);
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdlib.h>
+
+typedef float v8f32 __attribute__((__vector_size__(32), __aligned__(32)));
+
+void vectorized_s2251(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    const int VEC_SIZE = 8;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = (float)0.0;
+
+        // First iteration (scalar)
+        a[0] = s * e[0];
+        b[0] = a[0] + d[0];
+        s = b[0] + c[0];  // tmp[0] = b[0] + c[0] using updated b[0]
+
+        // Main loop - strip-mined to maintain sequential dependency
+        int i = 1;
+        for (; i + VEC_SIZE <= LEN_1D; i += VEC_SIZE) {
+            // Process each element in the strip sequentially
+            for (int j = 0; j < VEC_SIZE; j++) {
+                int idx = i + j;
+                a[idx] = s * e[idx];
+                b[idx] = a[idx] + d[idx];
+                s = b[idx] + c[idx];  // Update s for next iteration
+            }
+        }
+
+        // Scalar tail for remaining elements
+        for (; i < LEN_1D; i++) {
+            a[i] = s * e[i];
+            b[i] = a[i] + d[i];
+            s = b[i] + c[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop incorrectly processes the strip sequentially inside the vector chunk, losing the intended vectorization benefit and potentially causing correctness issues due to the sequential dependency on `s`.
+
+- The sequential dependency on `s` across iterations must be preserved; the current inner loop over `VEC_SIZE` elements is scalar, which is correct for dependency but defeats vectorization.
+
+- The test failure at index 5 indicates a mismatch in array `a`, likely because the scalar `s` update across the vector strip is not computed correctly when compared to the original scalar loop.
+
+- To fix, restructure the loop to compute the recurrence of `s` across the vector strip explicitly using scalar expansion or vector reduction techniques, but given the strict sequential dependency, full vectorization may not be safe.
+
+- Since the dependency is strictly sequential (each iteration uses `s` from the previous), consider peeling the first element of each vector chunk to maintain correctness, then vectorize the remaining `VEC_SIZE-1` elements with a known `s`.
+
+- Alternatively, if the loop cannot be vectorized due to the recurrence, revert to scalar computation for the entire loop to ensure correctness, as the current hybrid approach is flawed.
+
+- Ensure the trip count calculation `i + VEC_SIZE <= LEN_1D` is correct; it should be `i <= LEN_1D - VEC_SIZE` to avoid off-by-one errors, but the current form is acceptable.
+
+- The scalar head (first iteration) and tail handling are correct; the issue lies in the main vectorized strip's internal processing of the dependency chain.
+
+        Return a corrected candidate function named `vectorized_s2251`.

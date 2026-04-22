@@ -1,0 +1,3 @@
+- **Fix the bitwise AND error on line 53**: You cannot use `&` between two `v8sf` (float vector) types. Since you're already computing `cond[i+k]` via the scalar fallback loop, simply remove the dead vectorized mask computation (lines 13-23 in the inner loop, i.e., the `v8sf mask`, `v8sf c = (mask & one)` lines) and keep only the scalar fallback.
+- **Remove the unused `col_count` variable** (line 15 in the original file) to eliminate the warning that may become an error with `-Werror`, and clean up dead code.
+- The simplest fix: replace the entire `for (int i = 0; i < 256; i += 8)` cond-precompute block with a plain scalar loop: `for (int i = 0; i < 256; i++) cond[i] = (aa[0][i] > 0.f) ? 1.0f : 0.0f;`

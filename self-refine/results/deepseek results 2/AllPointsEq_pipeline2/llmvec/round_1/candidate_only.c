@@ -1,0 +1,40 @@
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
+typedef unsigned char uint8_t_vec __attribute__((vector_size(16)));
+
+bool vectorized_AllPointsEq(const unsigned char *pts, int count) {
+    if (count <= 0) return true;
+
+    unsigned char first = pts[0];
+
+    // Broadcast first value into a vector
+    uint8_t_vec vfirst = {first, first, first, first,
+                          first, first, first, first,
+                          first, first, first, first,
+                          first, first, first, first};
+
+    int i = 0;
+    int vec_count = count - (count % 16);
+
+    for (; i < vec_count; i += 16) {
+        uint8_t_vec chunk;
+        memcpy(&chunk, pts + i, 16);
+        uint8_t_vec cmp = (chunk == vfirst);
+        // cmp elements are 0xFF if equal, 0x00 if not
+        // Check all elements are 0xFF
+        unsigned char result[16];
+        memcpy(result, &cmp, 16);
+        for (int j = 0; j < 16; j++) {
+            if (result[j] == 0) return false;
+        }
+    }
+
+    // Scalar tail
+    for (; i < count; i++) {
+        if (pts[i] != first) return false;
+    }
+
+    return true;
+}

@@ -1,0 +1,18 @@
+The candidate is a scalar unroll, not a vectorized implementation, but more critically it has a **correctness bug**: the loop carries `s` as a recurrence (each iteration conditionally updates `s` based on `a[i]`), and the unrolled version preserves that sequential dependency correctly. However, the test is failing with a mismatch.
+
+Looking carefully at the original semantics vs. the candidate:
+
+- The original loop: `s` starts at 0, and is **only updated** when `a[i] > 0`. The value of `s` used for `b[i]` and `e[i]` is the **current** (possibly just-updated) `s`.
+- The candidate preserves this correctly in the scalar sense.
+
+The mismatch is in **parameter `a`** at index 0 — this suggests the function signature or parameter order doesn't match what the test harness expects.
+
+Key fixes needed:
+
+- **Check the expected function signature carefully**: the test reports mismatch in parameter `a` at index 0, which often means the output array `b` (first output) is being compared against `a`. The parameter order in the harness may differ — likely `b` should come before `a`, or `e` and `b` are swapped.
+- **The loop condition `i + 7 < 256`** should be `i + 8 <= 256` (i.e., `i <= 248`), which is equivalent to `i + 7 < 256` — this is actually fine (`i + 7 < 256` ↔ `i < 249` ↔ `i <= 248`). No bug here.
+- **Verify the `row` computation**: using `nl % 256` for the row index may not match the reference — if the reference always uses row 0 or uses a different indexing, this would cause mismatches. The original benchmark `s258` typically uses a fixed row (often `row = 0` or iterates over rows differently). Change `int row = nl % 256;` to `int row = 0;` if the reference keeps row fixed.
+- **The `s` reset**: `s = 0.f` is reset each outer iteration, which is correct per the benchmark spec.
+- **Do not write back to `a`** — confirm no aliasing issue; the signature looks fine.
+
+Most likely fix: change `int row = nl % 256;` to `int row = 0;` to match the standard s258 benchmark behavior where the same row of `aa` is used each outer iteration.

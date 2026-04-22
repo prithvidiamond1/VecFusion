@@ -1,0 +1,49 @@
+```c
+#include <stdint.h>
+
+void vectorized_s453(int iterations, int LEN_1D, float* a, float *b) {
+    typedef float v4f __attribute__((vector_size(16)));
+    typedef int v4i __attribute__((vector_size(16)));
+
+    const int VEC_SIZE = 4;
+    const v4f vtwo = (v4f){2.0f, 2.0f, 2.0f, 2.0f};
+    const v4f voffset = (v4f){1.0f, 2.0f, 3.0f, 4.0f};
+
+    for (int nl = 0; nl < iterations*2; nl++) {
+        float s = 0.0f;
+
+        // Vectorized accumulation and store loop
+        int i = 0;
+        for (; i + VEC_SIZE <= LEN_1D; i += VEC_SIZE) {
+            // Compute s values for this vector: s + 2.0f * {1,2,3,4}
+            v4f s_vec = (v4f){s, s, s, s} + vtwo * voffset;
+
+            // Store vector to a[i..i+3]
+            v4f* a_vec = (v4f*)(&a[i]);
+            *a_vec = s_vec;
+
+            // Update scalar s for next iteration
+            s += 2.0f * VEC_SIZE;
+        }
+
+        // Scalar tail for accumulation
+        for (; i < LEN_1D; i++) {
+            s += 2.0f;
+            a[i] = s;
+        }
+
+        // Vectorized multiplication loop
+        i = 0;
+        for (; i + VEC_SIZE <= LEN_1D; i += VEC_SIZE) {
+            v4f* a_vec = (v4f*)(&a[i]);
+            v4f* b_vec = (v4f*)(&b[i]);
+            *a_vec = *a_vec * *b_vec;
+        }
+
+        // Scalar tail for multiplication
+        for (; i < LEN_1D; i++) {
+            a[i] = a[i] * b[i];
+        }
+    }
+}
+```

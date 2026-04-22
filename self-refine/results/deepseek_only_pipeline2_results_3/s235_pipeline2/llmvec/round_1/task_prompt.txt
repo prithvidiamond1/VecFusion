@@ -1,0 +1,40 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Vectorize the scalar C function `s235` below.
+
+        Scalar source:
+        ```c
+        void s235(int iterations, float* a, float* b, float* c, float aa[256][256], float bb[256][256])
+{
+    int loop_count = 200 * (iterations / 256);
+
+    for (int nl = 0; nl < loop_count; nl++) {
+        // 1. Update all a[i] first (fully vectorizable)
+        for (int i = 0; i < 256; i++) {
+            a[i] += b[i] * c[i];
+        }
+
+        // 2. Loop interchange: make j outer, i inner to enable vectorization across i
+        // Process aa[0][i] as base for each column
+        for (int j = 1; j < 256; j++) {
+            // Vectorizable loop: no dependency across i
+            for (int i = 0; i < 256; i++) {
+                aa[j][i] = aa[j-1][i] + bb[j][i] * a[i];
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s235`.

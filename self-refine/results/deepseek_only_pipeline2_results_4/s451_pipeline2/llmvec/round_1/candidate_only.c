@@ -1,0 +1,36 @@
+#include <math.h>
+
+typedef float v4sf __attribute__((vector_size(16)));
+
+void vectorized_s451(int iterations, int LEN_1D, float* a, float* b, float* c) {
+    int outer_iters = iterations / 5;
+    
+    for (int nl = 0; nl < outer_iters; nl++) {
+        int i = 0;
+        const int vlen = 4;
+        int limit = LEN_1D - (LEN_1D % vlen);
+        
+        for (; i < limit; i += vlen) {
+            v4sf b_vec = *(v4sf*)&b[i];
+            v4sf c_vec = *(v4sf*)&c[i];
+            
+            v4sf sin_vec, cos_vec;
+            float sin_arr[4], cos_arr[4];
+            
+            for (int vi = 0; vi < vlen; vi++) {
+                sin_arr[vi] = sinf(b_vec[vi]);
+                cos_arr[vi] = cosf(c_vec[vi]);
+            }
+            
+            sin_vec = *(v4sf*)sin_arr;
+            cos_vec = *(v4sf*)cos_arr;
+            
+            v4sf result = sin_vec + cos_vec;
+            *(v4sf*)&a[i] = result;
+        }
+        
+        for (; i < LEN_1D; i++) {
+            a[i] = sinf(b[i]) + cosf(c[i]);
+        }
+    }
+}

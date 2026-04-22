@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s453/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s453_opt(int iterations,int LEN_1D, float* a, float *b) {\n    float s;\n    for (int nl = 0; nl < iterations*2; nl++) {\n        s = 0.;\n        // Split the loop: first compute s values, then compute a[i]\n        float s_val = 0.;\n        for (int i = 0; i < LEN_1D; i++) {\n            s_val += (float)2.;\n            // Store s_val in a temporary array? Not needed, we can compute directly\n            // Instead, compute a[i] immediately after s update\n            a[i] = s_val * b[i];\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

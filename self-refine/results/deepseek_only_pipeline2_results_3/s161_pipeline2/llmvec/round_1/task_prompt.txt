@@ -1,0 +1,45 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Vectorize the scalar C function `s161` below.
+
+        Scalar source:
+        ```c
+        void s161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        // Store original a[i] values before any updates
+        float* a_orig = (float*)__builtin_alloca((LEN_1D-1) * sizeof(float));
+        for (int i = 0; i < LEN_1D-1; ++i) {
+            a_orig[i] = a[i];
+        }
+
+        // First pass: compute c[i+1] updates for b[i] < 0 cases
+        for (int i = 0; i < LEN_1D-1; ++i) {
+            if (b[i] < (float)0.) {
+                c[i+1] = a_orig[i] + d[i] * d[i];
+            }
+        }
+
+        // Second pass: compute a[i] updates for b[i] >= 0 cases
+        // Uses potentially updated c[i] from previous iteration
+        for (int i = 0; i < LEN_1D-1; ++i) {
+            if (b[i] >= (float)0.) {
+                a[i] = c[i] + d[i] * e[i];
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s161`.

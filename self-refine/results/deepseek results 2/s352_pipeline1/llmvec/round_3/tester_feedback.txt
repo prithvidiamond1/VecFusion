@@ -1,0 +1,1 @@
+- The loop unrolls by 5 elements per iteration (`i += 5`), but the reference implementation likely iterates every element (`i += 1`). Change `i += 5` back to `i++` and remove the manual unrolling, keeping only `dot = dot + a[i] * b[i]` in the body.

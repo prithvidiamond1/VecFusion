@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s2111_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s2111_opt(int iterations, float aa[256][256])\n{\n    int outer_loops = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_loops; nl++) {\n        // Process first row (j=1) - only horizontal dependency\n        for (int i = 1; i < 256; i++) {\n            aa[1][i] = (aa[1][i-1] + aa[0][i]) / 1.9f;\n        }\n        \n        // Process remaining rows (j=2 to 255)\n        for (int j = 2; j < 256; j++) {\n            // Process first element of current row\n            float first_val = (aa[j][0] + aa[j-1][1]) / 1.9f;\n            \n            // Process remaining elements with pipelined approach\n            float prev_horizontal = first_val;\n            for (int i = 2; i < 256; i++) {\n                float new_val = (prev_horizontal + aa[j-1][i]) / 1.9f;\n                aa[j][i-1] = prev_horizontal;  // Store previous result\n                prev_horizontal = new_val;\n            }\n            aa[j][255] = prev_horizontal;  // Store last element\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s2111_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s2111_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s2111_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s2111(int iterations, float aa[256][256]) {\n    int outer_loops = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_loops; nl++) {\n        // Process first row (j=1) - only horizontal dependency\n        for (int i = 1; i < 256; i++) {\n            aa[1][i] = (aa[1][i-1] + aa[0][i]) / 1.9f;\n        }\n\n        // Process remaining rows (j=2 to 255)\n        for (int j = 2; j < 256; j++) {\n            // Process first element of current row\n            float first_val = (aa[j][0] + aa[j-1][1]) / 1.9f;\n\n            // Process remaining elements with pipelined approach\n            float prev_horizontal = first_val;\n            for (int i = 2; i < 256; i++) {\n                float new_val = (prev_horizontal + aa[j-1][i]) / 1.9f;\n                aa[j][i-1] = prev_horizontal;  // Store previous result\n                prev_horizontal = new_val;\n            }\n            aa[j][255] = prev_horizontal;  // Store last element\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s2111_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s2111",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s2111_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s2111_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s2111_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s2111_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

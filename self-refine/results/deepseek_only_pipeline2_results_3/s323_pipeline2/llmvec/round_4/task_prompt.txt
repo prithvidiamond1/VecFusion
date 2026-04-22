@@ -1,0 +1,104 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Revise your candidate for `s323` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s323(int iterations,int LEN_1D, float* a, float *b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        // Compute prefix sum for b first
+        float b_prev = b[0];
+        for (int i = 1; i < LEN_1D; i++) {
+            b[i] = b_prev + c[i] * (d[i] + e[i]);
+            b_prev = b[i];
+        }
+
+        // Now compute a in a separate vectorizable loop
+        a[1] = b[0] + c[1] * d[1];
+        for (int i = 2; i < LEN_1D; i++) {
+            a[i] = b[i-1] + c[i] * d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+void vectorized_s323(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e) {
+    int loop_count = iterations / 2;
+
+    for (int nl = 0; nl < loop_count; nl++) {
+        // Prefix sum for b - scalar sequential (not vectorizable due to recurrence)
+        float b_prev = b[0];
+        for (int i = 1; i < LEN_1D; i++) {
+            b[i] = b_prev + c[i] * (d[i] + e[i]);
+            b_prev = b[i];
+        }
+
+        // Compute a[1] separately
+        a[1] = b[0] + c[1] * d[1];
+
+        // Vectorized computation for a[i] = b[i-1] + c[i] * d[i]
+        int i = 2;
+        // Process groups of 4 where i+3 < LEN_1D (i <= LEN_1D-4)
+        for (; i + 3 < LEN_1D; i += 4) {
+            // Load b[i-1] values for indices i, i+1, i+2, i+3
+            float b_prev_0 = b[i-1];
+            float b_prev_1 = b[i];
+            float b_prev_2 = b[i+1];
+            float b_prev_3 = b[i+2];
+
+            // Compute c[i] * d[i] for four consecutive elements
+            float prod_0 = c[i] * d[i];
+            float prod_1 = c[i+1] * d[i+1];
+            float prod_2 = c[i+2] * d[i+2];
+            float prod_3 = c[i+3] * d[i+3];
+
+            // Store results
+            a[i] = b_prev_0 + prod_0;
+            a[i+1] = b_prev_1 + prod_1;
+            a[i+2] = b_prev_2 + prod_2;
+            a[i+3] = b_prev_3 + prod_3;
+        }
+
+        // Scalar tail for remaining a elements (including case when LEN_1D < 3)
+        for (; i < LEN_1D; i++) {
+            a[i] = b[i-1] + c[i] * d[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The mismatch at index 15 indicates the vectorized loop’s tail handling or loop bounds are incorrect for `LEN_1D` values that are not multiples of 4.
+- The vectorized loop condition `i + 3 < LEN_1D` ensures `i <= LEN_1D-4`, but the scalar tail loop starts at `i` after that. If `LEN_1D` is 16, index 15 is the last element, and the vectorized loop processes i=2,6,10,14? Wait: when i=14, i+3=17 which is not <16, so i stops at 14? Actually, the loop increments by 4: i starts at 2, then 6, 10, 14. For i=14, i+3=17 >=16, so the loop exits without processing i=14. Then scalar tail runs for i=14,15. That’s correct.
+- But mismatch at index 15 suggests the scalar tail may be computing incorrectly because `b[i-1]` depends on the prefix-sum loop that updated `b`. However, the prefix-sum loop runs each outer iteration, so `b` values are fresh.
+- Check the original loop semantics: The original loop for `a` is `for (i = 1; i < LEN_1D; i++) a[i] = b[i-1] + c[i] * d[i];`. The candidate sets `a[1]` separately, then vectorized loop from i=2, and scalar tail from i. That matches.
+- However, the vectorized loop loads `b_prev_0 = b[i-1]`, `b_prev_1 = b[i]`, etc. But `b[i]` is not `b[i-1]` for the next iteration; the formula uses `b[i-1]` for each `a[i]`. So for `a[i+1]`, we need `b[i]`, which is correct as `b_prev_1 = b[i]`. That’s fine.
+- The error may be due to the vectorized loop accessing `b[i+2]` for `a[i+3]` (since `b_prev_3 = b[i+2]`). That’s correct because `a[i+3] = b[(i+3)-1] = b[i+2]`.
+- But if `LEN_1D` is small, say 16, and vectorized loop processes up to i=10 (since i+3<16 for i=10, i+3=13<16, next i=14 exits), then scalar tail handles i=14,15. For i=15, `a[15] = b[14] + c[15]*d[15]`. That should be fine.
+- The mismatch suggests maybe the original loop starts at i=1, but candidate sets `a[1]` separately and vectorized loop starts at i=2. If `LEN_1D` is 1, then `a[1]` is out of bounds. But index 15 mismatch implies LEN_1D>=16. Possibly the test uses `LEN_1D=16` and the vectorized loop’s last iteration i=10 leaves i=14,15 for tail, but maybe the tail loop incorrectly uses `b[i-1]` where `b` wasn’t updated for those indices? No, prefix-sum loop updates all `b`.
+- Wait: The prefix-sum loop updates `b` from index 1 to LEN_1D-1 using `b[i] = b_prev + c[i]*(d[i]+e[i])`. That depends on previous `b`. The vectorized loop uses these updated `b` values. That’s correct.
+- The mismatch could be due to the vectorized loop loading `b` values that are one index off? Let’s verify: For i=2, `a[2] = b[1] + c[2]*d[2]`. Candidate loads `b_prev_0 = b[1]` (good). For i=3 (i+1), `a[3] = b[2] + c[3]*d[3]`. Candidate loads `b_prev_1 = b[2]` (good). So mapping is correct.
+- Perhaps the issue is that the vectorized loop’s condition should be `i + 3 <= LEN_1D - 1`? Actually, `i < LEN_1D` in original, and vectorized loop processes i, i+1, i+2, i+3 all < LEN_1D. So condition `i + 3 < LEN_1D` ensures i+3 <= LEN_1D-1, so i <= LEN_1D-4. That’s fine.
+- But if LEN_1D=16, then i <=12? Wait, i starts at 2, condition i+3<16 → i<13. So i max is 12? Let’s test: i=2,6,10,12? i=12 → i+3=15<16, so i=12 is processed, then i+=4 → i=16, exit. So vectorized loop processes i=2,6,10,12. That means indices 12,13,14,15 are processed in vectorized loop? No, for i=12, it computes a[12],a[13],a[14],a[15]. Then scalar tail runs for i=16 (since i=16 after loop) and exits. That’s different from earlier assumption. Earlier I thought i=14 was not processed, but actually i=12 is processed, covering up to a[15]. So scalar tail is empty. That’s fine.
+- Then why mismatch at index 15? Possibly because the vectorized loop’s last iteration i=12 computes a[15] using b_prev_3 = b[14] (since b[i+2] for i=12 is b[14]), which is correct. So maybe the original loop has a different formula? The original loop is `a[i] = b[i-1] + c[i] * d[i]`. That’s what we implemented.
+- Could be that the prefix-sum loop uses `d[i] + e[i]`, but the original might have different expression? The test s323 from TSVC typically is: for (i = 1; i < LEN_1D; i++) { b[i] = b[i-1] + c[i] * (d[i] + e[i]); a[i] = b[i-1] + c[i] * d[i]; }. Yes, that matches.
+- The mismatch suggests our vectorized loop may have a bug in loading `b` values: we load `b[i-1], b[i], b[i+1], b[i+2]` for a[i],a[i+1],a[i+2],a[i+3]. But note that after the prefix-sum, `b` is updated sequentially. However, the vectorized loop loads these four `b` values simultaneously. Since there is no dependency between these `b` values for the computation of `a` (each a[i] uses b[i-1] which is already computed), this is safe.
+- But wait: The prefix-sum loop runs before the vectorized loop
+
+        Return a corrected candidate function named `vectorized_s323`.

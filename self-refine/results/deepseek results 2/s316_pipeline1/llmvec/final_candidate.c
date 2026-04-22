@@ -1,0 +1,43 @@
+#include <float.h>
+
+float vectorized_s316(int iterations, int LEN_1D, float* a)
+{
+    float x;
+    for (int nl = 0; nl < iterations * 5; nl++) {
+        x = a[0];
+
+        // Process 8 elements at a time using unrolled scalar (vector-friendly)
+        int i = 1;
+        float min0 = x, min1 = x, min2 = x, min3 = x;
+        float min4 = x, min5 = x, min6 = x, min7 = x;
+
+        for (; i <= LEN_1D - 8; i += 8) {
+            if (a[i+0] < min0) min0 = a[i+0];
+            if (a[i+1] < min1) min1 = a[i+1];
+            if (a[i+2] < min2) min2 = a[i+2];
+            if (a[i+3] < min3) min3 = a[i+3];
+            if (a[i+4] < min4) min4 = a[i+4];
+            if (a[i+5] < min5) min5 = a[i+5];
+            if (a[i+6] < min6) min6 = a[i+6];
+            if (a[i+7] < min7) min7 = a[i+7];
+        }
+
+        // Reduce the 8 partial minimums
+        if (min1 < min0) min0 = min1;
+        if (min2 < min0) min0 = min2;
+        if (min3 < min0) min0 = min3;
+        if (min4 < min0) min0 = min4;
+        if (min5 < min0) min0 = min5;
+        if (min6 < min0) min0 = min6;
+        if (min7 < min0) min0 = min7;
+        x = min0;
+
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            if (a[i] < x) {
+                x = a[i];
+            }
+        }
+    }
+    return x;
+}

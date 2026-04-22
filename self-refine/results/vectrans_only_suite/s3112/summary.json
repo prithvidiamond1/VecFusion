@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s3112/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nfloat s3112_opt(int iterations, int LEN_1D, float* a, float* b) {\n    float sum = 0.0f;\n    for (int nl = 0; nl < iterations; nl++) {\n        float accum = 0.0f;\n        \n        // First loop: pure reduction to compute total sum\n        for (int i = 0; i < LEN_1D; i++) {\n            accum += a[i];\n        }\n        \n        // Second loop: compute prefix sums using vectorizable pattern\n        // Start with first element\n        if (LEN_1D > 0) {\n            b[0] = a[0];\n        }\n        \n        // Main vectorizable loop for remaining elements\n        for (int i = 1; i < LEN_1D; i++) {\n            b[i] = b[i-1] + a[i];\n        }\n        \n        sum = accum;\n    }\n    return sum;\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

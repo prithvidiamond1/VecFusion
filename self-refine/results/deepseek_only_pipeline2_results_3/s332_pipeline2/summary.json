@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s332_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s332_opt(int iterations,int LEN_1D,int t, float* a)\n{\n    int index;\n    float value;\n    float chksum;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        index = -2;\n        value = -1.0f;\n        \n        // Loop distribution: separate the search for first match from value extraction\n        int found_index = -2;\n        \n        // First loop: find the first index where a[i] > t (vectorizable search)\n        for (int i = 0; i < LEN_1D; i++) {\n            // Branchless comparison - creates mask of matches\n            int match = a[i] > t;\n            // Only update if we haven't found a match yet\n            int update = match && (found_index == -2);\n            // Use arithmetic to update index without branching\n            found_index = update * i + (1 - update) * found_index;\n        }\n        \n        // Second loop: extract the value if index was found\n        if (found_index != -2) {\n            index = found_index;\n            value = a[found_index];\n        }\n        \n        chksum = value + (float)index;\n    }\n    return value;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s332_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s332_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s332_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nfloat vectorized_s332(int iterations, int LEN_1D, int t, float* a) {\n    float value = 0.0f;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        int index = -2;\n        value = -1.0f;\n        \n        // Vectorized search for first element > t\n        int found_index = -2;\n        int i = 0;\n        \n        // Process in chunks for potential vectorization\n        for (; i + 3 < LEN_1D; i += 4) {\n            // Check 4 elements at once\n            int match0 = a[i] > t;\n            int match1 = a[i + 1] > t;\n            int match2 = a[i + 2] > t;\n            int match3 = a[i + 3] > t;\n            \n            // Find first match in this chunk\n            if (found_index == -2) {\n                if (match0) {\n                    found_index = i;\n                } else if (match1) {\n                    found_index = i + 1;\n                } else if (match2) {\n                    found_index = i + 2;\n                } else if (match3) {\n                    found_index = i + 3;\n                }\n            }\n        }\n        \n        // Handle remaining elements\n        for (; i < LEN_1D; i++) {\n            if (found_index == -2 && a[i] > t) {\n                found_index = i;\n            }\n        }\n        \n        // Extract value if index was found\n        if (found_index != -2) {\n            index = found_index;\n            value = a[found_index];\n        }\n        \n        // Final computation (kept for semantic correctness)\n        float chksum = value + (float)index;\n        (void)chksum; // Prevent unused variable warning\n    }\n    \n    return value;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s332_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s332",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s332_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s332_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260419_214725/s332_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260419_214725/s332_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

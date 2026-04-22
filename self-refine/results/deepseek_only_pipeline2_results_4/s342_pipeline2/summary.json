@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s342_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s342_opt(int iterations,int LEN_1D, float* a, float *b)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // First loop: compute prefix sum of conditions into a temporary array\n        int prefix[LEN_1D];\n        int count = -1;\n        for (int i = 0; i < LEN_1D; i++) {\n            int cond = (a[i] > (float)0.);\n            count += cond;\n            prefix[i] = cond ? count : -1;\n        }\n        \n        // Second loop: vectorizable assignment using precomputed indices\n        for (int i = 0; i < LEN_1D; i++) {\n            int idx = prefix[i];\n            if (idx != -1) {\n                a[i] = b[idx];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s342_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s342_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s342_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nvoid vectorized_s342(int iterations, int LEN_1D, float* a, float *b) {\n    for (int nl = 0; nl < iterations; nl++) {\n        int prefix[LEN_1D];\n        int count = -1;\n        \n        // First loop: compute prefix sum of conditions\n        for (int i = 0; i < LEN_1D; i++) {\n            int cond = (a[i] > 0.0f);\n            count += cond;\n            prefix[i] = cond ? count : -1;\n        }\n        \n        // Second loop: vectorized assignment\n        int i = 0;\n        #if defined(__clang__)\n        typedef float float4 __attribute__((ext_vector_type(4)));\n        typedef int int4 __attribute__((ext_vector_type(4)));\n        \n        for (; i + 3 < LEN_1D; i += 4) {\n            // Load indices\n            int idx0 = prefix[i];\n            int idx1 = prefix[i + 1];\n            int idx2 = prefix[i + 2];\n            int idx3 = prefix[i + 3];\n            \n            // Check which indices are valid\n            int4 valid_mask = (int4){idx0 != -1, idx1 != -1, idx2 != -1, idx3 != -1};\n            \n            // Gather values from b using valid indices\n            float4 gathered;\n            gathered.x = (valid_mask.x) ? b[idx0] : a[i];\n            gathered.y = (valid_mask.y) ? b[idx1] : a[i + 1];\n            gathered.z = (valid_mask.z) ? b[idx2] : a[i + 2];\n            gathered.w = (valid_mask.w) ? b[idx3] : a[i + 3];\n            \n            // Store back to a\n            a[i] = gathered.x;\n            a[i + 1] = gathered.y;\n            a[i + 2] = gathered.z;\n            a[i + 3] = gathered.w;\n        }\n        #endif\n        \n        // Scalar cleanup\n        for (; i < LEN_1D; i++) {\n            int idx = prefix[i];\n            if (idx != -1) {\n                a[i] = b[idx];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s342_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s342",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s342_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s342_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s342_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s342_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

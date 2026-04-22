@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s114_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s114_opt(int iterations, float aa[256][256], float bb[256][256])\n{\n    int loop_count = 200 * (iterations / 256);\n    \n    for (int nl = 0; nl < loop_count; nl++) {\n        // Process all elements in parallel-friendly order\n        for (int i = 1; i < 256; i++) {\n            // Read all required upper triangle values first\n            float upper_values[256];\n            for (int j = 0; j < i; j++) {\n                upper_values[j] = aa[j][i];\n            }\n            \n            // Then compute and write all lower triangle values\n            for (int j = 0; j < i; j++) {\n                aa[i][j] = upper_values[j] + bb[i][j];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s114_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s114_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s114_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s114(int iterations, float aa[256][256], float bb[256][256])\n{\n    int loop_count = 200 * (iterations / 256);\n\n    for (int nl = 0; nl < loop_count; nl++) {\n        for (int i = 1; i < 256; i++) {\n            float upper_values[256];\n\n            // Vectorized gather of upper triangle values\n            int j = 0;\n            for (; j <= i - 4; j += 4) {\n                upper_values[j]   = aa[j][i];\n                upper_values[j+1] = aa[j+1][i];\n                upper_values[j+2] = aa[j+2][i];\n                upper_values[j+3] = aa[j+3][i];\n            }\n            for (; j < i; j++) {\n                upper_values[j] = aa[j][i];\n            }\n\n            // Vectorized computation and write of lower triangle values\n            j = 0;\n            for (; j <= i - 8; j += 8) {\n                aa[i][j]   = upper_values[j]   + bb[i][j];\n                aa[i][j+1] = upper_values[j+1] + bb[i][j+1];\n                aa[i][j+2] = upper_values[j+2] + bb[i][j+2];\n                aa[i][j+3] = upper_values[j+3] + bb[i][j+3];\n                aa[i][j+4] = upper_values[j+4] + bb[i][j+4];\n                aa[i][j+5] = upper_values[j+5] + bb[i][j+5];\n                aa[i][j+6] = upper_values[j+6] + bb[i][j+6];\n                aa[i][j+7] = upper_values[j+7] + bb[i][j+7];\n            }\n            for (; j < i; j++) {\n                aa[i][j] = upper_values[j] + bb[i][j];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s114_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s114",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s114_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s114_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s114_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

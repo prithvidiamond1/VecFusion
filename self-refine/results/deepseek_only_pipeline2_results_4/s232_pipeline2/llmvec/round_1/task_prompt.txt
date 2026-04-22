@@ -1,0 +1,33 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Vectorize the scalar C function `s232` below.
+
+        Scalar source:
+        ```c
+        void s232(int iterations, float aa[256][256], float bb[256][256])
+{
+    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {
+        // Handle i=1 separately for all j
+        for (int j = 1; j < 256; j++) {
+            if (j >= 1) {
+                aa[j][1] = aa[j][0] * aa[j][0] + bb[j][1];
+            }
+        }
+
+        // Process remaining i values
+        for (int i = 2; i < 256; i++) {
+            // Only process j values where j >= i
+            for (int j = i; j < 256; j++) {
+                aa[j][i] = aa[j][i-1] * aa[j][i-1] + bb[j][i];
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s232`.

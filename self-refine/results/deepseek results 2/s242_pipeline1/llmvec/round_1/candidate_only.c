@@ -1,0 +1,25 @@
+void vectorized_s242(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d)
+{
+    for (int nl = 0; nl < iterations/5; nl++) {
+        // This loop has a loop-carried dependency on a[i] = a[i-1] + ...
+        // so we cannot fully vectorize the inner loop without breaking semantics.
+        // We unroll manually to help the compiler, but must preserve the dependency.
+        float s12 = s1 + s2;
+        int i = 1;
+        // Unroll by 4 while preserving the recurrence
+        for (; i + 3 < LEN_1D; i += 4) {
+            float ai0 = a[i - 1] + s12 + b[i]     + c[i]     + d[i];
+            float ai1 = ai0      + s12 + b[i + 1]  + c[i + 1] + d[i + 1];
+            float ai2 = ai1      + s12 + b[i + 2]  + c[i + 2] + d[i + 2];
+            float ai3 = ai2      + s12 + b[i + 3]  + c[i + 3] + d[i + 3];
+            a[i]     = ai0;
+            a[i + 1] = ai1;
+            a[i + 2] = ai2;
+            a[i + 3] = ai3;
+        }
+        // Scalar cleanup
+        for (; i < LEN_1D; i++) {
+            a[i] = a[i - 1] + s12 + b[i] + c[i] + d[i];
+        }
+    }
+}

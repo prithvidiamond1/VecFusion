@@ -1,0 +1,17 @@
+- **Exit code -6 indicates a runtime crash, likely due to out-of-bounds memory access.** The candidate writes to `src[i + 1]` and `dst[i + 1]` up to `divCount + 1`, but the caller may not have allocated enough space. The function assumes `src` and `dst` arrays have length at least `divCount + 2`, which is not guaranteed by the signature.
+
+- **The first vectorized loop writes `src[i + 1] = divs[i]` for `i` up to `divCount-1`, requiring `src` size ≥ `divCount + 1`.** However, later the code also writes `src[divCount + 1] = srcEnd`, so total required size is `divCount + 2`. This must be documented or validated.
+
+- **The VLAs `srcDelta` and `dstDelta` are sized as `divCount > 0 ? divCount : 1`, but loops access up to index `divCount-1`.** This is correct, but the vectorized loops assume `divCount` ≥ 4 to avoid reading uninitialized VLA elements in the tail? Actually, the tail loops handle `i < divCount`, so it's safe.
+
+- **The crash likely occurs because `src` and `dst` are too small for the given `divCount`.** The vectorizer must either:
+  1. Add bounds checks: if `divCount <= 0` return early; ensure caller provides sufficient allocation.
+  2. Document the requirement: `src` and `dst` must have length `divCount + 2`.
+
+- **The vectorized alternating pattern computation is overly complex and may cause type mismatches.** Using `v4i` for masks and then indexing with `[]` on `v4i` is not standard; should use `__builtin_convertvector` or extract lanes properly.
+
+- **The line `scalable_mask = scalable_mask == 0;` attempts to compare a vector to zero, but the result is a vector of ints, not a boolean mask for `? :`.** This is invalid; should use `scalable_mask = (scalable_mask == (v4i){0,0,0,0});` and then extract each component.
+
+- **Simplify the alternating pattern: compute `float effective_scale = ((i & 1) ^ start_mask) ? scale_scalable : scale_fixed;` in scalar, then vectorize by building a vector of scales directly without complex masks.**
+
+- **Recommendation: First fix the out-of-bounds write by adding an early guard and documenting size requirements. Then simplify the vector mask logic to avoid undefined behavior.**

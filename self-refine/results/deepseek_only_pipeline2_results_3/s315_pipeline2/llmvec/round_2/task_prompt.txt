@@ -1,0 +1,140 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Revise your candidate for `s315` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s315(int iterations, int LEN_1D, float* a) {
+    // Initialization loop - already vectorizable
+    for (int i = 0; i < LEN_1D; i++) {
+        a[i] = (i * 7) % LEN_1D;
+    }
+
+    float x;
+    int index;
+
+    // Main loop with preserved semantics
+    for (int nl = 0; nl < iterations; nl++) {
+        // Initialize reduction variables
+        x = a[0];
+        index = 0;
+
+        // Split the reduction: first find max value only
+        float max_val = a[0];
+        for (int i = 0; i < LEN_1D; ++i) {
+            float current = a[i];
+            if (current > max_val) {
+                max_val = current;
+            }
+        }
+
+        // Then find the first index where value equals max_val
+        // This loop has no loop-carried dependency on index
+        for (int i = 0; i < LEN_1D; ++i) {
+            if (a[i] == max_val) {
+                index = i;
+                break;  // Get first occurrence
+            }
+        }
+
+        x = max_val;
+        // chksum computation (kept for semantic equivalence)
+        float chksum = x + (float)index;
+    }
+
+    return index + x + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float float4 __attribute__((ext_vector_type(4)));
+typedef int int4 __attribute__((ext_vector_type(4)));
+
+float vectorized_s315(int iterations, int LEN_1D, float* a) {
+    // Initialization loop - vectorized
+    int i = 0;
+    for (; i + 3 < LEN_1D; i += 4) {
+        int4 indices = {i, i+1, i+2, i+3};
+        int4 scaled = indices * 7;
+        int4 mod_result = scaled % LEN_1D;
+        float4 result = {(float)mod_result[0], (float)mod_result[1], 
+                         (float)mod_result[2], (float)mod_result[3]};
+        *(float4*)&a[i] = result;
+    }
+    for (; i < LEN_1D; i++) {
+        a[i] = (i * 7) % LEN_1D;
+    }
+
+    float x;
+    int index;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        x = a[0];
+        index = 0;
+
+        // Vectorized max reduction
+        float max_val = a[0];
+        i = 0;
+        float4 max_vec = {max_val, max_val, max_val, max_val};
+
+        for (; i + 3 < LEN_1D; i += 4) {
+            float4 current_vec = *(float4*)&a[i];
+            // Horizontal max within vector
+            float4 cmp1 = current_vec > max_vec;
+            max_vec = cmp1 ? current_vec : max_vec;
+        }
+
+        // Extract scalar max from vector
+        max_val = max_vec[0];
+        for (int j = 1; j < 4; j++) {
+            if (max_vec[j] > max_val) max_val = max_vec[j];
+        }
+
+        // Scalar tail for max
+        for (; i < LEN_1D; i++) {
+            float current = a[i];
+            if (current > max_val) {
+                max_val = current;
+            }
+        }
+
+        // Find first index where value equals max_val
+        index = 0;
+        for (i = 0; i < LEN_1D; ++i) {
+            if (a[i] == max_val) {
+                index = i;
+                break;
+            }
+        }
+
+        x = max_val;
+        float chksum = x + (float)index;
+    }
+
+    return index + x + 1;
+}
+        ```
+
+        Tester feedback:
+        - The vector comparison `current_vec > max_vec` yields an `int4` result, but `cmp1` is declared as `float4`. Change `float4 cmp1` to `int4 cmp1`.
+- The ternary operator `cmp1 ? current_vec : max_vec` is invalid because `cmp1` is a vector; use a select intrinsic or manual blend. Replace with `(float4)(cmp1 & (int4)current_vec) | ((int4)max_vec & ~cmp1)` after casting to integer vectors for bitwise operations.
+- The blend operation must be done via integer bitwise ops; ensure proper casting: `max_vec = __builtin_shufflevector(current_vec, max_vec, (cmp1[0]?0:4, cmp1[1]?1:5, cmp1[2]?2:6, cmp1[3]?3:7))` or use `__builtin_convertvector(cmp1, float4)` if the compiler supports float vector select.
+- Alternatively, simplify by using `max_vec = __builtin_ia32_maxps(current_vec, max_vec)` if targeting x86, but for portability, implement a manual max per lane: `max_vec[0] = cmp1[0] ? current_vec[0] : max_vec[0];` etc.
+- The unused variable `chksum` triggers a warning; either remove it or mark it with `(void)chksum;` to suppress the warning.
+- Ensure the vectorized max reduction correctly initializes `max_vec` with the first four elements of `a` if `LEN_1D >= 4`, otherwise handle the scalar case first.
+- The scalar tail for max should start from the correct `i` after the vector loop; this is already correct but verify the loop bounds.
+- The final return uses `index` and `x` which are set inside the loop but may be uninitialized if `iterations == 0`; initialize `x` and `index` before the outer loop to avoid undefined behavior.
+
+        Return a corrected candidate function named `vectorized_s315`.

@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s3112_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s3112_opt(int iterations, int LEN_1D, float* a, float* b)\n{\n    float sum;\n    for (int nl = 0; nl < iterations; nl++) {\n        sum = (float)0.0;\n        \n        // Loop distribution: separate the reduction from the store\n        // First compute all prefix sums into a temporary array\n        float temp_sum = sum;\n        \n        // Use manual unrolling to expose independent operations\n        int i = 0;\n        for (; i + 3 < LEN_1D; i += 4) {\n            // Load all inputs first (no dependencies)\n            float t0 = a[i];\n            float t1 = a[i+1];\n            float t2 = a[i+2];\n            float t3 = a[i+3];\n            \n            // Compute prefix sums sequentially but with explicit dependency chain\n            float s0 = temp_sum + t0;\n            float s1 = s0 + t1;\n            float s2 = s1 + t2;\n            float s3 = s2 + t3;\n            \n            // Store all results\n            b[i] = s0;\n            b[i+1] = s1;\n            b[i+2] = s2;\n            b[i+3] = s3;\n            \n            // Update accumulator for next chunk\n            temp_sum = s3;\n        }\n        \n        // Handle remaining elements\n        for (; i < LEN_1D; i++) {\n            temp_sum += a[i];\n            b[i] = temp_sum;\n        }\n        \n        sum = temp_sum;\n    }\n    return sum;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s3112_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s3112_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s3112_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "float vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)\n{\n    float sum;\n    for (int nl = 0; nl < iterations; nl++) {\n        sum = (float)0.0;\n\n        float temp_sum = sum;\n\n        int i = 0;\n        for (; i + 3 < LEN_1D; i += 4) {\n            float t0 = a[i];\n            float t1 = a[i+1];\n            float t2 = a[i+2];\n            float t3 = a[i+3];\n\n            float s0 = temp_sum + t0;\n            float s1 = s0 + t1;\n            float s2 = s1 + t2;\n            float s3 = s2 + t3;\n\n            b[i]   = s0;\n            b[i+1] = s1;\n            b[i+2] = s2;\n            b[i+3] = s3;\n\n            temp_sum = s3;\n        }\n\n        for (; i < LEN_1D; i++) {\n            temp_sum += a[i];\n            b[i] = temp_sum;\n        }\n\n        sum = temp_sum;\n    }\n    return sum;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s3112_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s3112",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s3112_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s3112_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s3112_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}
