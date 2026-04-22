@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s292_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s292(int iterations, int LEN_1D, float* a, float* b)\n{\n    int im1, im2;\n    for (int nl = 0; nl < iterations; nl++) {\n        im1 = LEN_1D - 1;\n        im2 = LEN_1D - 2;\n        // The first two iterations have special index patterns (wrap-around),\n        // handle them scalar before vectorizing the rest.\n        // i=0: im1=LEN_1D-1, im2=LEN_1D-2\n        // i=1: im1=0,         im2=LEN_1D-1\n        // i>=2: im1=i-1,      im2=i-2  => fully regular\n\n        // Scalar prologue for i=0 and i=1\n        if (LEN_1D > 0) {\n            a[0] = (b[0] + b[LEN_1D - 1] + b[LEN_1D - 2]) * 0.333f;\n        }\n        if (LEN_1D > 1) {\n            a[1] = (b[1] + b[0] + b[LEN_1D - 1]) * 0.333f;\n        }\n\n        // Vectorized loop for i >= 2: a[i] = (b[i] + b[i-1] + b[i-2]) * 0.333f\n        int i = 2;\n        int limit = LEN_1D - ((LEN_1D - 2) % 4);\n\n        for (; i < limit; i += 4) {\n            a[i]     = (b[i]     + b[i - 1] + b[i - 2]) * 0.333f;\n            a[i + 1] = (b[i + 1] + b[i]     + b[i - 1]) * 0.333f;\n            a[i + 2] = (b[i + 2] + b[i + 1] + b[i]    ) * 0.333f;\n            a[i + 3] = (b[i + 3] + b[i + 2] + b[i + 1]) * 0.333f;\n        }\n\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            a[i] = (b[i] + b[i - 1] + b[i - 2]) * 0.333f;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s292_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s292",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s292_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s292_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s292_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

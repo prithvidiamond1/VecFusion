@@ -1,0 +1,21 @@
+void s2251_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e) {
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = (float)0.0;
+        
+        // Precompute all s values to break loop-carried dependency
+        float* s_vals = (float*)alloca(LEN_1D * sizeof(float));
+        for (int i = 0; i < LEN_1D; i++) {
+            s_vals[i] = b[i] + c[i];
+        }
+        
+        // Fused computation of a[i] and b[i] to avoid false aliasing issues
+        a[0] = s * e[0];
+        b[0] = a[0] + d[0];
+        
+        for (int i = 1; i < LEN_1D; i++) {
+            float ai = s_vals[i-1] * e[i];
+            a[i] = ai;
+            b[i] = ai + d[i];
+        }
+    }
+}

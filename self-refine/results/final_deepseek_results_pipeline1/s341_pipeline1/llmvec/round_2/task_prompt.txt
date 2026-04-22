@@ -1,0 +1,69 @@
+
+Revise your candidate for `s341` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s341(int iterations,int LEN_1D, float* a, float *b)
+{
+    int j;
+    for (int nl = 0; nl < iterations; nl++) {
+        j = -1;
+        for (int i = 0; i < LEN_1D; i++) {
+            if (b[i] > (float)0.) {
+                j++;
+                a[j] = b[i];
+            }
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+#include <stdint.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s341(int iterations, int LEN_1D, float* a, float *b)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        int j = -1;
+        int i = 0;
+
+        // Vectorized main loop
+        for (; i + 4 <= LEN_1D; i += 4) {
+            float32_t vb = *(float32_t*)(b + i);
+            float32_t zero = (float32_t){0.0f, 0.0f, 0.0f, 0.0f};
+            float32_t mask = vb > zero;
+
+            // Extract mask bits
+            int mask_bits = __builtin_convertvector(mask, int32_t);
+
+            // Process each element
+            for (int k = 0; k < 4; k++) {
+                if (mask_bits & (1 << k)) {
+                    j++;
+                    a[j] = b[i + k];
+                }
+            }
+        }
+
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            if (b[i] > 0.0f) {
+                j++;
+                a[j] = b[i];
+            }
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - **Fix type mismatch for `mask`**: `vb > zero` produces a vector of `int` (or `int32_t`), not `float32_t`. Change `float32_t mask` to `int32_t mask` (or `int __attribute__((ext_vector_type(4)))`).
+- **Fix `__builtin_convertvector` call**: The second argument must be a vector type, not a scalar. Replace `int32_t` with `int32_t __attribute__((ext_vector_type(4)))` (or use `__builtin_convertvector(mask, int32_t4)` after defining the appropriate vector type).
+- **Alternative simplification**: Instead of `__builtin_convertvector`, directly use `mask` as a vector of ints and extract bits via `__builtin_popcount` or a loop over elements with `mask[k]` to avoid the conversion entirely.
+- **Ensure `j` is correctly scoped**: `j` is initialized to `-1` inside the outer loop but not reset per iteration; verify this matches the original scalar semantics (likely intended to be reset each `nl` iteration).
+
+        Return a corrected candidate function named `vectorized_s341`.

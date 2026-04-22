@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s115_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s115_opt(int iterations, float* a, float aa[256][256])\n{\n    for (int nl = 0; nl < 1000*(iterations/256); nl++) {\n        for (int j = 0; j < 256; j++) {\n            float aj = a[j];\n            for (int i = j+1; i < 256; i++) {\n                a[i] -= aa[j][i] * aj;\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s115_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s115_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s115_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s115(int iterations, float* a, float aa[256][256])\n{\n    for (int nl = 0; nl < 1000*(iterations/256); nl++) {\n        for (int j = 0; j < 256; j++) {\n            float aj = a[j];\n            int i = j + 1;\n            int limit = 256;\n\n            // Vectorize using GCC/Clang vector extensions\n            typedef float float4 __attribute__((vector_size(16)));\n            typedef float float8 __attribute__((vector_size(32)));\n\n            float8 vaj = { aj, aj, aj, aj, aj, aj, aj, aj };\n\n            // Process 8 elements at a time\n            for (; i + 7 < limit; i += 8) {\n                float8 vai, vaa;\n                __builtin_memcpy(&vai, &a[i], sizeof(float8));\n                __builtin_memcpy(&vaa, &aa[j][i], sizeof(float8));\n                vai = vai - vaa * vaj;\n                __builtin_memcpy(&a[i], &vai, sizeof(float8));\n            }\n\n            // Process 4 elements at a time\n            float4 vaj4 = { aj, aj, aj, aj };\n            for (; i + 3 < limit; i += 4) {\n                float4 vai4, vaa4;\n                __builtin_memcpy(&vai4, &a[i], sizeof(float4));\n                __builtin_memcpy(&vaa4, &aa[j][i], sizeof(float4));\n                vai4 = vai4 - vaa4 * vaj4;\n                __builtin_memcpy(&a[i], &vai4, sizeof(float4));\n            }\n\n            // Scalar tail\n            for (; i < limit; i++) {\n                a[i] -= aa[j][i] * aj;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s115_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s115",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s115_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s115_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s115_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+The candidate uses `indx[i]` to select which array to use, but indexes into that array using `i` (the loop index). The reference implementation uses `indx[i]` as both the selector **and** the index into the source arrays (i.e., `b[indx[i]]`, `c[indx[i]]`, etc.), while `a[i]` is the destination.
+
+- **Root cause**: The original `s442` loop is: `a[i] += b[indx[i]] * b[indx[i]]` (or c/d/e), not `b[i] * b[i]`. The source array is indexed by `indx[i]`, not by `i`.
+- **Fix**: Replace every `b[i]` with `b[idx]`, `c[i]` with `c[idx]`, `d[i]` with `d[idx]`, `e[i]` with `e[idx]` in all branches (both the unrolled block and the tail loop), while keeping `a[i]` as the destination.
+
+For example, the element `i+0` block should be:
+```c
+int idx = indx[i];
+if (idx == 1)      a[i] += b[idx] * b[idx];
+else if (idx == 2) a[i] += c[idx] * c[idx];
+else if (idx == 3) a[i] += d[idx] * d[idx];
+else if (idx == 4) a[i] += e[idx] * e[idx];
+```
+And similarly for `i+1`, `i+2`, `i+3` (each using their own local `idx = indx[i+k]`), and the tail `switch` cases.

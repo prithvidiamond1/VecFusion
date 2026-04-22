@@ -1,0 +1,16 @@
+The vectorizer candidate compiles but produces incorrect results. The issue is in the vectorized loop body:
+
+- **Incorrect accumulation order**: `vec_sum += va` accumulates all four elements of `va` into the vector sum, but the scalar reference loop computes a running scalar sum where each `b[i]` depends on the cumulative sum of all previous `a` elements. The vectorized version incorrectly treats each 4-element chunk independently, losing cross-chunk dependencies.
+
+- **Fix**: The vectorized loop must maintain a running scalar sum across chunks. Instead of `vec_sum += va`, compute `running_sum` as a scalar that accumulates each element of `va` sequentially, then assign `b[i..i+3]` based on that running scalar sum. Alternatively, use a prefix-sum pattern within each vector lane, but the scalar `running_sum` must carry across iterations.
+
+- **Trip count and bounds**: The loop bounds `i <= LEN_1D - 4` and the remainder loop are correct, but the vector body semantics are wrong.
+
+- **Suggested fix**: Replace the vector body with a scalar accumulation that updates `running_sum` for each element of `va`, then stores the cumulative values into `b`. For example:
+  ```c
+  for (int j = 0; j < 4; j++) {
+      running_sum += a[i + j];
+      b[i + j] = running_sum;
+  }
+  ```
+  This preserves the sequential dependency.

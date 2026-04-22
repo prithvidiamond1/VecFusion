@@ -1,0 +1,6 @@
+The error is in the test harness wrapper code (line 97), not in the candidate function itself. The issue is `int n = n;` redeclaring `n` when `const int n = 128;` already exists in the same scope.
+
+- The candidate function code itself is correct; the compile error is in the auto-generated test harness, not in `vectorized_s212`.
+- The test harness has `const int n = 128;` on line 95, then `int n = n;` on line 97 — this is a redefinition conflict.
+- Fix: remove the redundant `int n = n;` declaration from the test harness (or ensure the harness doesn't re-declare `n` when it's already declared in the enclosing scope).
+- The candidate function itself needs no changes — it compiles cleanly in isolation.

@@ -1,0 +1,65 @@
+```c
+#include <stddef.h>
+
+#if defined(__clang__)
+typedef float float4 __attribute__((ext_vector_type(4)));
+#elif defined(__GNUC__)
+typedef float float4 __attribute__((vector_size(16)));
+#else
+/* Portable fallback: use array and manual operations */
+#define USE_PORTABLE_FALLBACK
+#endif
+
+void vectorized_s233(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+{
+    int loop_count = 100 * (iterations / 256);
+    
+    for (int nl = 0; nl < loop_count; nl++) {
+        /* First nest: j outer, i inner - vectorize across i */
+        for (int j = 1; j < 256; j++) {
+            int i = 1;
+#ifdef USE_PORTABLE_FALLBACK
+            /* Portable scalar fallback */
+            for (; i < 256; i++) {
+                aa[j][i] = aa[j-1][i] + cc[j][i];
+            }
+#else
+            /* Vectorized version with 4-wide SIMD */
+            for (; i + 3 < 256; i += 4) {
+                float4 prev_a = *(float4*)&aa[j-1][i];
+                float4 c_vec = *(float4*)&cc[j][i];
+                float4 result = prev_a + c_vec;
+                *(float4*)&aa[j][i] = result;
+            }
+            /* Scalar cleanup */
+            for (; i < 256; i++) {
+                aa[j][i] = aa[j-1][i] + cc[j][i];
+            }
+#endif
+        }
+
+        /* Second nest: i outer, j inner - vectorize across j */
+        for (int i = 1; i < 256; i++) {
+            int j = 1;
+#ifdef USE_PORTABLE_FALLBACK
+            /* Portable scalar fallback */
+            for (; j < 256; j++) {
+                bb[j][i] = bb[j][i-1] + cc[j][i];
+            }
+#else
+            /* Vectorized version with 4-wide SIMD */
+            for (; j + 3 < 256; j += 4) {
+                float4 prev_b = {bb[j][i-1], bb[j+1][i-1], bb[j+2][i-1], bb[j+3][i-1]};
+                float4 c_vec = {cc[j][i], cc[j+1][i], cc[j+2][i], cc[j+3][i]};
+                float4 result = prev_b + c_vec;
+                ((float4*)&bb[j][i])[0] = result;
+            }
+            /* Scalar cleanup */
+            for (; j < 256; j++) {
+                bb[j][i] = bb[j][i-1] + cc[j][i];
+            }
+#endif
+        }
+    }
+}
+```

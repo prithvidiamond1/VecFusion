@@ -1,0 +1,73 @@
+Candidate code:
+```c
+#include <stdbool.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed,
+                           int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,
+                           bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    src[0] = srcStart;
+    dst[0] = dstStart;
+
+    // Precompute scale factors for scalable and non-scalable patches
+    float scaleIfScalable    = normalCase ? scale : 0.0f;
+    float scaleIfNonScalable = normalCase ? 1.0f  : scale;
+
+    int i = 0;
+
+    // Unrolled by 4 (4 flips = net zero change to isScalable)
+    for (; i <= divCount - 4; i += 4) {
+        // is0, is2 = isScalable; is1, is3 = !isScalable
+        float sc_same = isScalable ? scaleIfScalable : scaleIfNonScalable;
+        float sc_flip = isScalable ? scaleIfNonScalable : scaleIfScalable;
+
+        src[i+1] = divs[i+0];
+        src[i+2] = divs[i+1];
+        src[i+3] = divs[i+2];
+        src[i+4] = divs[i+3];
+
+        float dstDelta0 = sc_same * (float)(src[i+1] - src[i+0]);
+        float dstDelta1 = sc_flip * (float)(src[i+2] - src[i+1]);
+        float dstDelta2 = sc_same * (float)(src[i+3] - src[i+2]);
+        float dstDelta3 = sc_flip * (float)(src[i+4] - src[i+3]);
+
+        dst[i+1] = dst[i+0] + dstDelta0;
+        dst[i+2] = dst[i+1] + dstDelta1;
+        dst[i+3] = dst[i+2] + dstDelta2;
+        dst[i+4] = dst[i+3] + dstDelta3;
+
+        // 4 flips: isScalable unchanged after 4 iterations
+    }
+
+    // Scalar tail
+    for (; i < divCount; i++) {
+        src[i + 1] = divs[i];
+        int srcDelta = src[i + 1] - src[i];
+        float dstDelta;
+        if (normalCase) {
+            dstDelta = isScalable ? scale * (float)srcDelta : (float)srcDelta;
+        } else {
+            dstDelta = isScalable ? 0.0f : scale * (float)srcDelta;
+        }
+        dst[i + 1] = dst[i] + dstDelta;
+        isScalable = !isScalable;
+    }
+
+    src[divCount + 1] = srcEnd;
+    dst[divCount + 1] = dstEnd;
+}
+```
+
+External compile/test report:
+Compile succeeded for round 3.
+Exit code: -6
+stderr:
+Mismatch in parameter src on trial 0 at index 0

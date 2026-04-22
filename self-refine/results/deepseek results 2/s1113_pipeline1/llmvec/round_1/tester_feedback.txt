@@ -1,0 +1,15 @@
+The issue is that `mid = a[LEN_1D/2]` captures the midpoint value **before** the loop modifies `a`, but the reference implementation likely re-reads `a[LEN_1D/2]` after it has been updated by earlier iterations of the inner loop (i.e., when `i` reaches `LEN_1D/2`, `a[LEN_1D/2]` has already been overwritten).
+
+- **Root cause**: The original scalar loop reads `a[LEN_1D/2]` fresh each iteration (it's not hoisted), so once index `i == LEN_1D/2` is processed, subsequent reads of `a[LEN_1D/2]` return the updated value `mid + b[LEN_1D/2]`. Your vectorized version hoists `mid` before the loop, breaking this dependency.
+- **Fix**: Do not hoist `mid`. Instead, read `a[LEN_1D/2]` inside the inner loop at each step, or at minimum re-read it after the iteration that writes index `LEN_1D/2`. The simplest correct fix is to remove the hoisting and read it each iteration:
+
+```c
+for (int nl = 0; nl < 2*iterations; nl++) {
+    for (int i = 0; i < LEN_1D; i++) {
+        a[i] = a[LEN_1D/2] + b[i];
+    }
+}
+```
+
+- Since `a[LEN_1D/2]` is read and written within the same loop, vectorization is unsafe without scalar execution order — revert to a simple scalar loop matching the reference semantics exactly.
+- Remove the unrolled 8-wide block entirely, as it incorrectly assumes `mid` is loop-invariant when it is not (it changes when `i == LEN_1D/2`).

@@ -1,0 +1,103 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Revise your candidate for `s2251` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s2251(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = (float)0.0;
+
+        // Precompute b[i] + c[i] for all i
+        float* tmp = (float*)malloc(LEN_1D * sizeof(float));
+        for (int i = 0; i < LEN_1D; i++) {
+            tmp[i] = b[i] + c[i];
+        }
+
+        // First iteration
+        a[0] = s * e[0];
+        b[0] = a[0] + d[0];
+        s = tmp[0];
+
+        // Main loop - now s comes from precomputed tmp[i-1]
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] = s * e[i];
+            b[i] = a[i] + d[i];
+            s = tmp[i];
+        }
+
+        free(tmp);
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdlib.h>
+
+typedef float v8f32 __attribute__((__vector_size__(32), __aligned__(32)));
+
+void vectorized_s2251(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    const int VEC_SIZE = 8;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = (float)0.0;
+
+        // First iteration (scalar)
+        a[0] = s * e[0];
+        b[0] = a[0] + d[0];
+        s = b[0] + c[0];
+
+        // Main loop - process with scalar recurrence
+        int i = 1;
+        for (; i + VEC_SIZE <= LEN_1D; i += VEC_SIZE) {
+            // Process vector chunk with explicit scalar recurrence
+            for (int j = 0; j < VEC_SIZE; j++) {
+                int idx = i + j;
+                a[idx] = s * e[idx];
+                b[idx] = a[idx] + d[idx];
+                s = b[idx] + c[idx];
+            }
+        }
+
+        // Scalar tail for remaining elements
+        for (; i < LEN_1D; i++) {
+            a[i] = s * e[i];
+            b[i] = a[i] + d[i];
+            s = b[i] + c[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The scalar recurrence `s` is carried across vector chunks incorrectly: after each vector chunk, only the last element's `s` update is used for the next chunk, but the vector chunk should process all elements sequentially within the chunk using the updated `s` from the previous element, not in parallel.
+
+- The vectorized inner loop `for (int j = 0; j < VEC_SIZE; j++)` attempts to process 8 elements in a vector chunk, but it's still scalar inside—this is not actually vectorized; it's just an unrolled scalar loop. The vectorizer needs to generate true SIMD code for the recurrence, possibly using vector shifts or sequential vector lanes.
+
+- Since `s` is a scalar recurrence (loop-carried dependency), vectorization requires either: (a) processing the first element of each vector chunk serially to compute the new `s` for the chunk, or (b) using a more advanced pattern like partial sums. The current code incorrectly assumes all 8 elements in the chunk can use the same `s` from before the chunk.
+
+- Specifically, the mismatch at index 5 indicates the scalar recurrence value `s` is wrong by that point. The vector chunk starting at i=1 processes indices 1–8, but each element depends on the previous `s`, so the vector chunk must compute sequentially: `s1 = b[1]+c[1]` then used for `a[2]`, etc. The current code uses the initial `s` (from index 0) for all 8 elements in the chunk.
+
+- To fix: restructure the vector loop to compute the recurrence in a sequential vector manner—either by using vector shifts to propagate `s` across lanes, or by computing the recurrence via vector partial sums and then applying it. Alternatively, accept that this is a scalar recurrence and only vectorize the independent parts (a[idx] and b[idx]), but that may still require careful handling.
+
+- Since the loop has a true dependency (s[i] = b[i-1] + c[i-1]), the vectorizer should consider whether vectorization is legal; if it proceeds, it must generate code that maintains the exact sequential order. The current transformation is unsound.
+
+- The simplest fix: keep the scalar loop for the recurrence and only vectorize the computations of `a[idx]` and `b[idx]` after computing `s` for each element serially. But that would still require `s` to be updated per element before use.
+
+- Given the error at index 5, adjust the vector chunk to start with the correct `s` from the previous iteration (i=1) and compute sequentially across the chunk, ensuring the recurrence chain is preserved exactly as in the scalar version.
+
+        Return a corrected candidate function named `vectorized_s2251`.

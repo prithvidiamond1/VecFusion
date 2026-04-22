@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s116/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s116_opt(int iterations, int LEN_1D, float* a) {\n    for (int nl = 0; nl < iterations * 10; nl++) {\n        // Process in groups of 5 with temporary storage to break dependencies\n        for (int i = 0; i < LEN_1D - 5; i += 5) {\n            // Store original right-hand side values before any updates\n            float t1 = a[i + 1];\n            float t2 = a[i + 2];\n            float t3 = a[i + 3];\n            float t4 = a[i + 4];\n            float t5 = a[i + 5];\n            \n            // Now compute all updates using original values\n            a[i] = t1 * a[i];\n            a[i + 1] = t2 * t1;\n            a[i + 2] = t3 * t2;\n            a[i + 3] = t4 * t3;\n            a[i + 4] = t5 * t4;\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+- The scalar value `a[LEN_1D/2]` is captured **once before the outer loop**, but the reference implementation re-reads it **at the start of each `nl` iteration** (i.e., `scalar_val` should be refreshed each iteration because `a[LEN_1D/2]` may be overwritten when `LEN_1D/2 < LEN_1D`).
+- Move `float scalar_val = a[LEN_1D/2];` **inside** the `nl` loop, before the inner loops, so it picks up the updated value each iteration.

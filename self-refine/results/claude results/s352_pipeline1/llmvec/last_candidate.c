@@ -1,0 +1,13 @@
+#include <stdint.h>
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float* b)
+{
+    float dot = 0.0f;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        dot = 0.0f;
+        for (int i = 0; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+    }
+    return dot;
+}

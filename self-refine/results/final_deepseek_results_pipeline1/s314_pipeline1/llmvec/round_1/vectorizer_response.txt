@@ -1,0 +1,41 @@
+```c
+#include <stdint.h>
+typedef float v4f __attribute__((ext_vector_type(4)));
+
+float vectorized_s314(int iterations, int LEN_1D, float* a) {
+    float x;
+    int total_outer = iterations * 5;
+    for (int nl = 0; nl < total_outer; nl++) {
+        x = a[0];
+        int i = 0;
+        // Vectorized loop: process 4 elements at a time
+        v4f vmax = (v4f){x, x, x, x};
+        for (; i + 4 <= LEN_1D; i += 4) {
+            v4f va = *(v4f*)(a + i);
+            v4f mask = va > vmax;
+            vmax = __builtin_shufflevector(vmax, va, 0, 1, 2, 3);
+            // Blend: where mask is true, take va; else keep vmax
+            vmax = (v4f)((__builtin_convertvector(mask, v4f_signed) & (int32_t)va) | (~__builtin_convertvector(mask, v4f_signed) & (int32_t)vmax));
+            // Actually simpler: use conditional select
+            vmax = (va > vmax) ? va : vmax;
+        }
+        // Horizontal max of vmax
+        float max0 = vmax[0];
+        float max1 = vmax[1];
+        float max2 = vmax[2];
+        float max3 = vmax[3];
+        float hmax = max0;
+        if (max1 > hmax) hmax = max1;
+        if (max2 > hmax) hmax = max2;
+        if (max3 > hmax) hmax = max3;
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            if (a[i] > hmax) {
+                hmax = a[i];
+            }
+        }
+        x = hmax;
+    }
+    return x;
+}
+```

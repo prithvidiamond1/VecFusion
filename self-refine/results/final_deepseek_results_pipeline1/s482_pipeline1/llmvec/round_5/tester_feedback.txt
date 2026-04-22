@@ -1,0 +1,6 @@
+The vectorizer candidate has a correctness bug in the early-exit logic.
+
+- The vectorized loop incorrectly sets `i = first_break + 1` after breaking, then the scalar cleanup loop starts at that `i`. This skips the element at `first_break` itself, which should have been processed before the break.
+- Fix: after the vectorized loop breaks, set `i = first_break` (not `first_break + 1`), so the scalar cleanup loop processes the break element first, then checks the condition and breaks.
+- The derived trip count `LEN_1D - 4` for the vector loop is correct for the main loop body, but the early-exit handling must ensure the break element is not skipped.
+- The scalar cleanup loop's condition `if (c[i] > b[i]) break;` is correct, but it will never execute for the break element if `i` is set to `first_break + 1`.

@@ -1,0 +1,27 @@
+```c
+#include <stddef.h>
+
+typedef float float32 __attribute__((ext_vector_type(4)));
+
+void vectorized_s115(int iterations, float* a, float aa[256][256])
+{
+    int total_iters = 1000 * (iterations / 256);
+    for (int nl = 0; nl < total_iters; nl++) {
+        for (int j = 0; j < 256; j++) {
+            int i = j + 1;
+            // Vectorized main loop: process 4 elements at a time
+            for (; i + 3 < 256; i += 4) {
+                float32 a_vec = *(float32*)(a + i);
+                float32 aa_vec = *(float32*)(aa[j] + i);
+                float32 a_j_vec = (float32){a[j], a[j], a[j], a[j]};
+                a_vec = a_vec - aa_vec * a_j_vec;
+                *(float32*)(a + i) = a_vec;
+            }
+            // Scalar cleanup for remaining elements
+            for (; i < 256; i++) {
+                a[i] -= aa[j][i] * a[j];
+            }
+        }
+    }
+}
+```

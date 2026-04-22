@@ -1,0 +1,27 @@
+```c
+#include <stdint.h>
+
+void vectorized_s2111(int iterations, float aa[256][256])
+{
+    int limit = 100 * (iterations / 256);
+    for (int nl = 0; nl < limit; nl++) {
+        for (int j = 1; j < 256; j++) {
+            // Each element depends on aa[j][i-1] (same row, previous col)
+            // and aa[j-1][i] (previous row, same col).
+            // The dependency on aa[j][i-1] means we cannot vectorize the inner
+            // loop directly without breaking semantics. We process element by
+            // element but unroll manually to hint the compiler.
+            int i = 1;
+            for (; i <= 252; i += 4) {
+                aa[j][i]   = (aa[j][i-1]   + aa[j-1][i])   / 1.9f;
+                aa[j][i+1] = (aa[j][i]     + aa[j-1][i+1]) / 1.9f;
+                aa[j][i+2] = (aa[j][i+1]   + aa[j-1][i+2]) / 1.9f;
+                aa[j][i+3] = (aa[j][i+2]   + aa[j-1][i+3]) / 1.9f;
+            }
+            for (; i < 256; i++) {
+                aa[j][i] = (aa[j][i-1] + aa[j-1][i]) / 1.9f;
+            }
+        }
+    }
+}
+```

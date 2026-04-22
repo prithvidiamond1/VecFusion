@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s275/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s275_opt(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    int outer_loop_count = 10 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_loop_count; nl++) {\n        // Collect valid columns (loop splitting)\n        int valid_cols[256];\n        int valid_count = 0;\n        for (int i = 0; i < 256; i++) {\n            if (aa[0][i] > (float)0.) {\n                valid_cols[valid_count++] = i;\n            }\n        }\n        \n        // Process only valid columns\n        for (int col_idx = 0; col_idx < valid_count; col_idx++) {\n            int i = valid_cols[col_idx];\n            float current = aa[0][i];\n            \n            // Process column with explicit recurrence\n            for (int j = 1; j < 256; j++) {\n                current = current + bb[j][i] * cc[j][i];\n                aa[j][i] = current;\n            }\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

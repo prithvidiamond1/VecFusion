@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s2111_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s2111_opt(int iterations, float aa[256][256])\n{\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        // Wavefront (diagonal) traversal to eliminate loop-carried dependencies\n        // Elements on the same anti-diagonal d = i + j have no dependencies on each other\n        for (int d = 2; d <= 510; d++) {\n            int j_start = (d - 255 > 1) ? d - 255 : 1;\n            int j_end   = (d - 1 < 255) ? d - 1 : 255;\n            for (int j = j_start; j <= j_end; j++) {\n                int i = d - j;\n                aa[j][i] = (aa[j][i-1] + aa[j-1][i]) / 1.9f;\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s2111_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s2111_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s2111_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s2111(int iterations, float aa[256][256])\n{\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        for (int d = 2; d <= 510; d++) {\n            int j_start = (d - 255 > 1) ? d - 255 : 1;\n            int j_end   = (d - 1 < 255) ? d - 1 : 255;\n            int len = j_end - j_start + 1;\n\n            // Unroll by 4 for vector-friendly access\n            int j = j_start;\n            int limit4 = j_start + (len & ~3);\n\n            for (; j < limit4; j += 4) {\n                int i0 = d - j;\n                int i1 = d - (j+1);\n                int i2 = d - (j+2);\n                int i3 = d - (j+3);\n\n                float v0 = (aa[j  ][i0-1] + aa[j-1  ][i0]) / 1.9f;\n                float v1 = (aa[j+1][i1-1] + aa[j  ][i1]) / 1.9f;\n                float v2 = (aa[j+2][i2-1] + aa[j+1][i2]) / 1.9f;\n                float v3 = (aa[j+3][i3-1] + aa[j+2][i3]) / 1.9f;\n\n                aa[j  ][i0] = v0;\n                aa[j+1][i1] = v1;\n                aa[j+2][i2] = v2;\n                aa[j+3][i3] = v3;\n            }\n\n            // Scalar tail\n            for (; j <= j_end; j++) {\n                int i = d - j;\n                aa[j][i] = (aa[j][i-1] + aa[j-1][i]) / 1.9f;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s2111_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s2111",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s2111_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s2111_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s2111_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

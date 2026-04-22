@@ -1,0 +1,48 @@
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a,float* b,float* c, float* d,float* e, float aa[256][256])
+{
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > 0.) {
+                s = d[i] * d[i];
+            }
+            b[i] = s * c[i] + d[i];
+            e[i] = (s + (float)1.) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.f;
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > 0.f) {
+                s = d[i] * d[i];
+            }
+            b[i] = s * c[i] + d[i];
+            e[i] = (s + 1.f) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The original loop carries a dependency: `s` is updated conditionally (`if (a[i] > 0.f)`) and its value from the previous iteration is used in subsequent iterations when the condition is false. The vectorized version must preserve this sequential, carry-forward behavior of `s`.
+- The current code resets `s = 0.f` at the start of each `nl` iteration but otherwise keeps the sequential loop — this part is correct structurally, but the issue is that the inner loop cannot be vectorized (SIMD) because `s` depends on previous iterations' condition results.
+- The mismatch at index 0 of array `a` suggests the output array `b` or `e` is wrong, likely because a vectorized/reordered version of the inner loop was attempted somewhere, breaking the sequential `s` carry.
+- **Fix**: Do not attempt to vectorize the inner `i` loop at all (add `#pragma clang loop vectorize(disable)` or equivalent), since the loop-carried dependency on `s` through the conditional makes it non-vectorizable for correctness.
+- Alternatively, only vectorize the outer `nl` loop, keeping the inner `i` loop strictly sequential.
+- Ensure no compiler auto-vectorization pragma is applied to the inner loop (e.g., remove any `#pragma omp simd` or `#pragma GCC ivdep` on the inner loop).
+- The outer `nl` loop is embarrassingly parallel (given fixed input arrays per trial), so `#pragma omp parallel for` on `nl` is safe, but the inner `i` loop must remain sequential.
+
+        Return a corrected candidate function named `vectorized_s258`.

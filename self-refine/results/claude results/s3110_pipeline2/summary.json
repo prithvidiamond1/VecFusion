@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s3110_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s3110_opt(int iterations, float aa[256][256]) {\n    int xindex, yindex;\n    float max, chksum;\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        max = aa[0][0];\n        xindex = 0;\n        yindex = 0;\n\n        /* Pass 1: find the maximum value (pure reduction, vectorizable) */\n        float local_max = aa[0][0];\n        for (int i = 0; i < 256; i++) {\n            for (int j = 0; j < 256; j++) {\n                local_max = aa[i][j] > local_max ? aa[i][j] : local_max;\n            }\n        }\n        max = local_max;\n\n        /* Pass 2: find the first occurrence row by row */\n        int found_i = 256;\n        int found_j = 256;\n        for (int i = 0; i < 256; i++) {\n            /* Per-row: find minimum j where aa[i][j] == max */\n            int row_j = 256; /* invalid sentinel */\n            for (int j = 0; j < 256; j++) {\n                int match = (aa[i][j] == max) & (row_j == 256);\n                row_j = match ? j : row_j;\n            }\n            /* Update found indices only if this row has a match and no earlier row did */\n            int use_row = (row_j < 256) & (found_i == 256);\n            found_i = use_row ? i : found_i;\n            found_j = use_row ? row_j : found_j;\n        }\n        xindex = found_i;\n        yindex = found_j;\n\n        chksum = max + (float)xindex + (float)yindex;\n    }\n    return max + xindex + 1 + yindex + 1;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s3110_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s3110_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s3110_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <float.h>\n\nfloat vectorized_s3110(int iterations, float aa[256][256]) {\n    int xindex, yindex;\n    float max, chksum;\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        max = aa[0][0];\n        xindex = 0;\n        yindex = 0;\n\n        /* Pass 1: find the maximum value using unrolled loop */\n        float local_max = aa[0][0];\n\n        /* Use 8-wide unrolling for vectorization hint */\n        float m0 = aa[0][0], m1 = aa[0][0], m2 = aa[0][0], m3 = aa[0][0];\n        float m4 = aa[0][0], m5 = aa[0][0], m6 = aa[0][0], m7 = aa[0][0];\n\n        for (int i = 0; i < 256; i++) {\n            const float *row = aa[i];\n            int j = 0;\n            for (; j <= 256 - 8; j += 8) {\n                float v0 = row[j+0], v1 = row[j+1], v2 = row[j+2], v3 = row[j+3];\n                float v4 = row[j+4], v5 = row[j+5], v6 = row[j+6], v7 = row[j+7];\n                m0 = v0 > m0 ? v0 : m0;\n                m1 = v1 > m1 ? v1 : m1;\n                m2 = v2 > m2 ? v2 : m2;\n                m3 = v3 > m3 ? v3 : m3;\n                m4 = v4 > m4 ? v4 : m4;\n                m5 = v5 > m5 ? v5 : m5;\n                m6 = v6 > m6 ? v6 : m6;\n                m7 = v7 > m7 ? v7 : m7;\n            }\n            for (; j < 256; j++) {\n                float v = row[j];\n                m0 = v > m0 ? v : m0;\n            }\n        }\n        /* Reduce the 8 partial maxima */\n        local_max = m0;\n        local_max = m1 > local_max ? m1 : local_max;\n        local_max = m2 > local_max ? m2 : local_max;\n        local_max = m3 > local_max ? m3 : local_max;\n        local_max = m4 > local_max ? m4 : local_max;\n        local_max = m5 > local_max ? m5 : local_max;\n        local_max = m6 > local_max ? m6 : local_max;\n        local_max = m7 > local_max ? m7 : local_max;\n        max = local_max;\n\n        /* Pass 2: find the first occurrence row by row */\n        int found_i = 256;\n        int found_j = 256;\n        for (int i = 0; i < 256; i++) {\n            const float *row = aa[i];\n            int row_j = 256;\n            /* Unrolled search for first match in this row */\n            int j = 0;\n            for (; j <= 256 - 8; j += 8) {\n                int match0 = (row[j+0] == max) & (row_j == 256);\n                row_j = match0 ? j+0 : row_j;\n                int match1 = (row[j+1] == max) & (row_j == 256);\n                row_j = match1 ? j+1 : row_j;\n                int match2 = (row[j+2] == max) & (row_j == 256);\n                row_j = match2 ? j+2 : row_j;\n                int match3 = (row[j+3] == max) & (row_j == 256);\n                row_j = match3 ? j+3 : row_j;\n                int match4 = (row[j+4] == max) & (row_j == 256);\n                row_j = match4 ? j+4 : row_j;\n                int match5 = (row[j+5] == max) & (row_j == 256);\n                row_j = match5 ? j+5 : row_j;\n                int match6 = (row[j+6] == max) & (row_j == 256);\n                row_j = match6 ? j+6 : row_j;\n                int match7 = (row[j+7] == max) & (row_j == 256);\n                row_j = match7 ? j+7 : row_j;\n            }\n            for (; j < 256; j++) {\n                int match = (row[j] == max) & (row_j == 256);\n                row_j = match ? j : row_j;\n            }\n            int use_row = (row_j < 256) & (found_i == 256);\n            found_i = use_row ? i : found_i;\n            found_j = use_row ? row_j : found_j;\n        }\n        xindex = found_i;\n        yindex = found_j;\n\n        chksum = max + (float)xindex + (float)yindex;\n    }\n    return max + xindex + 1 + yindex + 1;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s3110_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s3110",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s3110_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s3110_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s3110_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

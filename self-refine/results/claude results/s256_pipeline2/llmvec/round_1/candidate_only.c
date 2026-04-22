@@ -1,0 +1,46 @@
+#include <stdint.h>
+
+void vectorized_s256(int iterations, float* a, float* d, float aa[256][256], float bb[256][256])
+{
+    for (int nl = 0; nl < 10*(iterations/256); nl++) {
+        for (int i = 0; i < 256; i++) {
+            float a0 = a[0];
+            float a1 = (float)1.0 - a0;  // odd indices
+            float a2 = a0;               // even indices (>=2)
+
+            // Fill a[1..255] with alternating a1 (odd) and a2 (even)
+            // Unroll by 8 (4 pairs)
+            int j = 1;
+            for (; j + 7 < 256; j += 8) {
+                a[j+0] = a1;
+                a[j+1] = a2;
+                a[j+2] = a1;
+                a[j+3] = a2;
+                a[j+4] = a1;
+                a[j+5] = a2;
+                a[j+6] = a1;
+                a[j+7] = a2;
+            }
+            for (; j < 256; j++) {
+                a[j] = (j % 2 == 1) ? a1 : a2;
+            }
+
+            // Compute aa[j][i] = a[j] + bb[j][i] * d[j] for j=1..255
+            // Unroll by 8
+            j = 1;
+            for (; j + 7 < 256; j += 8) {
+                aa[j+0][i] = a[j+0] + bb[j+0][i] * d[j+0];
+                aa[j+1][i] = a[j+1] + bb[j+1][i] * d[j+1];
+                aa[j+2][i] = a[j+2] + bb[j+2][i] * d[j+2];
+                aa[j+3][i] = a[j+3] + bb[j+3][i] * d[j+3];
+                aa[j+4][i] = a[j+4] + bb[j+4][i] * d[j+4];
+                aa[j+5][i] = a[j+5] + bb[j+5][i] * d[j+5];
+                aa[j+6][i] = a[j+6] + bb[j+6][i] * d[j+6];
+                aa[j+7][i] = a[j+7] + bb[j+7][i] * d[j+7];
+            }
+            for (; j < 256; j++) {
+                aa[j][i] = a[j] + bb[j][i] * d[j];
+            }
+        }
+    }
+}

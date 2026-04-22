@@ -1,0 +1,11 @@
+The candidate has a **semantic error** in the vectorized inner loop.  
+
+- The vectorized loop incorrectly applies `vq *= vfactor` **four times per iteration**, effectively multiplying by `0.99^4` per vector step.  
+- The scalar cleanup then multiplies the four lane values together, which is **not equivalent** to the original scalar loop that multiplies `q` by `0.99` once per inner iteration.  
+- The derived trip count `inner_len = LEN_1D / 2` is suspicious — the original loop likely iterated `LEN_1D` times, not half.  
+- The outer loop multiplies `q` by `scalar_q` (a product of four lane values) instead of by the per-iteration factor, causing exponential divergence.  
+
+**Fix:**  
+- Restructure the inner loop to apply `vq *= vfactor` **once per vector iteration**, not four times.  
+- Remove the cross-lane product in the cleanup; instead, reduce `vq` to a single scalar by multiplying all lanes together only once after the loop, or keep `q` as a scalar throughout.  
+- Verify that `inner_len` should be `LEN_1D`, not `LEN_1D / 2`, unless the original loop had a stride of 2.

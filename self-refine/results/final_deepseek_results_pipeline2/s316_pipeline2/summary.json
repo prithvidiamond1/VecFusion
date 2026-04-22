@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s316_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s316_opt(int iterations, int LEN_1D, float* a) {\n    float x;\n    for (int nl = 0; nl < iterations*5; nl++) {\n        x = a[0];\n        float temp_x = x;\n        for (int i = 1; i < LEN_1D; ++i) {\n            float current = a[i];\n            if (current < temp_x) {\n                temp_x = current;\n            }\n        }\n        x = temp_x;\n    }\n    return x;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s316_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s316_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s316_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "typedef float v8f32 __attribute__((__vector_size__(32), __aligned__(32)));\ntypedef int v8i32 __attribute__((__vector_size__(32), __aligned__(32)));\n\nfloat vectorized_s316(int iterations, int LEN_1D, float* a) {\n    float x = 0.0f;\n    int outer_iterations = iterations * 5;\n\n    for (int nl = 0; nl < outer_iterations; nl++) {\n        float min_val = a[0];\n\n        // Vectorized reduction\n        int i = 1;\n        int vec_limit = ((LEN_1D - 1) / 8) * 8 + 1;\n\n        if (vec_limit > 1) {\n            v8f32 min_vec = (v8f32){min_val, min_val, min_val, min_val, \n                                   min_val, min_val, min_val, min_val};\n\n            for (; i < vec_limit; i += 8) {\n                v8f32 current_vec = *(v8f32*)&a[i];\n                v8i32 mask = current_vec < min_vec;\n                v8i32 current_i = (v8i32)current_vec;\n                v8i32 min_i = (v8i32)min_vec;\n                v8i32 blended_i = (mask & current_i) | (~mask & min_i);\n                min_vec = (v8f32)blended_i;\n            }\n\n            // Horizontal reduction\n            float temp_min = min_val;\n            float* min_arr = (float*)&min_vec;\n            for (int j = 0; j < 8; j++) {\n                if (min_arr[j] < temp_min) {\n                    temp_min = min_arr[j];\n                }\n            }\n            min_val = temp_min;\n        }\n\n        // Scalar tail\n        for (; i < LEN_1D; i++) {\n            float current = a[i];\n            if (current < min_val) {\n                min_val = current;\n            }\n        }\n\n        x = min_val;\n    }\n\n    return x;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 2.",
+      "compile_feedback": "Compile succeeded for round 2.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 2.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 2,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s316_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s316",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s316_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s316_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s316_pipeline2/llmvec/candidate_round_2.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s316_pipeline2/llmvec/candidate_round_2"
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s314_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s314_opt(int iterations, int LEN_1D, float* a)\n{\n    float x;\n    float max_val;\n    \n    for (int nl = 0; nl < iterations*5; nl++) {\n        max_val = a[0];\n        \n        // Main vectorizable reduction loop\n        for (int i = 0; i < LEN_1D; i++) {\n            float current = a[i];\n            if (current > max_val) {\n                max_val = current;\n            }\n        }\n        \n        x = max_val;\n    }\n    return x;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s314_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s314_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s314_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nfloat vectorized_s314(int iterations, int LEN_1D, float* a)\n{\n    float x;\n    float max_val;\n\n    for (int nl = 0; nl < iterations * 5; nl++) {\n        max_val = a[0];\n\n        // Unrolled by 8 for vector-friendly reduction\n        int i = 0;\n        float m0 = a[0], m1 = a[0], m2 = a[0], m3 = a[0];\n        float m4 = a[0], m5 = a[0], m6 = a[0], m7 = a[0];\n\n        int limit = LEN_1D - (LEN_1D % 8);\n        for (i = 0; i < limit; i += 8) {\n            float v0 = a[i + 0];\n            float v1 = a[i + 1];\n            float v2 = a[i + 2];\n            float v3 = a[i + 3];\n            float v4 = a[i + 4];\n            float v5 = a[i + 5];\n            float v6 = a[i + 6];\n            float v7 = a[i + 7];\n            if (v0 > m0) m0 = v0;\n            if (v1 > m1) m1 = v1;\n            if (v2 > m2) m2 = v2;\n            if (v3 > m3) m3 = v3;\n            if (v4 > m4) m4 = v4;\n            if (v5 > m5) m5 = v5;\n            if (v6 > m6) m6 = v6;\n            if (v7 > m7) m7 = v7;\n        }\n\n        // Reduce the 8 partial maxima\n        if (m1 > m0) m0 = m1;\n        if (m2 > m0) m0 = m2;\n        if (m3 > m0) m0 = m3;\n        if (m4 > m0) m0 = m4;\n        if (m5 > m0) m0 = m5;\n        if (m6 > m0) m0 = m6;\n        if (m7 > m0) m0 = m7;\n\n        max_val = m0;\n\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            float current = a[i];\n            if (current > max_val) {\n                max_val = current;\n            }\n        }\n\n        x = max_val;\n    }\n    return x;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s314_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s314",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s314_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s314_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s314_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

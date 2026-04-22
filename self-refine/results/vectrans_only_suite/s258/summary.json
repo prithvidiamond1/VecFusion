@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s258/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s258_opt(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {\n    for (int nl = 0; nl < iterations; nl++) {\n        float s = 0.f;\n        float s_temp[256];\n        \n        // First loop: compute s values with loop-carried dependency\n        for (int i = 0; i < 256; ++i) {\n            if (a[i] > 0.f) {\n                s = d[i] * d[i];\n            }\n            s_temp[i] = s;\n        }\n        \n        // Second loop: compute b[i] and e[i] using precomputed s values\n        for (int i = 0; i < 256; ++i) {\n            b[i] = s_temp[i] * c[i] + d[i];\n            e[i] = (s_temp[i] + 1.f) * aa[0][i];\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

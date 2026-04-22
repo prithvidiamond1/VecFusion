@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s1213/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s1213_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {\n    for (int nl = 0; nl < iterations; nl++) {\n        // First, compute all b[i] using original a[i+1] values\n        for (int i = 1; i < LEN_1D-1; i++) {\n            b[i] = a[i+1] * d[i];\n        }\n        \n        // Then compute a[i] using original b[i-1] values\n        // Note: b[i-1] here is from previous nl iteration (unchanged in first loop)\n        for (int i = 1; i < LEN_1D-1; i++) {\n            a[i] = b[i-1] + c[i];\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

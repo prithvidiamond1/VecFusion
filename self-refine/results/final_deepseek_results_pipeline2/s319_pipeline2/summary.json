@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s319_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s319_opt(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)\n{\n    float sum;\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        sum = 0.;\n        float sum_a = 0.;\n        float sum_b = 0.;\n        \n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = c[i] + d[i];\n            sum_a += a[i];\n        }\n        \n        for (int i = 0; i < LEN_1D; i++) {\n            b[i] = c[i] + e[i];\n            sum_b += b[i];\n        }\n        \n        sum = sum_a + sum_b;\n    }\n    return sum;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s319_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s319_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s319_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "typedef float float4 __attribute__((ext_vector_type(4)));\n\nfloat vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {\n    float sum = 0.0f;\n    int outer_iterations = 2 * iterations;\n\n    for (int nl = 0; nl < outer_iterations; nl++) {\n        float sum_a = 0.0f;\n        float sum_b = 0.0f;\n\n        // First loop: a[i] = c[i] + d[i], sum_a += a[i]\n        int i = 0;\n        for (; i + 3 < LEN_1D; i += 4) {\n            float4 c_vec = *(float4 *)&c[i];\n            float4 d_vec = *(float4 *)&d[i];\n            float4 a_vec = c_vec + d_vec;\n            *(float4 *)&a[i] = a_vec;\n            \n            // Preserve scalar accumulation order for exact match\n            sum_a += a_vec.x;\n            sum_a += a_vec.y;\n            sum_a += a_vec.z;\n            sum_a += a_vec.w;\n        }\n        for (; i < LEN_1D; i++) {\n            a[i] = c[i] + d[i];\n            sum_a += a[i];\n        }\n\n        // Second loop: b[i] = c[i] + e[i], sum_b += b[i]\n        i = 0;\n        for (; i + 3 < LEN_1D; i += 4) {\n            float4 c_vec = *(float4 *)&c[i];\n            float4 e_vec = *(float4 *)&e[i];\n            float4 b_vec = c_vec + e_vec;\n            *(float4 *)&b[i] = b_vec;\n            \n            // Preserve scalar accumulation order for exact match\n            sum_b += b_vec.x;\n            sum_b += b_vec.y;\n            sum_b += b_vec.z;\n            sum_b += b_vec.w;\n        }\n        for (; i < LEN_1D; i++) {\n            b[i] = c[i] + e[i];\n            sum_b += b[i];\n        }\n\n        sum = sum_a + sum_b;\n    }\n\n    return sum;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 4.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s319_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s319",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s319_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s319_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s319_pipeline2/llmvec/candidate_round_4.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s319_pipeline2/llmvec/candidate_round_4"
+      }
+    }
+  ]
+}

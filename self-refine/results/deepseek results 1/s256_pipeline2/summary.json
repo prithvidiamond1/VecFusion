@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s256_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s256_opt(int iterations, float* a, float* d, float aa[256][256], float bb[256][256]) {\n    int outer_iters = 10 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_iters; nl++) {\n        // Store initial a[0] value\n        float a0 = a[0];\n        float a_temp[256];\n        \n        // Split: compute all a_temp values first (vectorizable pattern)\n        for (int j = 1; j < 256; j++) {\n            a_temp[j] = (j & 1) ? (1.0f - a0) : a0;\n        }\n        \n        // Loop reordering: make j outer, i inner for stride-1 access\n        for (int j = 1; j < 256; j++) {\n            float aj = a_temp[j];\n            float dj = d[j];\n            // Vectorizable inner loop with stride-1 access\n            for (int i = 0; i < 256; i++) {\n                aa[j][i] = aj + bb[j][i] * dj;\n            }\n        }\n        \n        // Update original a array (separate loop)\n        for (int j = 1; j < 256; j++) {\n            a[j] = a_temp[j];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s256_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s256_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s256_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\ntypedef float v8sf __attribute__((vector_size(32)));\n\nvoid vectorized_s256(int iterations, float* a, float* d, float aa[256][256], float bb[256][256]) {\n    int outer_iters = 10 * (iterations / 256);\n\n    for (int nl = 0; nl < outer_iters; nl++) {\n        float a0 = a[0];\n        float a_temp[256];\n\n        // Compute a_temp values\n        for (int j = 1; j < 256; j++) {\n            a_temp[j] = (j & 1) ? (1.0f - a0) : a0;\n        }\n\n        // Vectorized inner loop using 8-wide float vectors\n        for (int j = 1; j < 256; j++) {\n            float aj = a_temp[j];\n            float dj = d[j];\n\n            v8sf vaj = {aj, aj, aj, aj, aj, aj, aj, aj};\n            v8sf vdj = {dj, dj, dj, dj, dj, dj, dj, dj};\n\n            float* aa_row = aa[j];\n            float* bb_row = bb[j];\n\n            int i = 0;\n            for (; i <= 256 - 8; i += 8) {\n                v8sf vbb;\n                __builtin_memcpy(&vbb, bb_row + i, sizeof(v8sf));\n                v8sf vres = vaj + vbb * vdj;\n                __builtin_memcpy(aa_row + i, &vres, sizeof(v8sf));\n            }\n            // Scalar tail\n            for (; i < 256; i++) {\n                aa_row[i] = aj + bb_row[i] * dj;\n            }\n        }\n\n        // Update a array\n        for (int j = 1; j < 256; j++) {\n            a[j] = a_temp[j];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s256_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s256",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s256_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s256_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s256_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

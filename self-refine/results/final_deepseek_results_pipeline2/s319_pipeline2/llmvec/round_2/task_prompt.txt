@@ -1,0 +1,109 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Revise your candidate for `s319` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s319(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)
+{
+    float sum;
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        sum = 0.;
+        float sum_a = 0.;
+        float sum_b = 0.;
+
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum_a += a[i];
+        }
+
+        for (int i = 0; i < LEN_1D; i++) {
+            b[i] = c[i] + e[i];
+            sum_b += b[i];
+        }
+
+        sum = sum_a + sum_b;
+    }
+    return sum;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float float4 __attribute__((ext_vector_type(4)));
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {
+    float sum = 0.0f;
+
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        float sum_a = 0.0f;
+        float sum_b = 0.0f;
+
+        // Vectorized first loop
+        int i = 0;
+        for (; i + 3 < LEN_1D; i += 4) {
+            float4 c_vec = *(float4 *)&c[i];
+            float4 d_vec = *(float4 *)&d[i];
+            float4 a_vec = c_vec + d_vec;
+            *(float4 *)&a[i] = a_vec;
+
+            // Horizontal sum of a_vec
+            sum_a += a_vec.x + a_vec.y + a_vec.z + a_vec.w;
+        }
+
+        // Scalar tail for first loop
+        for (; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum_a += a[i];
+        }
+
+        // Vectorized second loop
+        i = 0;
+        for (; i + 3 < LEN_1D; i += 4) {
+            float4 c_vec = *(float4 *)&c[i];
+            float4 e_vec = *(float4 *)&e[i];
+            float4 b_vec = c_vec + e_vec;
+            *(float4 *)&b[i] = b_vec;
+
+            // Horizontal sum of b_vec
+            sum_b += b_vec.x + b_vec.y + b_vec.z + b_vec.w;
+        }
+
+        // Scalar tail for second loop
+        for (; i < LEN_1D; i++) {
+            b[i] = c[i] + e[i];
+            sum_b += b[i];
+        }
+
+        sum = sum_a + sum_b;
+    }
+
+    return sum;
+}
+        ```
+
+        Tester feedback:
+        - The test fails with a return mismatch, indicating the computed sum differs from the reference scalar version.  
+- The vectorized loops incorrectly accumulate `sum_a` and `sum_b` inside the outer loop but **do not reset them between outer iterations**—they are re‑declared each outer iteration, so this is not the issue. Wait: `sum_a` and `sum_b` are declared inside the `nl` loop, so they are fresh each outer iteration.  
+- However, the **final `sum = sum_a + sum_b` overwrites `sum` each outer iteration**, losing the accumulation across outer iterations. The scalar reference likely accumulates `sum` across all outer iterations.  
+- Fix: Change `sum = sum_a + sum_b;` to `sum += sum_a + sum_b;` so the total accumulates over `nl`.  
+
+- Also, the vectorized loop uses `float4` loads with potential **strict‑aliasing violations** and possible misalignment. Use `__builtin_assume_aligned` or explicit `vload`‑style operations if the target requires it, but the compile succeeded, so alignment may be okay for the test.  
+
+- Ensure the trip count `2 * iterations` is correct: the outer loop bound `nl < 2 * iterations` matches typical s319 benchmark pattern.  
+
+- The tail loops correctly handle the remainder when `LEN_1D` is not a multiple of 4.  
+
+**Primary fix:**  
+Change the line `sum = sum_a + sum_b;` to `sum += sum_a + sum_b;` to accumulate across outer iterations.
+
+        Return a corrected candidate function named `vectorized_s319`.

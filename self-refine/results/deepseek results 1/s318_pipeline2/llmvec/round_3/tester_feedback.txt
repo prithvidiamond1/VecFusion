@@ -1,0 +1,13 @@
+- The original `s318` uses `index` starting at 1 (1-based), but the candidate's `found_index` search starts at `j=0` (0-based). The reference likely uses 1-based indexing for the result, so initialize `found_index = 1` and start `j = 1` (or adjust the returned index to be `j+1`).
+
+- The first loop starts at `i=1` with `k0=inc`, correctly skipping `a[0]`. But `found_index` search starts at `k0=0, j=0`, which is correct for finding the index — however the reference `s318` returns `index` as a 1-based position. Change `found_index = j` to `found_index = j + 1` (or initialize `found_index=1` and start `j=1`).
+
+- The `chksum` accumulation uses `chksum = max + (float)index` (assignment, not accumulation). The reference `s318` also does assignment each iteration, so this is likely fine — but verify the reference does `chksum = max + (float)index` not `chksum += ...`.
+
+- The most likely root cause of the mismatch: the reference `s318` uses `index` as a **1-based** index (loop runs `for (i=1; i<=LEN_1D; i++)`). Fix: in the search loop use `found_index = j + 1` instead of `found_index = j`, and initialize `found_index = 1`.
+
+- The search loop uses `break` on first match, which is correct for finding the *first* occurrence. No change needed there.
+
+- Ensure `inc == 1` is not assumed; the access pattern `a[k0]` with `k0 += inc` is correct as written.
+
+- Summary of the single concrete fix needed: change `found_index = j;` to `found_index = j + 1;` (and optionally initialize `found_index = 1` as a safe default matching 1-based convention).

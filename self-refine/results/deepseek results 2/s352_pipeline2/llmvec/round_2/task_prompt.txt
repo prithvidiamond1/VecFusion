@@ -1,0 +1,83 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b) {
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        float dot0 = 0.0f, dot1 = 0.0f, dot2 = 0.0f, dot3 = 0.0f, dot4 = 0.0f;
+        int i;
+        int limit = LEN_1D - 4;
+
+        // Process complete groups of 5
+        for (i = 0; i < limit; i += 5) {
+            float t0 = a[i] * b[i];
+            float t1 = a[i + 1] * b[i + 1];
+            float t2 = a[i + 2] * b[i + 2];
+            float t3 = a[i + 3] * b[i + 3];
+            float t4 = a[i + 4] * b[i + 4];
+
+            dot0 += t0;
+            dot1 += t1;
+            dot2 += t2;
+            dot3 += t3;
+            dot4 += t4;
+        }
+
+        // Handle remaining elements (1-4)
+        for (; i < LEN_1D; i++) {
+            dot0 += a[i] * b[i];
+        }
+
+        dot = dot0 + dot1 + dot2 + dot3 + dot4;
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float *b) {
+    float dot;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        float dot0 = 0.0f, dot1 = 0.0f, dot2 = 0.0f, dot3 = 0.0f;
+        int i = 0;
+        int limit4 = LEN_1D & ~3;
+
+        // Process groups of 4 using vector-friendly unrolling
+        for (i = 0; i < limit4; i += 4) {
+            dot0 += a[i]     * b[i];
+            dot1 += a[i + 1] * b[i + 1];
+            dot2 += a[i + 2] * b[i + 2];
+            dot3 += a[i + 3] * b[i + 3];
+        }
+
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D; i++) {
+            dot0 += a[i] * b[i];
+        }
+
+        dot = dot0 + dot1 + dot2 + dot3;
+    }
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - `dot` is uninitialized if `iterations == 0` (loop never executes), but more critically the return value mismatches the reference — the reference likely initializes `dot = 0.0f` before the outer loop or uses a specific starting value.
+- The outer loop overwrites `dot` every iteration starting fresh with `dot0=dot1=dot2=dot3=0`, which is correct for a dot-product kernel, but the **initial value of `dot` before the loop** is uninitialized — initialize `dot = 0.0f` before the outer loop to avoid undefined behavior on zero iterations.
+- The most likely cause of "Return mismatch" is that the reference function uses `1 * iterations` (not `8 * iterations`) as the outer loop count. Change `8 * iterations` back to `iterations` (or `2*iterations` — check the original s352 spec; s352 typically uses `iterations` directly).
+- Specifically, `s352` in the TSVC benchmark uses `for (nl = 0; nl < iterations; nl++)` — using `8 * iterations` runs 8× too many iterations, which can cause floating-point accumulation differences or simply a wrong final `dot` value compared to the reference.
+- Fix: change `8 * iterations` to `iterations` in the outer loop bound.
+- Add `dot = 0.0f;` before the outer loop to handle the zero-iterations edge case safely.
+
+        Return a corrected candidate function named `vectorized_s352`.

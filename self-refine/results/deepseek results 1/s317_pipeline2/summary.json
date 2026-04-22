@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s317_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s317_opt(int iterations, int LEN_1D) {\n    float q = 1.0f;\n    int inner_iters = LEN_1D / 2;\n    \n    // Handle edge case where iterations = 0\n    if (iterations == 0) {\n        return q; // Return uninitialized-like value (1.0f matches original after first inner loop)\n    }\n    \n    // Loop distribution: compute power once outside outer loop\n    float power = 1.0f;\n    \n    // Vectorizable reduction loop (no loop-carried dependency after reorganization)\n    for (int i = 0; i < inner_iters; i++) {\n        power *= 0.99f;\n    }\n    \n    // Outer loop simplified (no inner computation)\n    for (int nl = 0; nl < 5 * iterations; nl++) {\n        q = power;\n    }\n    \n    return q;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s317_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s317_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s317_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <math.h>\n\nfloat vectorized_s317(int iterations, int LEN_1D) {\n    float q = 1.0f;\n    int inner_iters = LEN_1D / 2;\n\n    if (iterations == 0) {\n        return q;\n    }\n\n    float power = 1.0f;\n\n    // Vectorized reduction: compute 0.99^inner_iters\n    // Use 4-wide unrolling with independent accumulators\n    float acc0 = 1.0f, acc1 = 1.0f, acc2 = 1.0f, acc3 = 1.0f;\n    int i = 0;\n    int limit = inner_iters - (inner_iters % 4);\n\n    for (; i < limit; i += 4) {\n        acc0 *= 0.99f;\n        acc1 *= 0.99f;\n        acc2 *= 0.99f;\n        acc3 *= 0.99f;\n    }\n\n    // Combine accumulators\n    power = acc0 * acc1 * acc2 * acc3;\n\n    // Scalar tail\n    for (; i < inner_iters; i++) {\n        power *= 0.99f;\n    }\n\n    // Outer loop: just assign power to q repeatedly\n    // Unroll 4x for vectorization hint\n    int outer_iters = 5 * iterations;\n    int nl = 0;\n    int outer_limit = outer_iters - (outer_iters % 4);\n\n    for (; nl < outer_limit; nl += 4) {\n        q = power;\n        q = power;\n        q = power;\n        q = power;\n    }\n    for (; nl < outer_iters; nl++) {\n        q = power;\n    }\n\n    return q;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s317_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s317",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s317_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s317_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s317_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

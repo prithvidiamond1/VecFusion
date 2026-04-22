@@ -1,0 +1,72 @@
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s116(int iterations, int LEN_1D, float* a) {
+    int outer_iterations = iterations * 10;
+    int limit = LEN_1D - 5;
+    
+    for (int nl = 0; nl < outer_iterations; nl++) {
+        // Process complete groups of 4 patterns where we can safely load 4 consecutive patterns
+        // Each pattern needs elements i through i+5, so for 4 patterns we need i through i+8
+        // Therefore i must satisfy i+8 < LEN_1D => i < LEN_1D - 8
+        int vector_limit = LEN_1D - 8;
+        if (vector_limit > 0) {
+            int vectorizable_len = (vector_limit / 4) * 4;
+            
+            for (int i = 0; i < vectorizable_len; i += 4) {
+                // Load all needed data for 4 consecutive patterns
+                float4 pos0 = *(float4*)&a[i];        // a[i]..a[i+3]
+                float4 pos1 = *(float4*)&a[i + 1];    // a[i+1]..a[i+4]
+                float4 pos2 = *(float4*)&a[i + 2];    // a[i+2]..a[i+5]
+                float4 pos3 = *(float4*)&a[i + 3];    // a[i+3]..a[i+6]
+                float4 pos4 = *(float4*)&a[i + 4];    // a[i+4]..a[i+7]
+                float4 pos5 = *(float4*)&a[i + 5];    // a[i+5]..a[i+8]
+                
+                // Compute updates in original order
+                float4 new_pos0 = pos0 * pos1;        // a[i] = a[i] * a[i+1]
+                float4 new_pos1 = pos1 * pos2;        // a[i+1] = a[i+1] * a[i+2]
+                float4 new_pos2 = pos2 * pos3;        // a[i+2] = a[i+2] * a[i+3]
+                float4 new_pos3 = pos3 * pos4;        // a[i+3] = a[i+3] * a[i+4]
+                float4 new_pos4 = pos4 * pos5;        // a[i+4] = a[i+4] * a[i+5]
+                
+                // Store results
+                *(float4*)&a[i] = new_pos0;
+                *(float4*)&a[i + 1] = new_pos1;
+                *(float4*)&a[i + 2] = new_pos2;
+                *(float4*)&a[i + 3] = new_pos3;
+                *(float4*)&a[i + 4] = new_pos4;
+            }
+            
+            // Process remaining patterns one by one from the vectorized boundary
+            for (int i = vectorizable_len; i < limit; i++) {
+                float t0 = a[i];
+                float t1 = a[i + 1];
+                float t2 = a[i + 2];
+                float t3 = a[i + 3];
+                float t4 = a[i + 4];
+                float t5 = a[i + 5];
+                
+                a[i] = t0 * t1;
+                a[i + 1] = t1 * t2;
+                a[i + 2] = t2 * t3;
+                a[i + 3] = t3 * t4;
+                a[i + 4] = t4 * t5;
+            }
+        } else {
+            // If array is too small for vectorization, use pure scalar
+            for (int i = 0; i < limit; i++) {
+                float t0 = a[i];
+                float t1 = a[i + 1];
+                float t2 = a[i + 2];
+                float t3 = a[i + 3];
+                float t4 = a[i + 4];
+                float t5 = a[i + 5];
+                
+                a[i] = t0 * t1;
+                a[i + 1] = t1 * t2;
+                a[i + 2] = t2 * t3;
+                a[i + 3] = t3 * t4;
+                a[i + 4] = t4 * t5;
+            }
+        }
+    }
+}

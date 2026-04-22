@@ -1,0 +1,9 @@
+The exit code -11 indicates a segmentation fault. Looking at the code:
+
+- **Stack overflow**: `float trans[256][256]` is a 256KB local (stack) array. Combined with the `aa` and `bb` parameters (also large), this likely overflows the default stack. Declare `trans` as `static` or allocate it on the heap.
+
+- **Fix**: Change `float trans[256][256];` to `static float trans[256][256];` (or use `malloc`/`calloc` and free it).
+
+- **Verify `limit` calculation**: `200 * (iterations / 256)` uses integer division, which may produce 0 if `iterations < 256`, causing the main loop to never execute — but this wouldn't cause a segfault, just wrong results.
+
+- **No other logic errors are apparent** — the unrolled loops and index bounds look correct.

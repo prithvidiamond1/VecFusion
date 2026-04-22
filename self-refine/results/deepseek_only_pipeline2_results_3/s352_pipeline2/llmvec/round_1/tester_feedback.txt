@@ -1,0 +1,6 @@
+- The remainder loop at the end is empty, but the original loop likely performed `dot += a[i] * b[i]` for each remaining element. This causes a correctness failure because the dot product is incomplete.
+- The vectorized loop's main processing uses `i <= LEN_1D - 16` as the bound, but the original loop increments by 5 after the vectorized part. The remainder handling must compute dot products for all leftover elements, not just skip them.
+- After the vectorized and 8‑element chunk, the loop processes groups of 5, but it should continue with the original 5‑stride pattern until fewer than 5 elements remain, then handle the final leftovers individually.
+- The final remainder loop should actually compute `dot += a[i] * b[i]` for each remaining `i`, not be empty. This is the primary cause of the return mismatch.
+- The trip count logic for the 5‑stride loop (`i <= LEN_1D - 5`) is correct, but the subsequent remainder loop must add contributions for indices `i` to `LEN_1D-1`.
+- No issues with loop bounds or control‑flow restructuring for vectorization; the bug is purely in omitted computations in the tail.

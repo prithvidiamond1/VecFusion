@@ -1,0 +1,5 @@
+- The vectorizer incorrectly assumes that `a[i-1]` and `a[i-2]` are independent across vector lanes, but the loop has a **recurrence** (each iteration writes `a[i]`, which is read as `a[i-1]` or `a[i-2]` in later iterations). The vectorized code reads stale values for `a_prev1` and `a_prev2` because it loads all four lanes before any writes, breaking the sequential dependency.
+
+- **Fix**: Do not vectorize this loop as-is. The recurrence makes it unsafe for SIMD without loop skewing or partial unrolling with dependency handling. Either revert to scalar, or restructure to use a shift register approach that updates `a[i]` lane-by-lane.
+
+- The mismatch at index 3 confirms the dependency violation: the vector load of `a[i-1]` and `a[i-2]` used values that should have been updated by earlier iterations in the same vector chunk.

@@ -1,0 +1,40 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s323_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "void vectorized_s323(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        float b_prev = b[0];\n        int i = 0;\n        int limit = LEN_1D - 4; /* i+3 <= LEN_1D-1, i.e. i <= LEN_1D-4 */\n\n        for (; i <= limit; i += 4) {\n            float cd0 = c[i+0] * d[i+0];\n            float ce0 = c[i+0] * e[i+0];\n            float a0 = b_prev + cd0;\n            float b0 = a0 + ce0;\n\n            float cd1 = c[i+1] * d[i+1];\n            float ce1 = c[i+1] * e[i+1];\n            float a1 = b0 + cd1;\n            float b1 = a1 + ce1;\n\n            float cd2 = c[i+2] * d[i+2];\n            float ce2 = c[i+2] * e[i+2];\n            float a2 = b1 + cd2;\n            float b2 = a2 + ce2;\n\n            float cd3 = c[i+3] * d[i+3];\n            float ce3 = c[i+3] * e[i+3];\n            float a3 = b2 + cd3;\n            float b3 = a3 + ce3;\n\n            a[i+0] = a0; b[i+0] = b0;\n            a[i+1] = a1; b[i+1] = b1;\n            a[i+2] = a2; b[i+2] = b2;\n            a[i+3] = a3; b[i+3] = b3;\n\n            b_prev = b3;\n        }\n\n        for (; i < LEN_1D; i++) {\n            a[i] = b_prev + c[i] * d[i];\n            b[i] = a[i]   + c[i] * e[i];\n            b_prev = b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s323_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s323",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s323_pipeline1/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s323_opt(int iterations,int LEN_1D, float* a, float *b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        float b_prev = b[0];\n        float c_val, d_val, e_val;\n        for (int i = 1; i < LEN_1D; i++) {\n            c_val = c[i];\n            d_val = d[i];\n            e_val = e[i];\n            a[i] = b_prev + c_val * d_val;\n            b_prev = a[i] + c_val * e_val;\n            b[i] = b_prev;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s323_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s323_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s323_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

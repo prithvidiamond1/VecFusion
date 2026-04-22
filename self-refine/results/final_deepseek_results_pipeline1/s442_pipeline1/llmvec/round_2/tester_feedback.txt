@@ -1,0 +1,7 @@
+The vectorizer candidate compiles but produces incorrect results. The issue is in the vectorized loop body:
+
+- **Incorrect trip count for vectorized loop**: The condition `i + 3 < LEN_1D` is unsafe when `LEN_1D` is small or negative. Use `i <= LEN_1D - 4` with explicit bounds check to ensure at least 4 elements remain.
+
+- **Gather/scatter semantics broken**: The `indx` array is accessed sequentially (`indx[i]`, `indx[i+1]`, ...) but the original scalar code uses `indx[i]` as a selector. The vectorized version correctly replicates the switch logic per lane, but the mismatch at index 0 suggests the loop bounds or element ordering is off.
+
+- **Fix**: Change the vectorized loop bound to `for (; i <= LEN_1D - 4; i += 4)` and ensure `LEN_1D` is non-negative before entering the loop. Add a guard: `if (LEN_1D < 0) return;` at function start.

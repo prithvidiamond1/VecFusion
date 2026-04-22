@@ -1,0 +1,76 @@
+
+Revise your candidate for `s2251` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s2251(int iterations, int LEN_1D, float* a,float* b,float* c,float* d, float* e)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = (float)0.0;
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = s*e[i];
+            s = b[i]+c[i];
+            b[i] = a[i]+d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s2251(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e) {
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = 0.0f;
+        int i = 0;
+
+        // Vectorized main loop
+        for (; i <= LEN_1D - 4; i += 4) {
+            float32_t vec_e = *(float32_t*)&e[i];
+            float32_t vec_s = (float32_t){s, s, s, s};
+
+            // a[i] = s * e[i]
+            float32_t vec_a = vec_s * vec_e;
+            *(float32_t*)&a[i] = vec_a;
+
+            // s = b[i] + c[i]
+            float32_t vec_b = *(float32_t*)&b[i];
+            float32_t vec_c = *(float32_t*)&c[i];
+            float32_t vec_s_new = vec_b + vec_c;
+
+            // b[i] = a[i] + d[i]
+            float32_t vec_d = *(float32_t*)&d[i];
+            float32_t vec_b_new = vec_a + vec_d;
+            *(float32_t*)&b[i] = vec_b_new;
+
+            // Update s for next iteration (last element of vec_s_new)
+            s = vec_s_new[3];
+        }
+
+        // Scalar cleanup
+        for (; i < LEN_1D; i++) {
+            a[i] = s * e[i];
+            s = b[i] + c[i];
+            b[i] = a[i] + d[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop incorrectly uses the scalar `s` from the previous iteration to compute `a[i]` for all four elements in the vector, but the scalar loop updates `s` after each element. This breaks the sequential dependency: `a[i]` should use the `s` computed from `b[i-1] + c[i-1]`, not the same `s` for all four lanes.
+
+- Fix: Instead of broadcasting the scalar `s` into a vector, compute `a[i]` using the previous iteration's `s` value per lane. This requires a vectorized reduction or a prefix-sum-like approach to propagate `s` across lanes within the vector chunk.
+
+- The trip count `LEN_1D - 4` is correct for a 4-element vector, but the cleanup loop must handle the remaining elements correctly. The mismatch at index 1 suggests the vector loop's first chunk (indices 0-3) produced wrong values for indices 1, 2, 3 due to the incorrect `s` broadcast.
+
+- The vectorized loop updates `s` only from the last lane (`vec_s_new[3]`), discarding intermediate `s` values needed for indices 1, 2, 3. This is unsound for the sequential dependency.
+
+- Fix: Restructure the loop to either process one element at a time (defeating vectorization) or use a different algorithm (e.g., compute `a[i]` from `b[i-1] + c[i-1]` which is known from the previous iteration's scalar `s`). Since `s` depends on `b[i] + c[i]` from the same iteration, the dependency chain is: `s_prev -> a[i] -> b[i] -> s_next`. This is not easily vectorizable without reordering.
+
+- Consider marking this loop as non-vectorizable due to the sequential dependency on `s` across iterations, or use a scalar fallback for the entire loop.
+
+        Return a corrected candidate function named `vectorized_s2251`.

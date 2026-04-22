@@ -1,0 +1,7 @@
+The vectorizer candidate has a **trip‑count / bounds error** in the vector loop:
+
+- The vector loop runs while `i < n - 3`, but the scalar cleanup loop runs while `i < n`.  
+- The vector loop processes 4 elements per iteration, but the `va_next` load reads `a[i+4]` — that is one element **beyond** the vector store. This means the vector loop effectively needs `i+4 < n` (i.e., `i < n-4`), not `i < n-3`.  
+- The mismatch at index 5 (the 6th element) is consistent with the vector loop writing one extra element incorrectly when `n-4 <= i < n-3`.
+
+**Fix:** Change the vector loop bound from `i < n - 3` to `i < n - 4`. This ensures the `a[i+4]` load is always in‑bounds and the scalar loop handles the remaining 0–3 elements correctly.

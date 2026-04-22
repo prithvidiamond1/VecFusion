@@ -1,0 +1,60 @@
+
+Revise your candidate for `s323` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s323(int iterations,int LEN_1D, float* a, float *b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] = b[i-1] + c[i] * d[i];
+            b[i] = a[i] + c[i] * e[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s323(int iterations, int LEN_1D, float* a, float *b, float* c, float* d, float* e) {
+    int total_iters = iterations / 2;
+    for (int nl = 0; nl < total_iters; nl++) {
+        int i = 1;
+        // Vectorized main loop (process 4 elements at a time)
+        for (; i + 3 < LEN_1D; i += 4) {
+            // Load vectors for current i (i to i+3)
+            float32_t b_prev = *(float32_t*)(b + i - 1);
+            float32_t c_vec = *(float32_t*)(c + i);
+            float32_t d_vec = *(float32_t*)(d + i);
+            float32_t e_vec = *(float32_t*)(e + i);
+
+            // Compute a[i..i+3] = b[i-1..i+2] + c[i..i+3] * d[i..i+3]
+            float32_t a_vec = b_prev + c_vec * d_vec;
+            *(float32_t*)(a + i) = a_vec;
+
+            // Compute b[i..i+3] = a[i..i+3] + c[i..i+3] * e[i..i+3]
+            float32_t b_vec = a_vec + c_vec * e_vec;
+            *(float32_t*)(b + i) = b_vec;
+        }
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D; i++) {
+            a[i] = b[i-1] + c[i] * d[i];
+            b[i] = a[i] + c[i] * e[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        Based on the test report, the vectorized code compiles but produces incorrect results. Here are the specific issues to fix:
+
+- The vectorized loop incorrectly loads `b[i-1..i+2]` as a contiguous vector, but the scalar loop uses `b[i-1]` for each `i` independently — this creates a cross-iteration dependency that the vectorization doesn't respect (element `b[i+2]` is written by the previous iteration's `b[i]` update)
+- The vectorized loop computes `b[i..i+3]` using `a_vec` which was computed from `b_prev`, but the scalar loop's `b[i]` uses `a[i]` computed in the same iteration — the vectorized version incorrectly uses the same `a_vec` for all 4 elements when it should use the newly computed `a[i]` for each `b[i]`
+- The mismatch at index 3 suggests the last element of the first vector chunk is wrong, consistent with the dependency violation at the boundary between vector chunks
+- Fix: restructure the loop to process elements sequentially within each vector chunk, or use a different vectorization strategy that respects the loop-carried dependency on `b`
+
+        Return a corrected candidate function named `vectorized_s323`.

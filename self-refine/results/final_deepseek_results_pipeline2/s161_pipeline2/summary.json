@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s161_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s161_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        // Store original a and c values before modifications\n        float* a_orig = (float*)__builtin_alloca(LEN_1D * sizeof(float));\n        float* c_orig = (float*)__builtin_alloca(LEN_1D * sizeof(float));\n        __builtin_memcpy(a_orig, a, LEN_1D * sizeof(float));\n        __builtin_memcpy(c_orig, c, LEN_1D * sizeof(float));\n        \n        // First: compute all a[i] updates using original c[i]\n        for (int i = 0; i < LEN_1D-1; ++i) {\n            if (b[i] >= (float)0.) {\n                a[i] = c_orig[i] + d[i] * e[i];\n            }\n        }\n        \n        // Second: compute all c[i+1] updates using updated a[i] values\n        for (int i = 0; i < LEN_1D-1; ++i) {\n            if (b[i] < (float)0.) {\n                // Use a[i] which may have been updated in first loop\n                c[i+1] = a[i] + d[i] * d[i];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s161_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s161_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s161_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    int loop_bound = iterations / 2;\n    \n    for (int nl = 0; nl < loop_bound; nl++) {\n        // Allocate temporary arrays\n        float* a_orig = (float*)__builtin_alloca(LEN_1D * sizeof(float));\n        float* c_orig = (float*)__builtin_alloca(LEN_1D * sizeof(float));\n        \n        // Copy original values\n        for (int i = 0; i < LEN_1D; i++) {\n            a_orig[i] = a[i];\n            c_orig[i] = c[i];\n        }\n        \n        // First loop: compute a[i] updates\n        int i = 0;\n        for (; i <= LEN_1D - 2; i++) {\n            if (b[i] >= 0.0f) {\n                a[i] = c_orig[i] + d[i] * e[i];\n            }\n        }\n        \n        // Second loop: compute c[i+1] updates\n        for (i = 0; i <= LEN_1D - 2; i++) {\n            if (b[i] < 0.0f) {\n                c[i + 1] = a[i] + d[i] * d[i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s161_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s161",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s161_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s161_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s161_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s161_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

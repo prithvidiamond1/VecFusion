@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s13110_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s13110_opt(int iterations, float aa[256][256])\n{\n    int xindex, yindex;\n    float max, chksum;\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        max = aa[0][0];\n        xindex = 0;\n        yindex = 0;\n\n        float local_max[256];\n        int local_yindex[256];\n\n        // Initialize local arrays\n        for (int i = 0; i < 256; i++) {\n            local_max[i] = aa[i][0];\n            local_yindex[i] = 0;\n        }\n\n        // Inner loop: find max value per row (pure value reduction, vectorizable)\n        for (int i = 0; i < 256; i++) {\n            for (int j = 1; j < 256; j++) {\n                int cond = aa[i][j] > local_max[i];\n                local_max[i] = cond * aa[i][j] + (1 - cond) * local_max[i];\n            }\n        }\n\n        // Find max index per row separately (split from value reduction)\n        for (int i = 0; i < 256; i++) {\n            for (int j = 1; j < 256; j++) {\n                int cond = aa[i][j] == local_max[i];\n                local_yindex[i] = cond * j + (1 - cond) * local_yindex[i];\n            }\n        }\n\n        // Find global max value (vectorizable reduction)\n        float global_max = local_max[0];\n        for (int i = 1; i < 256; i++) {\n            global_max = local_max[i] > global_max ? local_max[i] : global_max;\n        }\n\n        // Find xindex: first scan for matching row (split into single variable update)\n        for (int i = 0; i < 256; i++) {\n            int cond = local_max[i] == global_max;\n            xindex = cond * i + (1 - cond) * xindex;\n        }\n\n        // Find yindex from xindex directly (no loop needed)\n        yindex = local_yindex[xindex];\n\n        max = global_max;\n\n        chksum = max + (float)xindex + (float)yindex;\n    }\n    return max + xindex + 1 + yindex + 1;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s13110_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s13110_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s13110_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "```c\n#include <stdint.h>\n#include <string.h>\n\nfloat vectorized_s13110(int iterations, float aa[256][256])\n{\n    int xindex, yindex;\n    float max, chksum;\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        max = aa[0][0];\n        xindex = 0;\n        yindex = 0;\n\n        float local_max[256];\n        int local_yindex[256];\n\n        // Initialize local arrays\n        for (int i = 0; i < 256; i++) {\n            local_max[i] = aa[i][0];\n            local_yindex[i] = 0;\n        }\n\n        // Inner loop: find max value per row, unrolled by 8\n        for (int i = 0; i < 256; i++) {\n            float m0 = local_max[i];\n            float m1 = m0, m2 = m0, m3 = m0;\n            float m4 = m0, m5 = m0, m6 = m0, m7 = m0;\n            int j = 1;\n            for (; j + 7 < 256; j += 8) {\n                float v0 = aa[i][j+0]; m0 = v0 > m0 ? v0 : m0;\n                float v1 = aa[i][j+1]; m1 = v1 > m1 ? v1 : m1;\n                float v2 = aa[i][j+2]; m2 = v2 > m2 ? v2 : m2;\n                float v3 = aa[i][j+3]; m3 = v3 > m3 ? v3 : m3;\n                float v4 = aa[i][j+4]; m4 = v4 > m4 ? v4 : m4;\n                float v5 = aa[i][j+5]; m5 = v5 > m5 ? v5 : m5;\n                float v6 = aa[i][j+6]; m6 = v6 > m6 ? v6 : m6;\n                float v7 = aa[i][j+7]; m7 = v7 > m7 ? v7 : m7;\n            }\n            // merge partial maxes\n            float ma = m0 > m1 ? m0 : m1;\n            float mb = m2 > m3 ? m2 : m3;\n            float mc = m4 > m5 ? m4 : m5;\n            float md = m6 > m7 ? m6 : m7;\n            float me = ma > mb ? ma : mb;\n            float mf = mc > md ? mc : md;\n            float mg = me > mf ? me : mf;\n            for (; j < 256; j++) {\n                float v = aa[i][j]; mg = v > mg ? v : mg;\n            }\n            local_max[i] = mg;\n        }\n\n        // Find max index per row separately\n        for (int i = 0; i < 256; i++) {\n            int yi = 0;\n            float lm = local_max[i];\n            for (int j = 1; j < 256; j++) {\n                int cond = aa[i][j] == lm;\n                yi = cond * j + (1 - cond) * yi;\n            }\n            local_yindex[i] = yi;\n        }\n\n        // Find global max value with unrolling\n        float gm0 = local_max[0];\n        float gm1 = gm0, gm2 = gm0, gm3 = gm0;\n        float gm4 = gm0, gm5 = gm0, gm6 = gm0, gm7 = gm0;\n        int i = 1;\n        for (; i + 7 < 256; i += 8) {\n            float v0 = local_max[i+0]; gm0 = v0 > gm0 ? v0 : gm0;\n            float v1 = local_max[i+1]; gm1 = v1 > gm1 ? v1 : gm1;\n            float v2 = local_max[i+2]; gm2 = v2 > gm2 ? v2 : gm2;\n            float v3 = local_max[i+3]; gm3 = v3 > gm3 ? v3 : gm3;\n            float v4 = local_max[i+4]; gm4 = v4 > gm4 ? v4 : gm4;\n            float v5 = local_max[i+5]; gm5 = v5 > gm5 ? v5 : gm5;\n            float v6 = local_max[i+6]; gm6 = v6 > gm6 ? v6 : gm6;\n            float v7 = local_max[i+7]; gm7 = v7 > gm7 ? v7 : gm7;\n        }\n        float ga = gm0 > gm1 ? gm0 : gm1;\n        float gb = gm2 > gm3 ? gm2 : gm3;\n        float gc = gm4 > gm5 ? gm4 : gm5;\n        float gd = gm6 > gm7 ? gm6 : gm7;\n        float ge = ga > gb ? ga : gb;\n        float gf = gc > gd ? gc : gd;\n        float global_max = ge > gf ? ge : gf;\n        for (; i < 256; i++) {\n            float v = local_max[i]; global_max = v > global_max ? v : global_max;\n        }\n\n        // Find xindex\n        for (int k = 0; k < 256; k++) {\n            int cond = local_max[k] == global_max;\n            xindex = cond * k + (1 - cond) * xindex;\n        }\n\n        yindex = local_yindex[xindex];\n        max = global_max;\n        chksum = max + (float)xindex + (float)yindex;\n    }\n    return",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile failed.\n            Command: clang results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_4\n            stderr:\n            results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_4.c:11:16: warning: variable 'chksum' set but not used [-Wunused-but-set-variable]\n   11 |     float max, chksum;\n      |                ^\nresults/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_4.c:64:9: error: expected identifier or '('\n   64 |         ```c\n      |         ^\n1 warning and 1 error generated.",
+      "unit_test_output": "Compile failed.\n            Command: clang results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_4\n            stderr:\n            results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_4.c:11:16: warning: variable 'chksum' set but not used [-Wunused-but-set-variable]\n   11 |     float max, chksum;\n      |                ^\nresults/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_4.c:64:9: error: expected identifier or '('\n   64 |         ```c\n      |         ^\n1 warning and 1 error generated.",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s13110",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "float s13110(int iterations,float aa[256][256])\n{\n    int xindex, yindex;\n    float max, chksum;\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        max = aa[(0)][0];\n        xindex = 0;\n        yindex = 0;\n        for (int i = 0; i < 256; i++) {\n            for (int j = 0; j < 256; j++) {\n                if (aa[i][j] > max) {\n                    max = aa[i][j];\n                    xindex = i;\n                    yindex = j;\n                }\n            }\n        }\n        chksum = max + (float) xindex + (float) yindex;\n    }\n    return max + xindex+1 + yindex+1;\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s13110_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

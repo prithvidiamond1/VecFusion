@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s3110_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "for (int j = 1; j < 256; j++) {\n    float current = aa[i][j];\n    if (current > row_max) {\n        row_max = current;\n        row_yindex = j;\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s3110_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s3110_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s3110_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: Could not locate signature for s3110",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s3110_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "s3110",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s3110_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "float s3110(int iterations,float aa[256][256])\n{\n    int xindex, yindex;\n    float max, chksum;\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        max = aa[(0)][0];\n        xindex = 0;\n        yindex = 0;\n        for (int i = 0; i < 256; i++) {\n            for (int j = 0; j < 256; j++) {\n                if (aa[i][j] > max) {\n                    max = aa[i][j];\n                    xindex = i;\n                    yindex = j;\n                }\n            }\n        }\n        chksum = max + (float) xindex + (float) yindex;\n    }\n    return max + xindex+1 + yindex+1;\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s3110_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

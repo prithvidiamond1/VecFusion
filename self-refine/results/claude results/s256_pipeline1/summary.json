@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s256_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s256(int iterations, float* a, float* d, float aa[256][256], float bb[256][256])\n{\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        for (int i = 0; i < 256; i++) {\n            // j=1: a[1] = 1.0f - a[0]\n            // j=2: a[2] = 1.0f - a[1]\n            // Each iteration depends on previous a[j-1], so this is a recurrence.\n            // We cannot vectorize across j due to the dependency a[j] = 1.0f - a[j-1].\n            // However, we can observe the pattern:\n            // a[j] = 1.0f - a[j-1]\n            // a[j+1] = 1.0f - a[j] = 1.0f - (1.0f - a[j-1]) = a[j-1]\n            // So the sequence alternates: a[j] and a[j-1] alternate between two values.\n            // Let v0 = a[0], then:\n            //   a[1] = 1.0f - v0\n            //   a[2] = v0\n            //   a[3] = 1.0f - v0\n            //   a[4] = v0\n            // For even j: a[j] = v0 (j >= 2)\n            // For odd j:  a[j] = 1.0f - v0\n            // We can precompute a[j] for all j, then vectorize the aa computation.\n\n            float v0 = a[0];\n            float v1 = 1.0f - v0;\n\n            // Fill a[j] for j=1..255\n            // odd j: v1, even j: v0\n            for (int j = 1; j < 256; j++) {\n                a[j] = (j & 1) ? v1 : v0;\n            }\n\n            // Now vectorize the aa computation in chunks of 8\n            int j = 1;\n            for (; j <= 252; j += 4) {\n                float aj0 = a[j+0];\n                float aj1 = a[j+1];\n                float aj2 = a[j+2];\n                float aj3 = a[j+3];\n\n                float dj0 = d[j+0];\n                float dj1 = d[j+1];\n                float dj2 = d[j+2];\n                float dj3 = d[j+3];\n\n                float bbj0 = bb[j+0][i];\n                float bbj1 = bb[j+1][i];\n                float bbj2 = bb[j+2][i];\n                float bbj3 = bb[j+3][i];\n\n                aa[j+0][i] = aj0 + bbj0 * dj0;\n                aa[j+1][i] = aj1 + bbj1 * dj1;\n                aa[j+2][i] = aj2 + bbj2 * dj2;\n                aa[j+3][i] = aj3 + bbj3 * dj3;\n            }\n            // scalar tail\n            for (; j < 256; j++) {\n                aa[j][i] = a[j] + bb[j][i] * d[j];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s256_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s256",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s256_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s256_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s256_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

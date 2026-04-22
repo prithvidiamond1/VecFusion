@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s318_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s318_opt(int iterations, int LEN_1D, float* a, int inc)\n{\n    int k, index;\n    float max, chksum;\n    for (int nl = 0; nl < iterations/2; nl++) {\n        index = 0;\n        max = fabsf(a[0]);\n\n        // First pass: find max value (vectorizable max-reduction)\n        for (int i = 1; i < LEN_1D; i++) {\n            float val = fabsf(a[i * inc]);\n            if (val > max) max = val;\n        }\n\n        // Second pass: find first index where value equals max\n        // Use a flag array approach to avoid loop-carried dependency on index\n        int found = 0;\n        for (int i = 1; i < LEN_1D; i++) {\n            float val = fabsf(a[i * inc]);\n            int is_max = (val == max);\n            int update = is_max & (found == 0);\n            index = update ? i : index;\n            found = found | update;\n        }\n\n        // Fix index: if max is a[0], index should remain 0\n        index = (fabsf(a[0]) == max) ? 0 : index;\n\n        chksum = max + (float) index;\n    }\n    return max + index + 1;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s318_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s318_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s318_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <math.h>\n#include <stdint.h>\n\nfloat vectorized_s318(int iterations, int LEN_1D, float* a, int inc)\n{\n    int index;\n    float max, chksum;\n    chksum = 0.0f;\n    max = 0.0f;\n    index = 0;\n\n    for (int nl = 0; nl < iterations/2; nl++) {\n        index = 0;\n        max = fabsf(a[0]);\n\n        /* First pass: find max value */\n        int i = 1;\n        for (; i <= LEN_1D - 4; i += 4) {\n            float v0 = fabsf(a[i]);\n            float v1 = fabsf(a[i+1]);\n            float v2 = fabsf(a[i+2]);\n            float v3 = fabsf(a[i+3]);\n            if (v0 > max) max = v0;\n            if (v1 > max) max = v1;\n            if (v2 > max) max = v2;\n            if (v3 > max) max = v3;\n        }\n        for (; i < LEN_1D; i++) {\n            float val = fabsf(a[i]);\n            if (val > max) max = val;\n        }\n\n        /* Second pass: find first index where value equals max */\n        int found = 0;\n        /* Check index 0 first */\n        if (fabsf(a[0]) == max) {\n            index = 0;\n            found = 1;\n        }\n\n        i = 1;\n        for (; i <= LEN_1D - 4 && !found; i += 4) {\n            float v0 = fabsf(a[i]);\n            float v1 = fabsf(a[i+1]);\n            float v2 = fabsf(a[i+2]);\n            float v3 = fabsf(a[i+3]);\n            int m0 = (v0 == max);\n            int m1 = (v1 == max);\n            int m2 = (v2 == max);\n            int m3 = (v3 == max);\n            if (m0 & !found) { index = i;   found = 1; }\n            if (m1 & !found) { index = i+1; found = 1; }\n            if (m2 & !found) { index = i+2; found = 1; }\n            if (m3 & !found) { index = i+3; found = 1; }\n        }\n        for (; i < LEN_1D && !found; i++) {\n            float val = fabsf(a[i]);\n            if (val == max) { index = i; found = 1; }\n        }\n\n        chksum = max + (float)index;\n    }\n    return max + index + 1;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s318_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s318",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s318_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "float s318(int iterations,int LEN_1D, float* a, int inc)\n{\n    int k, index;\n    float max, chksum;\n    for (int nl = 0; nl < iterations/2; nl++) {\n        k = 0;\n        index = 0;\n        max = fabsf(a[0]);\n        k += inc;\n        for (int i = 1; i < LEN_1D; i++) {\n            if (fabsf(a[k]) <= max) {\n                goto L5;\n            }\n            index = i;\n            max = fabsf(a[k]);\nL5:\n            k += inc;\n        }\n        chksum = max + (float) index;\n    }\n    return max + index + 1;\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s318_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

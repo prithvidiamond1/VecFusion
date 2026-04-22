@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s1244_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    typedef float float4 __attribute__((vector_size(16)));\n\n    int vec_len = (LEN_1D - 1);\n\n    for (int nl = 0; nl < iterations; nl++) {\n        // First pass: compute a[i] for i in [0, LEN_1D-1)\n        int i = 0;\n        for (; i <= vec_len - 4; i += 4) {\n            float4 bi, ci, ai;\n            // Load 4 floats\n            __builtin_memcpy(&bi, b + i, sizeof(float4));\n            __builtin_memcpy(&ci, c + i, sizeof(float4));\n            ai = bi + ci * ci + bi * bi + ci;\n            __builtin_memcpy(a + i, &ai, sizeof(float4));\n        }\n        // Scalar tail for a[i]\n        for (; i < vec_len; i++) {\n            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];\n        }\n        // We also need a[LEN_1D-1] for the d computation below if needed\n        // Actually d[i] = a[i] + a[i+1] for i in [0, LEN_1D-2]\n        // a[LEN_1D-1] is accessed as a[i+1] when i = LEN_1D-2\n        // But the loop only computes a[i] for i < LEN_1D-1, so a[LEN_1D-1] is not set here.\n        // The original code also doesn't set a[LEN_1D-1], so we leave it as-is.\n\n        // Second pass: compute d[i] = a[i] + a[i+1] for i in [0, LEN_1D-2)\n        // Note: vec_len = LEN_1D - 1, so i goes from 0 to LEN_1D-2 inclusive\n        i = 0;\n        for (; i <= vec_len - 1 - 4; i += 4) {\n            float4 ai, ai1, di;\n            __builtin_memcpy(&ai, a + i, sizeof(float4));\n            __builtin_memcpy(&ai1, a + i + 1, sizeof(float4));\n            di = ai + ai1;\n            __builtin_memcpy(d + i, &di, sizeof(float4));\n        }\n        // Scalar tail for d[i]\n        for (; i < vec_len; i++) {\n            d[i] = a[i] + a[i + 1];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s1244_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s1244",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s1244_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s1244_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s1244_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

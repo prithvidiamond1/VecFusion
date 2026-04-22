@@ -1,0 +1,124 @@
+#include <stdbool.h>
+        #include <stdint.h>
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <string.h>
+        #include <math.h>
+
+        void s1244(int iterations, int LEN_1D, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < LEN_1D-1; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i]*b[i] + c[i];
+            d[i] = a[i] + a[i+1];
+        }
+    }
+}
+
+        #include <stdint.h>
+#include <string.h>
+
+void vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)
+{
+    typedef float float4 __attribute__((vector_size(16)));
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // First pass: compute a[i] for i in [1, LEN_1D] (1-indexed, i.e., indices 1..LEN_1D)
+        // That means a[1] through a[LEN_1D]
+        int start = 1;
+        int end_a = LEN_1D; // inclusive
+        int count_a = end_a - start + 1; // = LEN_1D
+        int vec_count_a = count_a / 4;
+
+        int i = start;
+        for (int v = 0; v < vec_count_a; v++, i += 4) {
+            float4 bi, ci, ai;
+            __builtin_memcpy(&bi, b + i, sizeof(float4));
+            __builtin_memcpy(&ci, c + i, sizeof(float4));
+            ai = bi + ci * ci + bi * bi + ci;
+            __builtin_memcpy(a + i, &ai, sizeof(float4));
+        }
+        for (; i <= end_a; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];
+        }
+
+        // Second pass: compute d[i] = a[i] + a[i+1] for i in [1, LEN_1D-1] (1-indexed)
+        int end_d = LEN_1D - 1; // inclusive
+        int count_d = end_d - start + 1; // = LEN_1D - 1
+        // For vectorized load of a[i+1..i+4], we need i+4 <= LEN_1D, i.e., i <= LEN_1D-4
+        // So vec_count_d = count_d / 4, but we must ensure a[i+4] is valid (i+4 <= LEN_1D)
+        // i starts at 1, last vectorized i = 1 + (vec_count_d-1)*4
+        // need 1 + (vec_count_d-1)*4 + 4 <= LEN_1D => vec_count_d*4 <= LEN_1D - 1 = count_d
+        int vec_count_d = count_d / 4;
+
+        i = start;
+        for (int v = 0; v < vec_count_d; v++, i += 4) {
+            float4 ai, ai1, di;
+            __builtin_memcpy(&ai, a + i, sizeof(float4));
+            __builtin_memcpy(&ai1, a + i + 1, sizeof(float4));
+            di = ai + ai1;
+            __builtin_memcpy(d + i, &di, sizeof(float4));
+        }
+        for (; i <= end_d; i++) {
+            d[i] = a[i] + a[i + 1];
+        }
+    }
+}
+
+        static uint32_t next_u32(uint32_t *state) {
+            *state = (*state * 1664525u) + 1013904223u;
+            return *state;
+        }
+
+        static void fill_i32(int *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = (int)(next_u32(state) % 2001u) - 1000;
+            }
+        }
+
+        static void fill_f32(float *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = ((float)(next_u32(state) % 2001u) - 1000.0f) / 17.0f;
+            }
+        }
+
+        static void fill_f64(double *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = ((double)(next_u32(state) % 2001u) - 1000.0) / 17.0;
+            }
+        }
+
+        int main(void) {
+            const int arr_len = 128;
+            uint32_t seed = 7u;
+            int iterations = 5; int LEN_1D = arr_len; float a_scalar[128]; float a_vector[128]; float b_scalar[128]; float b_vector[128]; float c_scalar[128]; float c_vector[128]; float d_scalar[128]; float d_vector[128];
+
+            for (int trial = 0; trial < 64; ++trial) {
+                fill_f32(a_scalar, arr_len, &seed); memcpy(a_vector, a_scalar, sizeof(a_scalar)); fill_f32(b_scalar, arr_len, &seed); memcpy(b_vector, b_scalar, sizeof(b_scalar)); fill_f32(c_scalar, arr_len, &seed); memcpy(c_vector, c_scalar, sizeof(c_scalar)); fill_f32(d_scalar, arr_len, &seed); memcpy(d_vector, d_scalar, sizeof(d_scalar));
+                s1244(iterations, LEN_1D, a_scalar, b_scalar, c_scalar, d_scalar); vectorized_s1244(iterations, LEN_1D, a_vector, b_vector, c_vector, d_vector);
+                for (int i = 0; i < arr_len; ++i) {
+    if (fabsf((a_scalar[i]) - (a_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter a on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < arr_len; ++i) {
+    if (fabsf((b_scalar[i]) - (b_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter b on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < arr_len; ++i) {
+    if (fabsf((c_scalar[i]) - (c_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter c on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < arr_len; ++i) {
+    if (fabsf((d_scalar[i]) - (d_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter d on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+}
+            }
+
+            printf("PASS trials=%d\n", 64);
+            return 0;
+        }

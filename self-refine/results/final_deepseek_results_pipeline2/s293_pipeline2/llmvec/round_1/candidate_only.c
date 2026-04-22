@@ -1,0 +1,19 @@
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s293(int iterations, int LEN_1D, float* a) {
+    float temp = a[0];
+    
+    // Vectorized main loop
+    int i = 0;
+    float4 temp_vec = (float4){temp, temp, temp, temp};
+    int limit = LEN_1D - (LEN_1D % 4);
+    
+    for (; i < limit; i += 4) {
+        *(float4*)&a[i] = temp_vec;
+    }
+    
+    // Scalar cleanup tail
+    for (; i < LEN_1D; i++) {
+        a[i] = temp;
+    }
+}

@@ -1,0 +1,77 @@
+
+Revise your candidate for `s314` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s314(int iterations,int LEN_1D, float* a)
+{
+    float x;
+    for (int nl = 0; nl < iterations*5; nl++) {
+        x = a[0];
+        for (int i = 0; i < LEN_1D; i++) {
+            if (a[i] > x) {
+                x = a[i];
+            }
+        }
+    }
+    return x;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+typedef float v4f __attribute__((ext_vector_type(4)));
+
+float vectorized_s314(int iterations, int LEN_1D, float* a) {
+    float x;
+    int total_outer = iterations * 5;
+    for (int nl = 0; nl < total_outer; nl++) {
+        x = a[0];
+        int i = 0;
+        // Vectorized loop: process 4 elements at a time
+        v4f vmax = (v4f){x, x, x, x};
+        for (; i + 4 <= LEN_1D; i += 4) {
+            v4f va = *(v4f*)(a + i);
+            v4f mask = va > vmax;
+            vmax = __builtin_shufflevector(vmax, va, 0, 1, 2, 3);
+            // Blend: where mask is true, take va; else keep vmax
+            vmax = (v4f)((__builtin_convertvector(mask, v4f_signed) & (int32_t)va) | (~__builtin_convertvector(mask, v4f_signed) & (int32_t)vmax));
+            // Actually simpler: use conditional select
+            vmax = (va > vmax) ? va : vmax;
+        }
+        // Horizontal max of vmax
+        float max0 = vmax[0];
+        float max1 = vmax[1];
+        float max2 = vmax[2];
+        float max3 = vmax[3];
+        float hmax = max0;
+        if (max1 > hmax) hmax = max1;
+        if (max2 > hmax) hmax = max2;
+        if (max3 > hmax) hmax = max3;
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            if (a[i] > hmax) {
+                hmax = a[i];
+            }
+        }
+        x = hmax;
+    }
+    return x;
+}
+        ```
+
+        Tester feedback:
+        - **Fix type mismatch for comparison result**: `va > vmax` produces a vector of `int` (or `int32_t`), not `v4f`. Declare `mask` as `v4f_signed` (or `int32_t __attribute__((ext_vector_type(4)))`) and define `v4f_signed` via typedef, or use a built-in like `__builtin_convertvector` to convert the comparison result to a float mask.
+
+- **Remove broken manual blend code**: The line attempting bitwise operations on float vectors is invalid and unnecessary. Replace the entire blend attempt with the simpler conditional expression `vmax = (va > vmax) ? va : vmax;` which is already present on line 40 but preceded by the broken code. Delete lines 37–39.
+
+- **Define `v4f_signed` type**: Add `typedef int32_t v4f_signed __attribute__((ext_vector_type(4)));` at the top if you intend to keep the bitwise approach, but the ternary operator is cleaner and avoids this.
+
+- **Ensure vector load alignment**: `*(v4f*)(a + i)` assumes 16-byte alignment. If `a` is not guaranteed aligned, use `__builtin_assume_aligned(a, 16)` or a vector load builtin like `__builtin_ia32_loadups` for unaligned access.
+
+- **Check loop bound correctness**: The inner vector loop condition `i + 4 <= LEN_1D` is correct for 4-element vectors. The scalar tail loop `for (; i < LEN_1D; i++)` correctly handles remaining elements. No fix needed here.
+
+- **Remove dead code**: The line `vmax = __builtin_shufflevector(vmax, va, 0, 1, 2, 3);` is a no-op (selects all from vmax) and should be deleted to avoid confusion.
+
+        Return a corrected candidate function named `vectorized_s314`.

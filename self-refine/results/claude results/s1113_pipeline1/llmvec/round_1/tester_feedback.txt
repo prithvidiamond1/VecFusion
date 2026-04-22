@@ -1,0 +1,32 @@
+The issue is that `scalar_val` is read from `a[LEN_1D/2]` before the loop, but the loop overwrites `a[LEN_1D/2]` during iteration (when `i` reaches `LEN_1D/2`). On subsequent outer loop iterations (`nl > 0`), `scalar_val` gets the already-modified value instead of the original.
+
+- The original scalar kernel reads `a[LEN_1D/2]` once **per outer iteration**, but the problem is that index `LEN_1D/2` (e.g., index 64 for LEN_1D=128) is written during the inner loop before the outer loop uses it again — this is actually fine for a single pass, but the reference implementation likely reads `a[LEN_1D/2]` **after** it has been updated by a previous iteration, meaning the scalar should be re-read each outer iteration from the already-updated array.
+- The real bug: the reference code reads `a[LEN_1D/2]` at the **start** of each `nl` iteration (which is correct), but your unrolled loop writes to `a[LEN_1D/2]` (index 64 falls in the unrolled range), so `scalar_val` for `nl=1` will be `scalar_val_0 + b[64]` — this matches the reference. The mismatch at index 65 suggests an off-by-one in the unrolled loop overwriting `a[LEN_1D/2]` before it's used as scalar in the same iteration.
+- Fix: capture `scalar_val = a[LEN_1D/2]` **before** any writes in the inner loop, which you already do — but verify `LEN_1D/2` is not written before being read. Since `i` starts at 0 and `LEN_1D/2` (e.g., 64) is reached mid-loop, the read happens before the write in the same iteration, so that's fine.
+- The actual bug is the **unroll factor of 8 with `limit = LEN_1D - (LEN_1D % 8)`**: if `LEN_1D=128`, limit=128, so the unrolled loop runs `i=0..120` in steps of 8, writing indices 0–127 including index 64. This is correct. Check if `LEN_1D` might not be a multiple of 8 in the test, causing the scalar index `LEN_1D/2` to be in the tail loop — this should still be fine.
+- Most likely root cause: the reference scalar loop does `a[i] = a[LEN_1D/2] + b[i]` reading `a[LEN_1D/2]` **every iteration of i** (not hoisted), so when `i == LEN_1D/2`, `a[LEN_1D/2]` has already been updated. **Fix: do not hoist `scalar_val`; read `a[LEN_1D/2]` inside the inner loop or after index `LEN_1D/2` has been written.**
+
+```c
+void vectorized_s1113(int iterations, int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 8);
+        for (; i < limit; i += 8) {
+            float sv = a[LEN_1D/2];  // re-read each group (or just don't hoist past LEN_1D/2)
+            a[i+0] = sv + b[i+0];
+            // ... but this is still wrong if i+k == LEN_1D/2
+        }
+    }
+}
+```
+
+- **Correct fix**: remove the hoisting entirely and read `a[LEN_1D/2]` inline each iteration to match reference semantics, since the reference does not hoist it:
+
+```c
+for (int i = 0; i < LEN_1D; i++) {
+    a[i] = a[LEN_1D/2] + b[i];
+}
+```
+
+- Replace the entire inner loop body to read `a[LEN_1D/2]` fresh each `i` iteration (not pre-hoisted), so the write at `i == LEN_1D/2` is visible to subsequent iterations, matching the reference behavior.

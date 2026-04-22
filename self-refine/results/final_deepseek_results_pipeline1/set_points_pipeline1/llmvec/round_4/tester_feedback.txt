@@ -1,0 +1,9 @@
+- The vectorized loop incorrectly computes `dst[0]` by overwriting it with `dst_new` from the first iteration (i=0), which writes to `dst[i+1]` = `dst[1]`. The scalar code sets `dst[0] = dstStart` before the loop, but the vectorized path loads `dst_prev` from `dst[0]` and writes `dst_new` to `dst[1]`, which is correct. However, the mismatch at index 0 suggests the vectorized loop may be writing to `dst[0]` via an off-by-one in the store address.
+
+- Fix: Ensure the vectorized store `*(float32x4_t*)(dst + i + 1)` does not write to `dst[0]` when `i=0`. The current code writes to `dst[1]` through `dst[4]`, which is correct. The mismatch at index 0 likely comes from the scalar cleanup loop or the final `dst[divCount+1]` assignment overwriting `dst[0]` when `divCount` is small.
+
+- Check the scalar cleanup loop: when `divCount` is 0, the vector loop is skipped, and the scalar loop runs for `i=0` (since `i < divCount` is false), so only `src[0]`, `dst[0]`, `src[1]`, `dst[1]` are set. The final assignments `src[divCount+1]` and `dst[divCount+1]` write to index 1, which is correct. The mismatch at index 0 suggests `dst[0]` is being overwritten elsewhere.
+
+- Verify the vectorized loop's `dst_prev` load: when `i=0`, it loads from `dst[0]` (which is `dstStart`), computes `dst_new`, and stores to `dst[1]`. This should not affect `dst[0]`. The mismatch may be due to the `src` array being aliased with `dst` or an alignment issue causing a partial overwrite.
+
+- The most likely fix: ensure the vectorized loop does not write beyond the allocated bounds when `divCount` is not a multiple of 4. The scalar cleanup loop correctly handles remaining elements, but the final `dst[divCount+1]` assignment may write to an index that overlaps with a previous vector store if `divCount` is small. Add a check to skip the vector loop when `divCount < 4` to avoid any off-by-one errors.

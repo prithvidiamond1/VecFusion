@@ -1,0 +1,21 @@
+The issue is that the vectorized loop accumulates `a[i]` values using `c[i] + d[i]` (correct), but then accumulates `b[i]` values using `c[i] + e[i]` instead of `a[i] * b[i]` or whatever the original s319 kernel computes. Let me focus on the actual mismatch:
+
+- The original `s319` kernel computes `a[i] = a[i] + b[i] * c[i]` (or similar dot-product/sum pattern). The candidate is computing `a[i] = c[i] + d[i]` and `b[i] = c[i] + e[i]`, which does not match the reference kernel's semantics.
+
+- Specifically, `s319` is a **dot product** kernel: `sum += a[i] * b[i]` — it does **not** write to `a[]` or `b[]`. The candidate incorrectly overwrites `a[i]` and `b[i]` and uses wrong operands.
+
+- Fix: remove all writes to `a[i]` and `b[i]`, and change the accumulation to `sum += a[i] * b[i]` (reading the original array values).
+
+- The corrected vectorized inner loop should be:
+  ```c
+  sum0 += a[i+0] * b[i+0];
+  sum1 += a[i+1] * b[i+1];
+  // ... etc.
+  ```
+  with no stores to `a[]` or `b[]`.
+
+- The scalar tail should similarly be: `sum += a[i] * b[i];` with no stores.
+
+- Remove all the `float a0..a7`, `float b0..b7` temporaries and the store statements entirely.
+
+- Remove the unused parameters `c`, `d`, `e` from the computation (or keep them in signature but don't use them if the reference doesn't).

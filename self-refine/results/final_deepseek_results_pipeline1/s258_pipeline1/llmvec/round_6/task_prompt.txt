@@ -1,0 +1,74 @@
+
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a,float* b,float* c, float* d,float* e, float aa[256][256])
+{
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > 0.) {
+                s = d[i] * d[i];
+            }
+            b[i] = s * c[i] + d[i];
+            e[i] = (s + (float)1.) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+typedef float float32_t;
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    if (iterations <= 0) return;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = 0.0f;
+        for (int i = 0; i < 256; i += 4) {
+            float32_t a_vec[4] = {a[i], a[i+1], a[i+2], a[i+3]};
+            float32_t d_vec[4] = {d[i], d[i+1], d[i+2], d[i+3]};
+            float32_t c_vec[4] = {c[i], c[i+1], c[i+2], c[i+3]};
+            float32_t aa0_vec[4] = {aa[0][i], aa[0][i+1], aa[0][i+2], aa[0][i+3]};
+
+            float32_t s_vec[4];
+            float cur_s = s;
+            for (int j = 0; j < 4; j++) {
+                if (a_vec[j] > 0.0f) {
+                    cur_s = d_vec[j] * d_vec[j];
+                }
+                s_vec[j] = cur_s;
+            }
+
+            for (int j = 0; j < 4; j++) {
+                b[i + j] = s_vec[j] * c_vec[j] + d_vec[j];
+                e[i + j] = (s_vec[j] + 1.0f) * aa0_vec[j];
+            }
+
+            // Update s with the last positive a in this chunk (backward scan)
+            s = cur_s;
+            for (int j = 3; j >= 0; j--) {
+                if (a_vec[j] > 0.0f) {
+                    s = d_vec[j] * d_vec[j];
+                    break;
+                }
+            }
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a correctness bug in the backward scan for updating `s`:
+
+- The backward scan uses `a_vec[j] > 0.0f` to decide the final `s`, but the forward computation of `s_vec` uses the *last* positive `a` in the chunk (since `cur_s` is only updated when `a_vec[j] > 0.0f`). The backward scan correctly finds the last positive `a`, but the forward loop incorrectly uses `cur_s` as the running value for all subsequent elements, including those after the last positive `a`. This means `s_vec[j]` for elements after the last positive `a` in the chunk should retain the previous `cur_s` (from an earlier positive `a`), but the backward scan then overwrites `s` with the last positive `a`'s value, which is correct. However, the mismatch at index 0 suggests the initial `s` value (0.0f) is not being used correctly when the first element has `a[0] <= 0.0f`.
+
+**Fix**: Initialize `cur_s` to `s` before the inner loop, and ensure that when `a_vec[j] <= 0.0f`, `s_vec[j]` is set to `cur_s` (the previous value). The backward scan is correct for updating `s` for the next outer iteration. The mismatch at index 0 indicates the initial `s` (0.0f) is being used when `a[0] <= 0.0f`, but the forward loop's `cur_s` starts as `s` (0.0f) and is only updated on positive `a`. This is correct, so the bug may be in the backward scan: it should only update `s` if a positive `a` is found, otherwise keep `s` unchanged. Currently, if no positive `a` in the chunk, `s` remains as `cur_s` (which is the last value from the forward loop), which is correct. The mismatch at index 0 suggests the initial `s` (0.0f) is being used when `a[0] <= 0.0f`, but the forward loop's `cur_s` starts as `s` (0.0f) and is only updated on positive `a`. This is correct, so the bug may be in the backward scan: it should only update `s` if a positive `a` is found, otherwise keep `s` unchanged. Currently, if no positive `a` in the chunk, `s` remains as `cur_s` (which is the last value from the forward loop), which is correct. The mismatch at index 0 suggests the initial `s` (0.0f) is being used when `a[0] <= 0.0f`, but the forward loop's `cur_s` starts as `s` (0.0f) and is only updated on positive `a`. This is correct, so the bug may be in the backward scan: it should only update `s` if a positive `a` is found, otherwise keep `s` unchanged. Currently, if no positive `a` in the chunk, `s` remains as `cur_s` (which is the last value from the forward loop), which is correct. The mismatch at index 0 suggests the initial `s` (0.0f) is being used when `a[0] <= 0.0f`, but the forward loop's `cur_s` starts as `s` (0.0f) and is only updated on positive `a`. This is correct, so the bug may be in the backward scan: it should only update `s` if a positive `a` is found, otherwise keep `s` unchanged. Currently, if no positive `a` in the chunk, `s` remains as `cur_s` (which is the last value from the forward loop), which is correct. The mismatch at index 0 suggests the initial `s` (0.0f) is being used when `a[0] <= 0.0f`, but the forward loop's `cur_s` starts as `s` (0.0f) and is only updated on positive `a`. This is correct, so the bug may be in the backward scan: it should only update `s` if a positive `a` is found, otherwise keep `s` unchanged. Currently, if no positive `a` in the chunk, `s` remains as `cur_s` (which is the last value from the forward loop), which is correct. The mismatch at index 0 suggests the initial `s` (0.0f) is being used when `a[0] <= 0.0f`, but the forward loop's `cur_s` starts as `s` (0.0f) and is only updated on positive `a`. This is correct, so the bug may be in the backward scan: it should only update `s` if a positive `a` is found, otherwise keep `s` unchanged. Currently, if no positive `a` in the chunk, `s` remains as `cur_s` (which is the last value from the forward loop), which is correct. The mismatch at index 0 suggests the initial `s` (0.0f) is being used when `a[0] <= 0.0f`, but the forward loop's `cur_s` starts as `s` (0.0f) and is only updated on positive `a`. This is correct, so the bug may be in the backward scan: it should only update `s` if a positive `a` is found, otherwise keep `s` unchanged. Currently, if no positive `a` in the chunk, `s` remains as `cur_s` (which is the last value from the forward loop), which is correct. The mismatch at index 0 suggests the initial `s` (0.0f) is being used when `a[0] <= 0.0f`, but the forward loop's `cur_s` starts as `s` (0.0f) and is only updated on positive `a`. This is correct, so the bug may be in the backward scan: it should only update `s` if a positive `a` is found, otherwise keep `s` unchanged. Currently, if no positive `a` in the chunk, `s` remains as `cur_s` (which is the last value from the forward loop), which is correct. The mismatch at index 0 suggests the initial `s` (0.0f) is being used when `a[0] <= 0.0f`, but the forward loop's `cur_s` starts as `s` (0.0f) and is only updated on positive `a`. This is correct, so the bug may be in the backward scan: it should only update `s` if a positive `a` is found, otherwise keep `s` unchanged. Currently, if no positive `a` in the chunk, `s` remains as `cur_s` (which is the last value from the forward loop), which is correct. The mismatch at index 0 suggests the initial `s` (0.0f) is being used when `a[0] <= 0.0f`, but the forward loop's `cur_s` starts as `s` (0.0f) and is only updated on positive `a`. This is correct, so the bug may be in the backward scan: it should
+
+        Return a corrected candidate function named `vectorized_s258`.

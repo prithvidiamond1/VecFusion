@@ -1,0 +1,9 @@
+The vectorizer candidate has a correctness bug in the handling of the scalar `s` across loop iterations.
+
+**Issues to fix:**
+
+- The scalar `s` is updated to `s_vec[3]` at the end of each vector chunk, but the original loop updates `s` conditionally per iteration. When `a[i] <= 0`, `s` retains its previous value from the *last iteration where a > 0*, not from the previous vector lane. The current code incorrectly propagates `s` across lanes within a chunk using `s_vec[j-1]` when `a[j] <= 0`, which is wrong—it should use the original scalar `s` from before the chunk started.
+
+- The inner loop for computing `s_vec` when `a[j] <= 0` should use the original `prev_s` (the scalar `s` at the start of the chunk) for *all* lanes where `a[j] <= 0`, not the previous lane's computed value. This changes the semantics: the original loop only updates `s` when `a[i] > 0`, and otherwise keeps the last `s` from any earlier iteration.
+
+- To fix: compute `s_vec[j] = (a_vec[j] > 0.0f) ? d_vec[j]*d_vec[j] : prev_s` for each lane, then after the chunk, set `s = s_vec[3]`. This preserves the original behavior where `s` only changes on iterations with `a[i] > 0`.

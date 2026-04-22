@@ -1,0 +1,65 @@
+#include <stdint.h>
+#include <string.h>
+
+void vectorized_s342(int iterations, int LEN_1D, float* a, float *b)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        // Allocate temporary arrays on stack if small, otherwise use VLAs
+        int mask[LEN_1D];
+        float orig_a[LEN_1D];
+        int j_vals[LEN_1D];
+
+        // First loop: compute mask and store original a values
+        // Unroll by 4 for vectorization
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+        for (; i < limit; i += 4) {
+            float a0 = a[i+0];
+            float a1 = a[i+1];
+            float a2 = a[i+2];
+            float a3 = a[i+3];
+            orig_a[i+0] = a0;
+            orig_a[i+1] = a1;
+            orig_a[i+2] = a2;
+            orig_a[i+3] = a3;
+            mask[i+0] = (a0 > 0.0f) ? 1 : 0;
+            mask[i+1] = (a1 > 0.0f) ? 1 : 0;
+            mask[i+2] = (a2 > 0.0f) ? 1 : 0;
+            mask[i+3] = (a3 > 0.0f) ? 1 : 0;
+        }
+        for (; i < LEN_1D; i++) {
+            orig_a[i] = a[i];
+            mask[i] = (a[i] > 0.0f) ? 1 : 0;
+        }
+
+        // Second loop: compute prefix sum (j values) using mask
+        // This is inherently sequential due to the running counter j
+        int j = -1;
+        for (i = 0; i < LEN_1D; i++) {
+            if (mask[i]) {
+                j_vals[i] = ++j;
+            } else {
+                j_vals[i] = -1;
+            }
+        }
+
+        // Third loop: assign b values using computed indices
+        // Unroll by 4 for vectorization
+        i = 0;
+        limit = LEN_1D - (LEN_1D % 4);
+        for (; i < limit; i += 4) {
+            int idx0 = j_vals[i+0];
+            int idx1 = j_vals[i+1];
+            int idx2 = j_vals[i+2];
+            int idx3 = j_vals[i+3];
+            a[i+0] = (idx0 != -1) ? b[idx0] : orig_a[i+0];
+            a[i+1] = (idx1 != -1) ? b[idx1] : orig_a[i+1];
+            a[i+2] = (idx2 != -1) ? b[idx2] : orig_a[i+2];
+            a[i+3] = (idx3 != -1) ? b[idx3] : orig_a[i+3];
+        }
+        for (; i < LEN_1D; i++) {
+            int idx = j_vals[i];
+            a[i] = (idx != -1) ? b[idx] : orig_a[i];
+        }
+    }
+}

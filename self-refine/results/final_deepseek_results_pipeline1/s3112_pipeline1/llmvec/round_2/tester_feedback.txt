@@ -1,0 +1,18 @@
+The candidate has a **semantic error** in the tail handling loop.  
+
+- The main vector loop computes a **prefix sum** where each `b[i]` depends on the cumulative sum up to that point.  
+- The tail loop incorrectly starts with `running_sum = vec_sum[3]` (the last element of the vector sum), but then does `running_sum += a[i]` — this **double-counts** the last element of the vector chunk.  
+- Fix: the tail loop should **not** add `a[i]` again for the first tail element; it should continue from the last computed `b[i-1]` value.  
+- Specifically, after the vector loop, `running_sum` already equals the prefix sum up to index `i-1`. The tail loop should assign `b[i] = running_sum + a[i]` and then update `running_sum`.  
+- Alternatively, restructure the tail loop to match the scalar prefix-sum pattern:  
+  ```c
+  for (; i < LEN_1D; i++) {
+      running_sum = running_sum + a[i];
+      b[i] = running_sum;
+  }
+  ```
+  but ensure `running_sum` is the **last prefix sum from the vector loop** (which it already is), so the first tail iteration correctly adds `a[i]` to that sum.  
+
+**Summary of fix:**  
+- Change the tail loop body to `running_sum = running_sum + a[i]; b[i] = running_sum;` (or equivalently `running_sum += a[i]; b[i] = running_sum;`).  
+- Remove the incorrect `running_sum += a[i]` that duplicates the last vector element.

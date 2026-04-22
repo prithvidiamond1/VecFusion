@@ -1,0 +1,15 @@
+Looking at the failure: "Return mismatch on trial 0" means the computed `chksum` (or the `index`) is wrong compared to the reference implementation.
+
+The reference `s318` finds the index of the maximum absolute value in `a[0..LEN_1D-1]` stepping by `inc`. The key issue is that `k` starts at `0` and steps by `inc`, so `a[k]` at step `i` corresponds to logical index `i` in the array.
+
+- **Bug 1**: The initial element uses `a[0]` for the value but `k` is then advanced by `inc` before the loop, so `k = inc` when the loop starts. The first loop element should be `a[0]` (k=0), then k advances. This part is correct, but `index = 0` is set for the first element — that's fine.
+
+- **Bug 2 (main issue)**: `iterations/2` — the reference likely runs `iterations` times, not `iterations/2`. Using half the iterations changes the final `chksum` value returned.
+
+- **Bug 3**: The unrolled loop reads `a[k]` using the raw array index `k` (which advances by `inc`), but the `index` variable should track the logical position (0-based count), not the array index. This logic appears correct since `base` tracks the logical index.
+
+- **Fix**: Change `iterations/2` back to `iterations` in the outer loop.
+
+```c
+for (int nl = 0; nl < iterations; nl++) {
+```

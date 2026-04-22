@@ -1,0 +1,19 @@
+Compile failed.
+            Command: clang results/all_tests_rerun_20260415_215652/s316_pipeline2/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s316_pipeline2/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_rerun_20260415_215652/s316_pipeline2/llmvec/candidate_round_1.c:54:35: error: used type '__attribute__((__vector_size__(4 * sizeof(int)))) int' (vector of 4 'int' values) where arithmetic or pointer type is required
+   54 |             float4 m0 = vmin < v0 ? vmin : v0;
+      |                         ~~~~~~~~~ ^
+results/all_tests_rerun_20260415_215652/s316_pipeline2/llmvec/candidate_round_1.c:55:33: error: used type '__attribute__((__vector_size__(4 * sizeof(int)))) int' (vector of 4 'int' values) where arithmetic or pointer type is required
+   55 |             float4 m1 = v1 < v2 ? v1 : v2;
+      |                         ~~~~~~~ ^
+results/all_tests_rerun_20260415_215652/s316_pipeline2/llmvec/candidate_round_1.c:56:33: error: used type '__attribute__((__vector_size__(4 * sizeof(int)))) int' (vector of 4 'int' values) where arithmetic or pointer type is required
+   56 |             float4 m2 = m0 < m1 ? m0 : m1;
+      |                         ~~~~~~~ ^
+results/all_tests_rerun_20260415_215652/s316_pipeline2/llmvec/candidate_round_1.c:57:33: error: used type '__attribute__((__vector_size__(4 * sizeof(int)))) int' (vector of 4 'int' values) where arithmetic or pointer type is required
+   57 |             float4 m3 = m2 < v3 ? m2 : v3;
+      |                         ~~~~~~~ ^
+results/all_tests_rerun_20260415_215652/s316_pipeline2/llmvec/candidate_round_1.c:64:29: error: used type '__attribute__((__vector_size__(4 * sizeof(int)))) int' (vector of 4 'int' values) where arithmetic or pointer type is required
+   64 |             vmin = vmin < v ? vmin : v;
+      |                    ~~~~~~~~ ^
+5 errors generated.

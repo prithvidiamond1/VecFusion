@@ -1,0 +1,4 @@
+- The scalar cleanup loop condition `i <= limit` incorrectly processes the last element where `a[i+1]` would be out-of-bounds when `i == LEN_1D - 1`.
+- Change the scalar loop condition to `i < limit` to ensure `a[i+1]` is within array bounds.
+- The vectorized main loop condition `i + 3 * vlen + 1 < LEN_1D` is correct for preventing out-of-bounds reads for `v3_next`.
+- The mismatch at index 77 suggests the scalar loop processed one extra element incorrectly, aligning with an off-by-one error at the array end.

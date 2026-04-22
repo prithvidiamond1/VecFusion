@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s319/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nfloat s319_opt(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)\n{\n    float sum;\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        sum = 0.;\n        float sum1 = 0., sum2 = 0.;\n        \n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = c[i] + d[i];\n            sum1 += a[i];\n        }\n        \n        for (int i = 0; i < LEN_1D; i++) {\n            b[i] = c[i] + e[i];\n            sum2 += b[i];\n        }\n        \n        sum = sum1 + sum2;\n    }\n    return sum;\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s222_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s222(int iterations, int LEN_1D, float*a, float*b, float*c, float* e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        /* a[i] += b[i]*c[i] then a[i] -= b[i]*c[i] in the same iteration:\n           net effect on a[] is zero, so no update needed. */\n\n        /* e[] has a loop-carried dependency: e[i] = e[i-1] * e[i-1] */\n        for (int i = 1; i < LEN_1D; i++) {\n            e[i] = e[i-1] * e[i-1];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 1",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 1",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s222_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s222",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s222_pipeline1/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s222_opt(int iterations, int LEN_1D, float*a, float*b, float*c, float* e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        for (int i = 1; i < LEN_1D; i++) {\n            e[i] = e[i - 1] * e[i - 1];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s222_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s222_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s222_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+The issue is that `aa[nl][i]` uses `nl` as the row index, but `nl` ranges from 0 to `iterations-1`, which can exceed 255 (the valid row range of `aa[256][256]`). The reference implementation uses `aa[nl % 256]` or simply `aa[0]` — more likely the original loop uses a fixed row or wraps. But the core correctness bug here is different: **the `s` variable carries over between outer `nl` iterations** — `s` is reset to `0.f` at the start of each `nl` iteration, which is correct.
+
+The real mismatch: the original benchmark `s258` has `aa` indexed as `aa[nl][i]` but `nl` goes up to `iterations` which may be > 256, causing out-of-bounds access and wrong values. The fix is to use `nl % 256` (or the correct modulo) for the `aa` row index.
+
+- **Fix `aa[nl][i+k]` → `aa[nl % 256][i+k]`** in all occurrences (both the unrolled block and the scalar tail loop), since `nl` can exceed 255 when `iterations > 256`, causing out-of-bounds reads that produce wrong results in `e[]` and indirectly wrong `b[]` if `s` is affected.
+
+Specifically, replace every `aa[nl][i+k]` with `aa[nl % 256][i+k]` and `aa[nl][i]` with `aa[nl % 256][i]`.

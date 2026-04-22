@@ -1,0 +1,2 @@
+- The `a[0] += tmp[0]` should be `a[0] = tmp[0]` (or match the reference). The reference loop `s242` likely initializes `a[i]` as a prefix sum of `tmp` without accumulating across outer `nl` iterations. Using `+=` on `a[0]` causes it to grow each `nl` iteration instead of being reset.
+- Change `a[0] += tmp[0];` to `a[0] = tmp[0];` so the prefix-sum recurrence starts fresh each outer iteration, matching the reference behavior.

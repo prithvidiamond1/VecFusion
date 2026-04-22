@@ -1,0 +1,1 @@
+- The mismatch indicates the scalar `s` carries state across iterations of the outer `nl` loop, but `s` should be reset to `0.f` at the start of each `nl` iteration (i.e., move `float s = 0.f;` inside the `nl` loop, before the `i` loop).

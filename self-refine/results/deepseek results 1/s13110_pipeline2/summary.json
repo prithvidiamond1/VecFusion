@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s13110_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s13110_opt(int iterations, float aa[256][256]) {\n    int xindex, yindex;\n    float max, chksum;\n    int outer_iters = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_iters; nl++) {\n        max = aa[0][0];\n        xindex = 0;\n        yindex = 0;\n        \n        // Process each row independently\n        for (int i = 0; i < 256; i++) {\n            float local_max = aa[i][0];\n            int local_yidx = 0;\n            float* row_ptr = aa[i];\n            \n            // Single pass through row with direct comparison\n            for (int j = 1; j < 256; j++) {\n                float current = row_ptr[j];\n                if (current > local_max) {\n                    local_max = current;\n                    local_yidx = j;\n                }\n            }\n            \n            // Compare row maximum with global maximum\n            if (local_max > max) {\n                max = local_max;\n                xindex = i;\n                yindex = local_yidx;\n            } else if (local_max == max) {\n                // Keep original semantics: only update if strictly greater\n                // No update needed when equal\n            }\n        }\n        \n        chksum = max + (float)xindex + (float)yindex;\n    }\n    return max + (float)(xindex + 1) + (float)(yindex + 1);\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s13110_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s13110_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s13110_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <float.h>\n\nfloat vectorized_s13110(int iterations, float aa[256][256]) {\n    int xindex, yindex;\n    float max, chksum;\n    int outer_iters = 100 * (iterations / 256);\n\n    for (int nl = 0; nl < outer_iters; nl++) {\n        max = aa[0][0];\n        xindex = 0;\n        yindex = 0;\n\n        for (int i = 0; i < 256; i++) {\n            float local_max = aa[i][0];\n            int local_yidx = 0;\n            float* row_ptr = aa[i];\n\n            // Unroll by 8 for vectorization-friendly code\n            // Process chunks of 8\n            int j = 1;\n            // We'll track 8 lanes of max values and indices\n            float vmax0 = -FLT_MAX, vmax1 = -FLT_MAX, vmax2 = -FLT_MAX, vmax3 = -FLT_MAX;\n            float vmax4 = -FLT_MAX, vmax5 = -FLT_MAX, vmax6 = -FLT_MAX, vmax7 = -FLT_MAX;\n            int vidx0 = 1, vidx1 = 2, vidx2 = 3, vidx3 = 4;\n            int vidx4 = 5, vidx5 = 6, vidx6 = 7, vidx7 = 8;\n\n            for (; j + 7 < 256; j += 8) {\n                float c0 = row_ptr[j+0];\n                float c1 = row_ptr[j+1];\n                float c2 = row_ptr[j+2];\n                float c3 = row_ptr[j+3];\n                float c4 = row_ptr[j+4];\n                float c5 = row_ptr[j+5];\n                float c6 = row_ptr[j+6];\n                float c7 = row_ptr[j+7];\n\n                if (c0 > vmax0) { vmax0 = c0; vidx0 = j+0; }\n                if (c1 > vmax1) { vmax1 = c1; vidx1 = j+1; }\n                if (c2 > vmax2) { vmax2 = c2; vidx2 = j+2; }\n                if (c3 > vmax3) { vmax3 = c3; vidx3 = j+3; }\n                if (c4 > vmax4) { vmax4 = c4; vidx4 = j+4; }\n                if (c5 > vmax5) { vmax5 = c5; vidx5 = j+5; }\n                if (c6 > vmax6) { vmax6 = c6; vidx6 = j+6; }\n                if (c7 > vmax7) { vmax7 = c7; vidx7 = j+7; }\n            }\n\n            // Reduce 8 lanes\n            if (vmax1 > vmax0) { vmax0 = vmax1; vidx0 = vidx1; }\n            if (vmax3 > vmax2) { vmax2 = vmax3; vidx2 = vidx3; }\n            if (vmax5 > vmax4) { vmax4 = vmax5; vidx4 = vidx5; }\n            if (vmax7 > vmax6) { vmax6 = vmax7; vidx6 = vidx7; }\n            if (vmax2 > vmax0) { vmax0 = vmax2; vidx0 = vidx2; }\n            if (vmax6 > vmax4) { vmax4 = vmax6; vidx4 = vidx6; }\n            if (vmax4 > vmax0) { vmax0 = vmax4; vidx0 = vidx4; }\n\n            // Compare with local_max (which is aa[i][0])\n            if (vmax0 > local_max) {\n                local_max = vmax0;\n                local_yidx = vidx0;\n            }\n\n            // Scalar cleanup tail\n            for (; j < 256; j++) {\n                float current = row_ptr[j];\n                if (current > local_max) {\n                    local_max = current;\n                    local_yidx = j;\n                }\n            }\n\n            if (local_max > max) {\n                max = local_max;\n                xindex = i;\n                yindex = local_yidx;\n            }\n        }\n\n        chksum = max + (float)xindex + (float)yindex;\n    }\n    return max + (float)(xindex + 1) + (float)(yindex + 1);\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s13110_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s13110",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s13110_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s13110_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s13110_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

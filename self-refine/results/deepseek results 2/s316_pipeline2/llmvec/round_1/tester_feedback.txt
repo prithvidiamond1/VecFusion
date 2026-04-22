@@ -1,0 +1,9 @@
+- The ternary operator `?:` doesn't work with vector types in Clang because the condition `va < vmin` produces an integer vector, not a scalar bool.
+- Replace `vmin = va < vmin ? va : vmin;` with the built-in vector min using `__builtin_elementwise_min(va, vmin)`, or use the bitwise select idiom: `vmin = (float8)(((int8)(va < vmin) & (int8)va) | (~(int8)(va < vmin) & (int8)vmin));`
+- The simplest correct fix is to use `__builtin_elementwise_min`:
+  ```c
+  vmin = __builtin_elementwise_min(va, vmin);
+  ```
+- Alternatively, define `int8` as `typedef int int8 __attribute__((vector_size(32)));` and use the mask-select pattern if `__builtin_elementwise_min` is unavailable in the target Clang version.
+- Also note: `typedef` inside a loop body (inside `for (int nl = ...)`) is legal but unusual; moving it outside the function body or to file scope avoids potential issues.
+- The unused variable `vec_end` should be removed to avoid `-Wunused-variable` warnings (which with `-Wall -Wextra` may cause issues depending on flags).

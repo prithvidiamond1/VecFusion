@@ -1,0 +1,7 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline2_20260421_230113/s341_pipeline2/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline2_20260421_230113/s341_pipeline2/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline2_20260421_230113/s341_pipeline2/llmvec/candidate_round_1.c:37:17: error: initializing 'int' with an expression of incompatible type '__attribute__((__vector_size__(8 * sizeof(int)))) int' (vector of 8 'int' values)
+   37 |             int mask = __builtin_convertvector(mask_vec, v8f32) != (v8f32){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+      |                 ^      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1 error generated.

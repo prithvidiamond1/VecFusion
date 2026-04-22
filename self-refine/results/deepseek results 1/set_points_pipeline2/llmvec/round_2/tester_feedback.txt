@@ -1,0 +1,18 @@
+Looking at the failure: the test reports a mismatch in parameter `src` at index 0 on trial 0. The function is writing into `src` (which appears to be an output array), but the logic is wrong.
+
+The original intent is that `src` stores the source pixel positions: `src[0] = srcStart`, then `src[1..divCount] = divs[0..divCount-1]`, then `src[divCount+1] = srcEnd`. The candidate is missing `src[0] = srcStart`.
+
+Key fixes needed:
+
+- **Add `src[0] = srcStart;`** — the candidate never sets `src[0]`, but the test expects it. This is the direct cause of "mismatch in src at index 0".
+
+- **The `use_normal` branch dstDelta logic is wrong**: when `use_normal` is true (normal scale), scalable segments should be multiplied by `scale` and fixed segments kept as-is (`(float)srcDelta`). But when `use_normal` is false (shrink), scalable segments should be zeroed (`0.0f`) and fixed segments scaled by `shrink_scale`. The current code has the `else` branch zeroing scalable segments correctly, but the `use_normal` branch applies `scale` to scalable and identity to fixed — that part looks correct. Double-check the shrink branch: fixed segments should use `scale * srcDelta` (not zero scalable), so the `else` branch has the scalable/fixed logic inverted relative to what `isScalable` means per segment.
+
+- **The `else` branch has inverted scalable logic**: `dstDelta[i] = s0 ? 0.0f : scale * srcDelta0` — this zeros scalable segments and scales fixed ones. It should be the opposite: zero scalable, scale fixed. Actually re-reading: `s0` is 1 when the segment IS scalable, so zeroing when `s0=1` is correct for shrink. This looks right. The `use_normal` branch should apply `scale` when scalable (`s0=1`) and identity when fixed — that also looks correct.
+
+- **The single concrete fix**: add `src[0] = srcStart;` immediately after `dst[0] = dstStart;`.
+
+```c
+dst[0] = dstStart;
+src[0] = srcStart;  // ADD THIS LINE
+```

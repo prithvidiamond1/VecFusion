@@ -1,0 +1,11 @@
+Looking at the failure: "Mismatch in parameter src on trial 0 at index 0"
+
+The issue is that `src[0]` is being set to `srcStart`, but the original scalar loop sets `src[0] = srcStart` correctly. However, the problem is that `src` and `dst` are output arrays indexed from 0, and the loop writes `src[i+1]` / `dst[i+1]` for `i` starting at 0. So `src[0]` and `dst[0]` are set before the loop — that part looks correct.
+
+Wait — the real bug: **`isScalableInt` is not toggled in the unrolled loop**. After 4 iterations, the parity of `isScalableInt` should flip by 0 (even number of flips), but the *starting* parity for the next group of 4 depends on whether `divCount` processed so far is even or odd. The unrolled loop hardcodes `s0 = isScalableInt`, `s1 = s0^1`, `s2 = s0`, `s3 = s0^1` — this is only correct if each group of 4 starts with the same parity. But `isScalableInt` is never updated between unrolled iterations, so if the loop runs multiple times of 4, the second group of 4 will use the wrong starting parity.
+
+- **Fix**: At the end of each unrolled iteration of 4, toggle `isScalableInt` by 0 (4 flips = no net change) — actually this is fine. But the *first* group assumes `s0 = isScalableInt` which is the initial value. The second group of 4 also starts with `s0 = isScalableInt` (unchanged) — correct since 4 flips = net 0.
+
+The actual bug: **`src[0] = srcStart` writes to index 0, but the test expects index 0 to remain unwritten or be set differently**. More likely: the function signature uses `src` as an output but the test passes a pre-filled array and `src[0]` should NOT be written (only `src[1]` through `src[divCount+1]`).
+
+- **Remove the lines `src[0] = srcStart;` and `dst[0] = dstStart;`** — these writes to index 0 are not part of the original scalar loop's contract; the original loop only writes `src[i+1]` and `dst[i+1]` for `i` in `[0, divCount)`, plus `src[divCount+1]` and `dst[divCount+1]`.

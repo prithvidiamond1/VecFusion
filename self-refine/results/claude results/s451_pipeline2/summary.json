@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s451_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s451_opt(int iterations, int LEN_1D, float* __restrict__ a, float* __restrict__ b, float* __restrict__ c)\n{\n    for (int nl = 0; nl < iterations/5; nl++) {\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = sinf(b[i]) + cosf(c[i]);\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s451_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s451_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s451_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <math.h>\n\nvoid vectorized_s451(int iterations, int LEN_1D, float* __restrict__ a, float* __restrict__ b, float* __restrict__ c)\n{\n    for (int nl = 0; nl < iterations/5; nl++) {\n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 4);\n        for (; i < limit; i += 4) {\n            a[i+0] = sinf(b[i+0]) + cosf(c[i+0]);\n            a[i+1] = sinf(b[i+1]) + cosf(c[i+1]);\n            a[i+2] = sinf(b[i+2]) + cosf(c[i+2]);\n            a[i+3] = sinf(b[i+3]) + cosf(c[i+3]);\n        }\n        for (; i < LEN_1D; i++) {\n            a[i] = sinf(b[i]) + cosf(c[i]);\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile failed.\n            Command: clang results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4\n            stderr:\n            results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:55: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                       ^\nresults/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:89: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                                                         ^\nresults/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:123: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                                                                                           ^\nresults/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:157: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                                                                                                                             ^\nresults/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:191: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                                                                                                                                                               ^\nresults/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:225: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                                                                                                                                                                                                 ^\n6 errors generated.",
+      "unit_test_output": "Compile failed.\n            Command: clang results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4\n            stderr:\n            results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:55: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                       ^\nresults/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:89: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                                                         ^\nresults/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:123: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                                                                                           ^\nresults/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:157: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                                                                                                                             ^\nresults/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:191: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                                                                                                                                                               ^\nresults/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/candidate_round_4.c:62:225: error: restrict requires a pointer or reference ('float' is invalid)\n   62 |             int iterations = 5; int LEN_1D = n; float __restrict__ a_scalar[128]; float __restrict__ a_vector[128]; float __restrict__ b_scalar[128]; float __restrict__ b_vector[128]; float __restrict__ c_scalar[128]; float __restrict__ c_vector[128];\n      |                                                                                                                                                                                                                                 ^\n6 errors generated.",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s451",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s451_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s451(int iterations,int LEN_1D, float* a, float *b, float* c)\n{\n    for (int nl = 0; nl < iterations/5; nl++) {\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = sinf(b[i]) + cosf(c[i]);\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s451_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

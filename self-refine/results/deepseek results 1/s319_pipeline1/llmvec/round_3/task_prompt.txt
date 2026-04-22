@@ -1,0 +1,89 @@
+Revise your candidate for `s319` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s319(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)
+{
+    float sum;
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        sum = 0.;
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum += a[i];
+            b[i] = c[i] + e[i];
+            sum += b[i];
+        }
+    }
+    return sum;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)
+{
+    typedef float float4 __attribute__((vector_size(16)));
+
+    float sum;
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        sum = 0.0f;
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+
+        float4 vsum0 = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        for (; i < limit; i += 4) {
+            float4 vc, vd, ve, va, vb;
+
+            vc = (float4){c[i], c[i+1], c[i+2], c[i+3]};
+            vd = (float4){d[i], d[i+1], d[i+2], d[i+3]};
+            ve = (float4){e[i], e[i+1], e[i+2], e[i+3]};
+
+            va = vc + vd;
+            vb = vc + ve;
+
+            a[i]   = va[0]; a[i+1] = va[1]; a[i+2] = va[2]; a[i+3] = va[3];
+            b[i]   = vb[0]; b[i+1] = vb[1]; b[i+2] = vb[2]; b[i+3] = vb[3];
+
+            vsum0 += va;
+        }
+
+        sum = vsum0[0] + vsum0[1] + vsum0[2] + vsum0[3];
+
+        for (; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum += a[i];
+            b[i] = c[i] + e[i];
+        }
+    }
+    return sum;
+}
+        ```
+
+        Tester feedback:
+        The scalar tail loop computes `sum += a[i]` (which is `c[i] + d[i]`), matching the vectorized loop's `vsum0 += va` (where `va = c + d`). That part is consistent.
+
+The problem is in the **vectorized loop**: it accumulates `va` (i.e., `c[i] + d[i]`) into `vsum0`, but the **reference scalar loop** for s319 accumulates `a[i]` **after** `a[i]` is set — which is the same value. So the sum logic itself is correct.
+
+The real mismatch: the reference s319 likely sums **only `a[i]`** but the scalar tail loop here does `sum += a[i]` while the vectorized body does `vsum0 += va` — these match. Let me look more carefully:
+
+- The vectorized loop accumulates `va = c[i] + d[i]` into `vsum0`, then stores `va` into `a[i]`. ✓
+- The scalar tail does `a[i] = c[i] + d[i]; sum += a[i];` ✓
+
+The bug is that `sum` is initialized to `0.0f` **before** the vectorized loop but then **overwritten** by the horizontal reduction `sum = vsum0[0] + ...` — discarding the initial `0.0f`. That's fine. But the scalar tail adds to `sum` after the reduction. That's also fine.
+
+The actual issue: **`b[i]` in the vectorized loop uses `vb = vc + ve`**, but the reference scalar loop sets `b[i] = c[i] + e[i]` — those match. 
+
+The real bug: the vectorized loop accumulates `va` into `vsum0` **but does not add `b[i]`** — which is correct if only `a` is summed. Check if the reference sums both `a[i]` and `b[i]`.
+
+- Fix: the reference s319 sums `a[i] * b[i]` or similar — check the original. Most likely the sum should be `sum += a[i] * b[i]`. Update both the vectorized accumulation (`vsum0 += va * vb`) and the scalar tail (`sum += a[i] * b[i]`).
+
+**Specific fixes:**
+
+- Change `vsum0 += va;` to `vsum0 += va * vb;` in the vectorized loop.
+- Change `sum += a[i];` to `sum += a[i] * b[i];` in the scalar tail loop (where `b[i]` has already been set to `c[i] + e[i]`).
+
+        Return a corrected candidate function named `vectorized_s319`.

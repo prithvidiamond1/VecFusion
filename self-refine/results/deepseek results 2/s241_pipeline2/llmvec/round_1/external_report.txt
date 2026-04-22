@@ -1,0 +1,4 @@
+Compile succeeded for round 1.
+Exit code: 2
+stderr:
+Mismatch in parameter a on trial 0 at index 126

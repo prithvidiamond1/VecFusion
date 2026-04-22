@@ -1,0 +1,63 @@
+
+Revise your candidate for `s482` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s482(int iterations,int LEN_1D, float* a, float *b, float *c)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] += b[i] * c[i];
+            if (c[i] > b[i]) break;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+typedef int int32_t4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s482(int iterations, int LEN_1D, float* a, float *b, float *c) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        // Vectorized main loop
+        for (; i <= LEN_1D - 4; i += 4) {
+            float32_t va = *(float32_t*)(a + i);
+            float32_t vb = *(float32_t*)(b + i);
+            float32_t vc = *(float32_t*)(c + i);
+            va += vb * vc;
+            *(float32_t*)(a + i) = va;
+
+            // Check break condition for each element
+            int32_t4 cmp = vc > vb;
+            int32_t4 mask = cmp;
+            int scalar_mask = __builtin_reduce_or(mask);
+            if (scalar_mask) {
+                // Find first true element
+                int first = __builtin_ctz((unsigned int)scalar_mask);
+                i += first;
+                goto end_loop;
+            }
+        }
+        // Scalar cleanup
+        for (; i < LEN_1D; i++) {
+            a[i] += b[i] * c[i];
+            if (c[i] > b[i]) break;
+        }
+        end_loop:;
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a correctness bug in the early-exit logic.
+
+- The `goto end_loop` inside the vectorized loop incorrectly exits only the inner loop, but the scalar cleanup loop after it still runs, corrupting results when a break condition triggers early.
+- The `i += first` adjustment is wrong: `first` is the bit position of the first true element within the 4-element vector, but `i` is already at the start of the current vector chunk, so `i += first` skips elements that should have been processed.
+- Fix: replace the `goto end_loop` with a proper `break` that exits only the vectorized loop, and remove the `i += first` adjustment — the scalar cleanup loop will handle the remaining elements correctly starting from the current `i`.
+
+        Return a corrected candidate function named `vectorized_s482`.

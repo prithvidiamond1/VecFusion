@@ -1,0 +1,39 @@
+```c
+#include <stdint.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {
+    float sum = 0.0f;
+    int total_iters = 2 * iterations;
+    for (int nl = 0; nl < total_iters; nl++) {
+        float local_sum = 0.0f;
+        int i = 0;
+        // Vectorized loop
+        for (; i + 4 <= LEN_1D; i += 4) {
+            float32_t c_vec = *(float32_t *)(c + i);
+            float32_t d_vec = *(float32_t *)(d + i);
+            float32_t e_vec = *(float32_t *)(e + i);
+            
+            float32_t a_vec = c_vec + d_vec;
+            float32_t b_vec = c_vec + e_vec;
+            
+            *(float32_t *)(a + i) = a_vec;
+            *(float32_t *)(b + i) = b_vec;
+            
+            // Horizontal sum of a_vec and b_vec
+            float32_t sum_vec = a_vec + b_vec;
+            local_sum += sum_vec[0] + sum_vec[1] + sum_vec[2] + sum_vec[3];
+        }
+        // Scalar cleanup
+        for (; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            local_sum += a[i];
+            b[i] = c[i] + e[i];
+            local_sum += b[i];
+        }
+        sum += local_sum;
+    }
+    return sum;
+}
+```

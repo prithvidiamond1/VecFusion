@@ -1,0 +1,27 @@
+```c
+#include <stddef.h>
+
+typedef float v4sf __attribute__((__vector_size__(16)));
+
+void vectorized_s114(int iterations, float aa[256][256], float bb[256][256])
+{
+    int outer_iters = 200 * (iterations / 256);
+    for (int nl = 0; nl < outer_iters; nl++) {
+        for (int i = 0; i < 256; i++) {
+            int j = 0;
+            for (; j + 4 <= i; j += 4) {
+                v4sf aa_ji = { aa[j][i], aa[j+1][i], aa[j+2][i], aa[j+3][i] };
+                v4sf bb_ij = { bb[i][j], bb[i][j+1], bb[i][j+2], bb[i][j+3] };
+                v4sf sum = aa_ji + bb_ij;
+                aa[i][j] = sum[0];
+                aa[i][j+1] = sum[1];
+                aa[i][j+2] = sum[2];
+                aa[i][j+3] = sum[3];
+            }
+            for (; j < i; j++) {
+                aa[i][j] = aa[j][i] + bb[i][j];
+            }
+        }
+    }
+}
+```

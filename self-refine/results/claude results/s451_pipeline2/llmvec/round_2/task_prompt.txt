@@ -1,0 +1,50 @@
+Revise your candidate for `s451` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s451(int iterations, int LEN_1D, float* __restrict__ a, float* __restrict__ b, float* __restrict__ c)
+{
+    for (int nl = 0; nl < iterations/5; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = sinf(b[i]) + cosf(c[i]);
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+
+void vectorized_s451(int iterations, int LEN_1D, float* __restrict__ a, float* __restrict__ b, float* __restrict__ c)
+{
+    for (int nl = 0; nl < iterations/5; nl++) {
+        int i = 0;
+#if defined(__clang__) || defined(__GNUC__)
+        typedef float float4 __attribute__((vector_size(16)));
+        int limit = LEN_1D - (LEN_1D % 4);
+        for (; i < limit; i += 4) {
+            a[i+0] = sinf(b[i+0]) + cosf(c[i+0]);
+            a[i+1] = sinf(b[i+1]) + cosf(c[i+1]);
+            a[i+2] = sinf(b[i+2]) + cosf(c[i+2]);
+            a[i+3] = sinf(b[i+3]) + cosf(c[i+3]);
+        }
+#endif
+        for (; i < LEN_1D; i++) {
+            a[i] = sinf(b[i]) + cosf(c[i]);
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The errors are in the test harness code (line 65), not in the candidate function itself. The test harness declares stack arrays with `__restrict__` which is invalid in C11 for non-pointer types. However, since the candidate code is being concatenated with a test harness, the vectorizer's output must avoid introducing this issue or the harness template has this bug.
+
+Looking at the errors: they're all on line 65 in the test harness, not in the candidate function. The candidate function itself looks correct. The issue is the test harness uses `float __restrict__ a_scalar[128]` — `__restrict__` cannot be applied to array declarations directly.
+
+- The test harness (not the candidate) declares `float __restrict__ a_scalar[128]` etc., which is invalid — `__restrict__` only applies to pointers, not array variables. Change these to plain `float a_scalar[128]` (remove `__restrict__` from array declarations in the harness).
+- Since the candidate code is what the vectorizer controls, and the harness is auto-generated, the vectorizer pipeline must be generating the harness with `__restrict__` on array types — fix the harness generator to only emit `__restrict__` on pointer declarations, not on stack array declarations.
+- The candidate function signature itself (`float* __restrict__ a`) is correct and does not need changes.
+- No changes are needed to the vectorized loop body — the unrolled sin/cos pattern is valid.
+
+        Return a corrected candidate function named `vectorized_s451`.

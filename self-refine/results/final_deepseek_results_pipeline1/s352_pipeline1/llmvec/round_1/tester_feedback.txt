@@ -1,0 +1,8 @@
+Based on the compile/test report:
+
+- The code compiles successfully but produces incorrect results (return mismatch)
+- The main loop uses `i <= LEN_1D - 4` as the vector loop bound, which is incorrect for non-multiple-of-4 lengths
+- When `LEN_1D` is not a multiple of 4, the vector loop may process elements beyond the array bounds or miss elements
+- Fix: Change the vector loop bound from `i <= LEN_1D - 4` to `i < LEN_1D - 3` to ensure safe vectorized access
+- The scalar tail loop correctly handles remaining elements, but the vector loop bound must be strictly less than the last safe starting position
+- Verify that the alignment assumption `*(v4sf*)(a + i)` is valid for all `i` values reached in the vector loop

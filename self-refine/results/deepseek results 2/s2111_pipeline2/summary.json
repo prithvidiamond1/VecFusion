@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s2111_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s2111_opt(int iterations, float aa[256][256]) {\n    int loop_count = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < loop_count; nl++) {\n        // Process first row (j=1) separately\n        float left_val = aa[1][0];\n        for (int i = 1; i < 256; i++) {\n            float new_val = (left_val + aa[0][i]) / 1.9f;\n            left_val = new_val;\n            aa[1][i] = new_val;\n        }\n        \n        // Process remaining rows (j=2 to 255)\n        for (int j = 2; j < 256; j++) {\n            // Copy previous row to temporary array\n            float prev_row[256];\n            for (int k = 0; k < 256; k++) {\n                prev_row[k] = aa[j-1][k];\n            }\n            \n            // Process current row\n            float left = aa[j][0];\n            for (int i = 1; i < 256; i++) {\n                float new_val = (left + prev_row[i]) / 1.9f;\n                left = new_val;\n                aa[j][i] = new_val;\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s2111_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s2111_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s2111_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s2111(int iterations, float aa[256][256]) {\n    int loop_count = 100 * (iterations / 256);\n\n    for (int nl = 0; nl < loop_count; nl++) {\n        // Process first row (j=1) separately\n        // This loop has a carried dependency (left_val depends on previous iteration)\n        // so we cannot vectorize it directly; keep scalar\n        float left_val = aa[1][0];\n        for (int i = 1; i < 256; i++) {\n            float new_val = (left_val + aa[0][i]) / 1.9f;\n            left_val = new_val;\n            aa[1][i] = new_val;\n        }\n\n        // Process remaining rows (j=2 to 255)\n        for (int j = 2; j < 256; j++) {\n            // Copy previous row to temporary array using memcpy (vectorizable)\n            float prev_row[256];\n            memcpy(prev_row, aa[j-1], 256 * sizeof(float));\n\n            // Process current row - scalar due to carried dependency on left\n            float left = aa[j][0];\n            for (int i = 1; i < 256; i++) {\n                float new_val = (left + prev_row[i]) / 1.9f;\n                left = new_val;\n                aa[j][i] = new_val;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s2111_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s2111",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s2111_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s2111_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s2111_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

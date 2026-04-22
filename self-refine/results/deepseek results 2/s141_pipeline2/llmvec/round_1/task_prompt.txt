@@ -1,0 +1,19 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Vectorize the scalar C function `s141` below.
+
+        Scalar source:
+        ```c
+        k = base_k;
+for (int j = i; j < 256; j++) {
+    k_offsets[i][j] = k;
+    k += j + 1;
+}
+        ```
+
+        Produce a candidate function named `vectorized_s141`.

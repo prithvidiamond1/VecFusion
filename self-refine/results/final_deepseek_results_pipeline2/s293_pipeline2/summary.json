@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s293_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s293_opt(int iterations, int LEN_1D, float* a) {\n    float temp = a[0];\n    for (int i = 0; i < LEN_1D; i++) {\n        a[i] = temp;\n    }\n    // The outer loop does nothing after first iteration\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s293_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s293_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s293_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "typedef float float4 __attribute__((ext_vector_type(4)));\n\nvoid vectorized_s293(int iterations, int LEN_1D, float* a) {\n    float temp = a[0];\n    \n    // Vectorized main loop\n    int i = 0;\n    float4 temp_vec = (float4){temp, temp, temp, temp};\n    int limit = LEN_1D - (LEN_1D % 4);\n    \n    for (; i < limit; i += 4) {\n        *(float4*)&a[i] = temp_vec;\n    }\n    \n    // Scalar cleanup tail\n    for (; i < LEN_1D; i++) {\n        a[i] = temp;\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s293_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s293",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s293_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s293_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s293_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s293_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

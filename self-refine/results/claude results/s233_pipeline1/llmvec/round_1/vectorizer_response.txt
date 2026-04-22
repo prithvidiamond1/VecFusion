@@ -1,0 +1,53 @@
+```c
+#include <stdint.h>
+
+void vectorized_s233(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+{
+    for (int nl = 0; nl < 100*(iterations/256); nl++) {
+        for (int i = 1; i < 256; i++) {
+            // First loop: aa[j][i] = aa[j-1][i] + cc[j][i]
+            // This is a sequential dependency on j, so we process scalar
+            // but unroll to help the compiler
+            int j = 1;
+            for (; j <= 252; j += 4) {
+                aa[j][i]   = aa[j-1][i]   + cc[j][i];
+                aa[j+1][i] = aa[j][i]     + cc[j+1][i];
+                aa[j+2][i] = aa[j+1][i]   + cc[j+2][i];
+                aa[j+3][i] = aa[j+2][i]   + cc[j+3][i];
+            }
+            for (; j < 256; j++) {
+                aa[j][i] = aa[j-1][i] + cc[j][i];
+            }
+
+            // Second loop: bb[j][i] = bb[j][i-1] + cc[j][i]
+            // No dependency on j, so we can vectorize across j
+            j = 1;
+#if defined(__clang__) || defined(__GNUC__)
+            typedef float float4 __attribute__((vector_size(16)));
+            for (; j <= 252; j += 4) {
+                float4 bv, cv;
+                // Load bb[j..j+3][i-1]
+                bv[0] = bb[j][i-1];
+                bv[1] = bb[j+1][i-1];
+                bv[2] = bb[j+2][i-1];
+                bv[3] = bb[j+3][i-1];
+                // Load cc[j..j+3][i]
+                cv[0] = cc[j][i];
+                cv[1] = cc[j+1][i];
+                cv[2] = cc[j+2][i];
+                cv[3] = cc[j+3][i];
+                // Compute
+                float4 res = bv + cv;
+                bb[j][i]   = res[0];
+                bb[j+1][i] = res[1];
+                bb[j+2][i] = res[2];
+                bb[j+3][i] = res[3];
+            }
+#endif
+            for (; j < 256; j++) {
+                bb[j][i] = bb[j][i-1] + cc[j][i];
+            }
+        }
+    }
+}
+```

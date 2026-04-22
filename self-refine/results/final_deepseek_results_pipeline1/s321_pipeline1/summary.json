@@ -1,0 +1,28 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s321_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s321(int iterations, int LEN_1D, float* a, float* b) {\n    for (int nl = 0; nl < iterations; nl++) {\n        for (int i = 1; i < LEN_1D; i++) {\n            a[i] += a[i-1] * b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 3.",
+      "compile_feedback": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 3,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s321_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s321",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s321_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s321_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_pipeline1_20260422_044515/s321_pipeline1/llmvec/candidate_round_3.c",
+        "binary_path": "results/all_tests_pipeline1_20260422_044515/s321_pipeline1/llmvec/candidate_round_3"
+      }
+    }
+  ]
+}

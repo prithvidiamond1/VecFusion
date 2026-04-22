@@ -1,0 +1,12 @@
+- The program compiled but exited with code -6 (often SIGABRT), indicating a runtime crash, likely due to out-of-bounds array access or stack overflow from large VLAs.
+- The function uses VLAs `srcDelta[divCount]` and `dstDelta[divCount]`; if `divCount` is large, this can overflow the stack, causing a crash.
+- The loop `for (; i + 3 < divCount; i += 4)` in the `srcDelta` computation reads `src[i]` and `src[i + 1]`. When `i = divCount - 1`, `src[i + 1]` accesses `src[divCount]`, which is within bounds because `src` must have at least `divCount+2` elements (as commented). However, the vectorized loop condition `i + 3 < divCount` ensures the last vector group stops early, so the scalar tail handles the remaining indices safely. This appears correct.
+- The cumulative sum loop writes to `dst[i + 1]` for `i` up to `divCount-1`, so the last write is `dst[divCount]`. Combined with the final assignment `dst[divCount + 1] = dstEnd`, `dst` must have at least `divCount+2` elements. The caller must guarantee this; if not, it's a buffer overflow.
+- The crash could be due to `divCount` being very large, causing VLA allocation to exceed stack size. Replace VLAs with heap allocation or ensure `divCount` is bounded.
+- The vectorized loop for `dstDelta` uses ternary operators on vector scalars (`scalable_flag[0] ? ...`), which is not valid SIMD; it will compile to scalar code inside the loop, breaking vectorization. Use `__builtin_shufflevector` or blend operations instead.
+- The alternating pattern logic depends on `start_mask` and `i`, but the vectorized version uses `i` from the loop counter to create `pattern`, which is correct. However, the ternary selection in SIMD is problematic.
+- The function assumes `divCount > 0` due to the early guard, but if `divCount` is positive and large, the VLAs may still crash.
+
+**Smallest concrete fixes:**
+1. Replace VLAs `srcDelta` and `dstDelta` with dynamic heap allocation using `malloc`/`free` to avoid stack overflow for large `divCount`.
+2. Fix the SIMD conditional selection in the `dstDelta` vectorized loop: use `v4f effective_scale = (v4f)__builtin_shufflevector((v4f){scale_fixed, scale_scalable, ...}, ...)` or a blend pattern instead of per-lane ternary operators.

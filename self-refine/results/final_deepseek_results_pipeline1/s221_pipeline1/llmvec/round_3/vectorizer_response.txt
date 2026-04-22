@@ -1,0 +1,39 @@
+```c
+#include <stddef.h>
+
+typedef float float_vec __attribute__((__vector_size__(16)));
+
+void vectorized_s221(int iterations, int LEN_1D, float *a, float *b, float *c, float *d) {
+    int total_iters = iterations;
+    for (int nl = 0; nl < total_iters; nl++) {
+        int i = 1;
+        a[i] += c[i] * d[i];
+        b[i] = b[i - 1] + a[i] + d[i];
+        i = 2;
+
+        for (; i <= LEN_1D - 4; i += 4) {
+            float_vec va = *(float_vec *)&a[i];
+            float_vec vc = *(float_vec *)&c[i];
+            float_vec vd = *(float_vec *)&d[i];
+            float_vec vb_prev = *(float_vec *)&b[i - 1];
+
+            va = va + vc * vd;
+            *(float_vec *)&a[i] = va;
+
+            float temp_b = vb_prev[3] + va[0] + vd[0];
+            b[i] = temp_b;
+            temp_b = temp_b + va[1] + vd[1];
+            b[i + 1] = temp_b;
+            temp_b = temp_b + va[2] + vd[2];
+            b[i + 2] = temp_b;
+            temp_b = temp_b + va[3] + vd[3];
+            b[i + 3] = temp_b;
+        }
+
+        for (; i < LEN_1D; i++) {
+            a[i] += c[i] * d[i];
+            b[i] = b[i - 1] + a[i] + d[i];
+        }
+    }
+}
+```

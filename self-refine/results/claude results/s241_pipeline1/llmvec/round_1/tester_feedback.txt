@@ -1,0 +1,19 @@
+The test reveals a correctness mismatch. The key issue is the **split into two passes is wrong** — the original loop computes `a[i]` and `b[i]` together in a single pass, where `b[i]` uses the **old** (not yet updated) `a[i+1]`. By splitting into two passes, the second pass uses the **newly updated** `a[i+1]` instead of the original value, changing the semantics.
+
+- **Root cause**: The original loop `a[i] = b[i]*c[i]*d[i]; b[i] = a[i]*a[i+1]*d[i]` uses the old `a[i+1]` (not yet overwritten in iteration `i`). Splitting into two passes makes `b[i]` use the new `a[i+1]`, which is incorrect.
+
+- **Fix**: Keep a single fused loop pass (no split). Process each `i` together: compute `a[i]` first, then immediately compute `b[i]` using the just-written `a[i]` and the **not-yet-updated** `a[i+1]`. This matches the original semantics exactly.
+
+- **Specifically**: Replace the two-pass structure with a single unrolled loop that does both assignments per index `i` in order, e.g.:
+  ```c
+  for (i = 0; i < limit8; i += 8) {
+      a[i+0] = b[i+0]*c[i+0]*d[i+0]; b[i+0] = a[i+0]*a[i+1]*d[i+0];
+      a[i+1] = b[i+1]*c[i+1]*d[i+1]; b[i+1] = a[i+1]*a[i+2]*d[i+1];
+      // ... etc.
+  }
+  ```
+  Here `a[i+1]` in `b[i+0]` is still the old value because it hasn't been overwritten yet in this iteration.
+
+- **Remove** the separate first-pass and second-pass loops entirely and replace with this single fused unrolled loop plus a scalar cleanup loop with the same fused pattern.
+
+- **The `limit8` computation** (`limit - (limit % 8)`) is correct and can be kept as-is.

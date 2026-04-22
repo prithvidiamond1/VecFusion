@@ -1,0 +1,37 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s343_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": false,
+      "candidate_code": "flat_2d_array[store_idx] = do_store ? store_val : flat_2d_array[store_idx];",
+      "summary": "VecTrans emitted a C snippet, not a full function. Rejecting it as a pipeline handoff candidate.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s343_pipeline2/vectrans/vectrans_non_function_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s343_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s343_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s343(int iterations,float * flat_2d_array, float aa[256][256], float bb[256][256])\n{\n    int k;\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        k = -1;\n        for (int i = 0; i < 256; i++) {\n            for (int j = 0; j < 256; j++) {\n                if (bb[j][i] > (float)0.) {\n                    k++;\n                    flat_2d_array[k] = aa[j][i];\n                }\n            }\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s343_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

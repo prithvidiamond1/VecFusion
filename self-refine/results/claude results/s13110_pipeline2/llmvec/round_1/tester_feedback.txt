@@ -1,0 +1,3 @@
+- The file contains a stray ` ```c ` marker at line 64 (inside the function body) — remove it entirely.
+- The function body is truncated: the closing `return chksum;` and `}` are missing — add `return chksum;` followed by the closing `}` of the function.
+- The outer ```` ```c ```` fence at the very top of the file (before `#include`) must also be removed so the file is pure C.

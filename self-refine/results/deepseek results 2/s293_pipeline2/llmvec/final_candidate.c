@@ -1,0 +1,23 @@
+#include <string.h>
+
+void vectorized_s293(int iterations, int LEN_1D, float* a)
+{
+    float temp = a[0];
+    int total_outer = 4 * iterations;
+
+    for (int nl = 0; nl < total_outer; nl++) {
+        int i = 0;
+        // Vectorized fill using 4-wide float vector
+        typedef float float4 __attribute__((vector_size(16)));
+        float4 vtemp = {temp, temp, temp, temp};
+        float4* va = (float4*)__builtin_assume_aligned(a, 16);
+        int vec_len = LEN_1D / 4;
+        for (int vi = 0; vi < vec_len; vi++) {
+            va[vi] = vtemp;
+        }
+        // Scalar tail
+        for (i = vec_len * 4; i < LEN_1D; i++) {
+            a[i] = temp;
+        }
+    }
+}

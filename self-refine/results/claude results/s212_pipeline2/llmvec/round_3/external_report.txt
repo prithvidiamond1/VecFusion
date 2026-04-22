@@ -1,0 +1,10 @@
+Compile failed.
+            Command: clang results/all_tests_rerun_20260415_215652/s212_pipeline2/llmvec/candidate_round_3.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s212_pipeline2/llmvec/candidate_round_3
+            stderr:
+            results/all_tests_rerun_20260415_215652/s212_pipeline2/llmvec/candidate_round_3.c:97:17: error: redefinition of 'n' with a different type: 'int' vs 'const int'
+   97 |             int n = n; float a_scalar[128]; float a_vector[128]; float b_scalar[128]; float b_vector[128]; float c_scalar[128]; float c_vector[128]; float d_scalar[128]; float d_vector[128];
+      |                 ^
+results/all_tests_rerun_20260415_215652/s212_pipeline2/llmvec/candidate_round_3.c:95:23: note: previous definition is here
+   95 |             const int n = 128;
+      |                       ^
+1 error generated.

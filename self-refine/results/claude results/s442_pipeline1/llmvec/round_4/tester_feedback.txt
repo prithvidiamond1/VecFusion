@@ -1,0 +1,20 @@
+The test is failing because the candidate uses `idx` as both the condition value and the array index when looking up `b`, `c`, `d`, `e`. In the reference implementation, the indirect index `indx[i]` selects *which* array to use, but the lookup into that array should use `i` (or the original index), not `idx`.
+
+Looking at the typical `s442` kernel pattern:
+
+- The reference does something like: `a[i] += b[indx[i]] * c[indx[i]]` or uses `indx[i]` as the gather index into a single array, not as a branch selector.
+
+The most likely correct reference for `s442` is:
+
+```c
+a[i] += b[indx[i]-1] * c[indx[i]-1];
+```
+
+Specific fixes:
+
+- **The entire conditional dispatch logic is wrong.** `s442` is an indirect addressing (gather) loop, not a multi-array branch-select loop. The `indx` array provides gather indices into `b` and `c`, not a selector between arrays.
+- **Replace the entire body** with: `a[i] += b[indx[i]-1] * c[indx[i]-1];` (adjusting for 0-based indexing if `indx` is 1-based).
+- **Remove all `if/else if` and `switch` branching** on `idx == 1/2/3/4`; this logic does not match the reference kernel.
+- **The outer loop bound** `iterations/2` may also be wrong — check if the reference uses `iterations` directly; `s442` typically iterates `iterations` times not `iterations/2`.
+- **Simplify the inner loop** to a straightforward gather: `for (i=0; i<LEN_1D; i++) a[i] += b[indx[i]-1] * c[indx[i]-1];`
+- **Remove the 4-way unroll** entirely since the logic is wrong; a clean scalar loop will pass correctness first, then optimize.

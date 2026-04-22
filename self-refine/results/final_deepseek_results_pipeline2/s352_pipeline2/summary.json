@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s352_pipeline2/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s352_opt(int iterations,int LEN_1D, float* a, float *b)\n{\n    float dot;\n    for (int nl = 0; nl < 8*iterations; nl++) {\n        dot = 0.0f;\n        \n        // Create multiple partial sums to break dependency chain\n        float dot0 = 0.0f, dot1 = 0.0f, dot2 = 0.0f, dot3 = 0.0f, dot4 = 0.0f;\n        \n        // Process groups of 5 elements with 5 independent accumulators\n        int i;\n        for (i = 0; i + 4 < LEN_1D; i += 5) {\n            // Each accumulator handles one element from the group\n            dot0 += a[i] * b[i];\n            dot1 += a[i + 1] * b[i + 1];\n            dot2 += a[i + 2] * b[i + 2];\n            dot3 += a[i + 3] * b[i + 3];\n            dot4 += a[i + 4] * b[i + 4];\n        }\n        \n        // Combine partial sums\n        dot = dot0 + dot1 + dot2 + dot3 + dot4;\n        \n        // Handle remaining elements (if any)\n        for (; i < LEN_1D; i++) {\n            dot += a[i] * b[i];\n        }\n    }\n    return dot;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s352_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s352_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s352_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "float vectorized_s352(int iterations, int LEN_1D, float* a, float *b) {\n    float dot = 0.0f;\n    \n    for (int nl = 0; nl < 8 * iterations; nl++) {\n        float partial_dot = 0.0f;\n        \n        // Process all elements sequentially in a single loop\n        for (int i = 0; i < LEN_1D; i++) {\n            partial_dot += a[i] * b[i];\n        }\n        \n        dot = partial_dot;\n    }\n    \n    return dot;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s352_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s352",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s352_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s352_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    }
+  ]
+}

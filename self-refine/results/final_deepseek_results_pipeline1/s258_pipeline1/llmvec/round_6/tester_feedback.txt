@@ -1,0 +1,9 @@
+The vectorizer has a correctness bug in the **state update logic** between vector chunks.
+
+**Fixes needed:**
+
+1. **Fix the `s` update across chunks** – The current code uses `cur_s` (captured before the inner loop) when no positive `a` is found, but `cur_s` may have been modified by the inner loop. Save the initial `s` value *before* the inner loop, not after.
+
+2. **Correct the backward scan** – The backward scan for the last positive `a` uses `d_vec[j] * d_vec[j]` but should use the *updated* `s` value from the inner loop, not recompute from `d_vec`. The inner loop already computed `s_vec[j]` which is the correct `s` for that position.
+
+3. **Simplify state propagation** – Replace the backward scan with a simple forward scan: after the inner loop, set `s = s_vec[3]` (the last element's `s` value), which correctly reflects the last positive `a` in the chunk.

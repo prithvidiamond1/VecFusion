@@ -1,0 +1,7 @@
+- The vectorized loop body incorrectly computes `dst[0]` by overwriting it with `dst_new` from the previous iteration. The scalar code sets `dst[0] = dstStart` before the loop, but the vectorized version writes `*(float32x4_t*)(dst + i + 1)` starting at `i=0`, which writes to `dst[1]` through `dst[4]` — correct. However, the initial `dst[0]` is set before the loop, so the mismatch at index 0 suggests the vectorized loop is also writing to `dst[0]` via the `dst_prev` load or the store offset is wrong.
+
+- Fix: Ensure the vectorized loop’s store `*(float32x4_t*)(dst + i + 1)` does not alias `dst[0]`. The loop starts at `i=0`, so `i+1=1` is correct. The mismatch at index 0 likely comes from the scalar epilogue or the initial assignment being skipped. Check that the vectorized loop condition `i + 4 <= divCount` is correct when `divCount >= 4` and that the epilogue handles remaining elements without re‑touching index 0.
+
+- The `isScalable` toggle inside the vectorized loop is incorrect: it toggles once per 4‑element chunk, but the scalar loop toggles per element. This causes the wrong branch‑dependent semantics for `s0..s3` in subsequent chunks. Fix: compute `s0..s3` per element based on the original per‑element `isScalable` state, not a single toggle per chunk.
+
+- The derived trip count `(divCount - i) / 4` is sound, but the loop body’s `isScalable` update must be replicated for each lane. Either unroll the toggle per element or compute `s0..s3` from the initial `isScalable` and the element index modulo 2.

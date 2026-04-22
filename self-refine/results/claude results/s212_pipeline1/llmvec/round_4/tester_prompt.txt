@@ -1,0 +1,48 @@
+Candidate code:
+```c
+#include <stdint.h>
+
+void vectorized_s212(int n, float *a, float *b, float *c, float *d) {
+    typedef float float4 __attribute__((vector_size(16)));
+
+    int limit = n - 1;
+    int i = 0;
+
+    /* Pass 1: b[i] += a[i+1] * d[i] using original a values */
+    for (i = 0; i <= limit - 4; i += 4) {
+        float4 ai1, di, bi;
+        __builtin_memcpy(&ai1, &a[i+1], sizeof(float4));
+        __builtin_memcpy(&di,  &d[i],   sizeof(float4));
+        __builtin_memcpy(&bi,  &b[i],   sizeof(float4));
+        bi = bi + ai1 * di;
+        __builtin_memcpy(&b[i], &bi, sizeof(float4));
+    }
+    for (; i < limit; i++) {
+        b[i] += a[i+1] * d[i];
+    }
+
+    /* Pass 2: a[i] *= c[i] */
+    for (i = 0; i <= limit - 4; i += 4) {
+        float4 ai, ci;
+        __builtin_memcpy(&ai, &a[i], sizeof(float4));
+        __builtin_memcpy(&ci, &c[i], sizeof(float4));
+        ai = ai * ci;
+        __builtin_memcpy(&a[i], &ai, sizeof(float4));
+    }
+    for (; i < limit; i++) {
+        a[i] *= c[i];
+    }
+}
+```
+
+External compile/test report:
+Compile failed.
+            Command: clang results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4
+            stderr:
+            results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4.c:75:17: error: redefinition of 'n' with a different type: 'int' vs 'const int'
+   75 |             int n = n; float a_scalar[128]; float a_vector[128]; float b_scalar[128]; float b_vector[128]; float c_scalar[128]; float c_vector[128]; float d_scalar[128]; float d_vector[128];
+      |                 ^
+results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4.c:73:23: note: previous definition is here
+   73 |             const int n = 128;
+      |                       ^
+1 error generated.

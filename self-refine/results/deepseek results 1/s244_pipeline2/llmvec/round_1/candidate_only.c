@@ -1,0 +1,75 @@
+#include <stddef.h>
+#include <string.h>
+
+void vectorized_s244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    for (int nl = 0; nl < iterations; nl++) {
+        float* a_next = (float*)__builtin_alloca(LEN_1D * sizeof(float));
+
+        // Copy a into a_next
+        int i = 0;
+        int len = LEN_1D;
+        // Vectorized copy using 4-wide unroll
+        for (; i <= len - 8; i += 8) {
+            a_next[i+0] = a[i+0];
+            a_next[i+1] = a[i+1];
+            a_next[i+2] = a[i+2];
+            a_next[i+3] = a[i+3];
+            a_next[i+4] = a[i+4];
+            a_next[i+5] = a[i+5];
+            a_next[i+6] = a[i+6];
+            a_next[i+7] = a[i+7];
+        }
+        for (; i < len; i++) {
+            a_next[i] = a[i];
+        }
+
+        // Compute b[i] = c[i] + b[i] for i=0..LEN_1D-2
+        int n = LEN_1D - 1;
+        i = 0;
+        for (; i <= n - 8; i += 8) {
+            b[i+0] = c[i+0] + b[i+0];
+            b[i+1] = c[i+1] + b[i+1];
+            b[i+2] = c[i+2] + b[i+2];
+            b[i+3] = c[i+3] + b[i+3];
+            b[i+4] = c[i+4] + b[i+4];
+            b[i+5] = c[i+5] + b[i+5];
+            b[i+6] = c[i+6] + b[i+6];
+            b[i+7] = c[i+7] + b[i+7];
+        }
+        for (; i < n; i++) {
+            b[i] = c[i] + b[i];
+        }
+
+        // Compute a[i] = (b[i] - c[i]) + c[i] * d[i] for i=0..LEN_1D-2
+        i = 0;
+        for (; i <= n - 8; i += 8) {
+            a[i+0] = (b[i+0] - c[i+0]) + c[i+0] * d[i+0];
+            a[i+1] = (b[i+1] - c[i+1]) + c[i+1] * d[i+1];
+            a[i+2] = (b[i+2] - c[i+2]) + c[i+2] * d[i+2];
+            a[i+3] = (b[i+3] - c[i+3]) + c[i+3] * d[i+3];
+            a[i+4] = (b[i+4] - c[i+4]) + c[i+4] * d[i+4];
+            a[i+5] = (b[i+5] - c[i+5]) + c[i+5] * d[i+5];
+            a[i+6] = (b[i+6] - c[i+6]) + c[i+6] * d[i+6];
+            a[i+7] = (b[i+7] - c[i+7]) + c[i+7] * d[i+7];
+        }
+        for (; i < n; i++) {
+            a[i] = (b[i] - c[i]) + c[i] * d[i];
+        }
+
+        // Compute a[i+1] = b[i] + a_next[i+1] * d[i] for i=0..LEN_1D-2
+        i = 0;
+        for (; i <= n - 8; i += 8) {
+            a[i+1] = b[i+0] + a_next[i+1] * d[i+0];
+            a[i+2] = b[i+1] + a_next[i+2] * d[i+1];
+            a[i+3] = b[i+2] + a_next[i+3] * d[i+2];
+            a[i+4] = b[i+3] + a_next[i+4] * d[i+3];
+            a[i+5] = b[i+4] + a_next[i+5] * d[i+4];
+            a[i+6] = b[i+5] + a_next[i+6] * d[i+5];
+            a[i+7] = b[i+6] + a_next[i+7] * d[i+6];
+            a[i+8] = b[i+7] + a_next[i+8] * d[i+7];
+        }
+        for (; i < n; i++) {
+            a[i+1] = b[i] + a_next[i+1] * d[i];
+        }
+    }
+}

@@ -1,0 +1,9 @@
+- **Fix the scalar cleanup loop bound**: The cleanup loop runs `for (; i < n; i++)` but accesses `a[i+1]`. When `i = n-1`, it writes to `a[n]`, which is out of bounds (valid indices are `0..n`). Change the bound to `i < n-1` to avoid the overflow.
+
+- **Correct the vector loop bound**: The vector loop uses `i <= n - 4`, which is correct for 4-wide vectors, but ensure the scalar cleanup correctly handles the remaining elements when `n` is small (e.g., `n < 4`). The current cleanup bound `i < n` will still cause the out-of-bounds write for `n >= 1`.
+
+- **Fix the recurrence handling for `a[1]`**: The initial scalar code updates `a[1]` using `b[0]` (which was just updated) and `a1_old` (the original `a[1]`). This is correct, but the vector loop then overwrites `a[1]` again when `i=2`? No, vector loop starts at `i=2`, so `a[1]` is not touched. However, the cleanup loop may overwrite `a[1]` if `n` is small. Ensure the cleanup loop starts at `i=2` (as set) and does not re-process index 1.
+
+- **Check for overlapping vector stores**: The vector loop writes to `a[i]` and `a[i+1]` in the same iteration. For `i=2`, it writes `a[2]` and `a[3]`. For `i=4`, it writes `a[4]` and `a[5]`. This is safe because the writes are to distinct elements. However, ensure that the vector load of `a[i+1]` does not read a value that was just written by the previous iteration (e.g., when `i=2`, it reads `a[3]` which was written by the scalar initial code? No, scalar initial code only writes `a[0]` and `a[1]`. So it's safe.
+
+- **The mismatch at index 1** suggests the scalar initial code or the cleanup loop incorrectly computes `a[1]`. Verify the scalar initial code: `a[1] = b[0] + a1_old * d[0]`. This uses the updated `b[0]` (which is `c[0] + b[0]`). That matches the recurrence. But the cleanup loop, if it processes `i=1` (which it shouldn't because `i` starts at 2), could overwrite `a[1]`. Ensure the cleanup loop does not process `i=1`.

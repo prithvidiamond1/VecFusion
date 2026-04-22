@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s343_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s343(int iterations, float * flat_2d_array, float aa[256][256], float bb[256][256])\n{\n    int k;\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        k = -1;\n        for (int i = 0; i < 256; i++) {\n            // Process j in chunks of 8 for vectorization\n            int j = 0;\n            for (; j + 7 < 256; j += 8) {\n                float b0 = bb[j+0][i];\n                float b1 = bb[j+1][i];\n                float b2 = bb[j+2][i];\n                float b3 = bb[j+3][i];\n                float b4 = bb[j+4][i];\n                float b5 = bb[j+5][i];\n                float b6 = bb[j+6][i];\n                float b7 = bb[j+7][i];\n\n                float a0 = aa[j+0][i];\n                float a1 = aa[j+1][i];\n                float a2 = aa[j+2][i];\n                float a3 = aa[j+3][i];\n                float a4 = aa[j+4][i];\n                float a5 = aa[j+5][i];\n                float a6 = aa[j+6][i];\n                float a7 = aa[j+7][i];\n\n                int m0 = b0 > 0.0f;\n                int m1 = b1 > 0.0f;\n                int m2 = b2 > 0.0f;\n                int m3 = b3 > 0.0f;\n                int m4 = b4 > 0.0f;\n                int m5 = b5 > 0.0f;\n                int m6 = b6 > 0.0f;\n                int m7 = b7 > 0.0f;\n\n                if (m0) { k++; flat_2d_array[k] = a0; }\n                if (m1) { k++; flat_2d_array[k] = a1; }\n                if (m2) { k++; flat_2d_array[k] = a2; }\n                if (m3) { k++; flat_2d_array[k] = a3; }\n                if (m4) { k++; flat_2d_array[k] = a4; }\n                if (m5) { k++; flat_2d_array[k] = a5; }\n                if (m6) { k++; flat_2d_array[k] = a6; }\n                if (m7) { k++; flat_2d_array[k] = a7; }\n            }\n            // Scalar cleanup\n            for (; j < 256; j++) {\n                if (bb[j][i] > 0.0f) {\n                    k++;\n                    flat_2d_array[k] = aa[j][i];\n                }\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s343_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s343",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s343_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s343_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s343_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

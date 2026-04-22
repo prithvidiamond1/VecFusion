@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/AllPointsEq_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "bool AllPointsEq_opt(const int pts[], int count) {\n    if (count <= 1) return true;\n    \n    int first = pts[0];\n    int i = 1;\n    \n    // Loop distribution: separate comparison from early exit\n    // First, process in blocks without branching\n    int remaining = count - 1;\n    int block_size = 4;\n    int vectorizable_iters = remaining / block_size;\n    int vectorized_end = vectorizable_iters * block_size + 1;\n    \n    // Remove branching logic using arithmetic masking\n    int all_equal = 1;  // Start assuming all equal\n    \n    // Main vectorizable loop - no early exit inside\n    // Reorder: cluster memory accesses first, then compute comparisons\n    for (; i < vectorized_end; i += block_size) {\n        // Cluster similar memory accesses\n        int val0, val1, val2, val3;\n        val0 = pts[i];\n        val1 = pts[i+1];\n        val2 = pts[i+2];\n        val3 = pts[i+3];\n        \n        // Compute equality mask without branching\n        int eq0 = (first == val0);\n        int eq1 = (first == val1);\n        int eq2 = (first == val2);\n        int eq3 = (first == val3);\n        \n        // Accumulate result using pure arithmetic reduction\n        // This helps compiler recognize reduction pattern\n        int block_equal = eq0 & eq1 & eq2 & eq3;\n        all_equal = all_equal & block_equal;\n    }\n    \n    // Early exit check after vector loop\n    if (!all_equal) return false;\n    \n    // Cleanup loop (non-vectorizable tail)\n    for (; i < count; ++i) {\n        if (first != pts[i]) return false;\n    }\n    \n    return true;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/AllPointsEq_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/AllPointsEq_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/AllPointsEq_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdbool.h>\n#include <stdint.h>\n\ntypedef int32_t v4si __attribute__((vector_size(16), aligned(1)));\n\nbool vectorized_AllPointsEq(const int pts[], int count) {\n    if (count <= 1) return true;\n    \n    int first = pts[0];\n    int i = 1;\n    \n    // Vectorized main loop\n    int remaining = count - 1;\n    int vectorizable_iters = remaining / 4;\n    int vectorized_end = vectorizable_iters * 4 + 1;\n    \n    // Load first value into all lanes of vector\n    v4si first_vec = (v4si){first, first, first, first};\n    \n    for (; i < vectorized_end; i += 4) {\n        // Load 4 consecutive integers\n        v4si chunk;\n        // Use memcpy to avoid strict aliasing issues\n        __builtin_memcpy(&chunk, &pts[i], sizeof(v4si));\n        \n        // Compare all 4 values with first\n        v4si cmp_result = (chunk == first_vec);\n        \n        // Check if all comparisons are true (all bits set)\n        // Extract comparison results\n        int cmp0 = cmp_result[0];\n        int cmp1 = cmp_result[1];\n        int cmp2 = cmp_result[2];\n        int cmp3 = cmp_result[3];\n        \n        // Early exit if any comparison fails\n        if (!(cmp0 && cmp1 && cmp2 && cmp3)) {\n            return false;\n        }\n    }\n    \n    // Scalar cleanup for remaining elements\n    for (; i < count; ++i) {\n        if (first != pts[i]) return false;\n    }\n    \n    return true;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/AllPointsEq_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "AllPointsEq",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/AllPointsEq_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/AllPointsEq_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/AllPointsEq_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/AllPointsEq_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

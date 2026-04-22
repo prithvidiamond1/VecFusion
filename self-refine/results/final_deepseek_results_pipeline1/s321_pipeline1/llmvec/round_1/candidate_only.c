@@ -1,0 +1,21 @@
+#include <stddef.h>
+
+typedef float float_vec __attribute__((ext_vector_type(4)));
+
+void vectorized_s321(int iterations, int LEN_1D, float* a, float* b) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        // Vectorized main loop: process 4 elements at a time
+        for (; i + 3 < LEN_1D; i += 4) {
+            float_vec a_prev = *(float_vec*)&a[i-1];
+            float_vec b_curr = *(float_vec*)&b[i];
+            float_vec a_curr = *(float_vec*)&a[i];
+            a_curr += a_prev * b_curr;
+            *(float_vec*)&a[i] = a_curr;
+        }
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D; i++) {
+            a[i] += a[i-1] * b[i];
+        }
+    }
+}

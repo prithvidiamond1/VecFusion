@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s114_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s114(int iterations, float aa[256][256], float bb[256][256])\n{\n    for (int nl = 0; nl < 200*(iterations/(256)); nl++) {\n        for (int i = 0; i < 256; i++) {\n            int j = 0;\n            // Vectorize inner loop with unrolling by 8\n            for (; j <= i - 8; j += 8) {\n                aa[i][j+0] = aa[j+0][i] + bb[i][j+0];\n                aa[i][j+1] = aa[j+1][i] + bb[i][j+1];\n                aa[i][j+2] = aa[j+2][i] + bb[i][j+2];\n                aa[i][j+3] = aa[j+3][i] + bb[i][j+3];\n                aa[i][j+4] = aa[j+4][i] + bb[i][j+4];\n                aa[i][j+5] = aa[j+5][i] + bb[i][j+5];\n                aa[i][j+6] = aa[j+6][i] + bb[i][j+6];\n                aa[i][j+7] = aa[j+7][i] + bb[i][j+7];\n            }\n            // Scalar cleanup\n            for (; j < i; j++) {\n                aa[i][j] = aa[j][i] + bb[i][j];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s114_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s114",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s114_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s114_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s114_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

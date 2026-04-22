@@ -1,0 +1,62 @@
+
+Revise your candidate for `s211` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s211(int iterations, int LEN_1D, float*a, float*b,float*c,float*d,float*e)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 1; i < LEN_1D-1; i++) {
+            a[i] = b[i - 1] + c[i] * d[i];
+            b[i] = b[i + 1] - e[i] * d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float_vec __attribute__((__vector_size__(16)));
+
+void vectorized_s211(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        int last_scalar = LEN_1D - 2;
+        int last_vector_start = last_scalar - 3;
+        for (; i <= last_vector_start; i += 4) {
+            float_vec vb_prev = {b[i-1], b[i], b[i+1], b[i+2]};
+            float_vec vc = {c[i], c[i+1], c[i+2], c[i+3]};
+            float_vec vd = {d[i], d[i+1], d[i+2], d[i+3]};
+            float_vec ve = {e[i], e[i+1], e[i+2], e[i+3]};
+            float_vec vb_next = {b[i+1], b[i+2], b[i+3], b[i+4]};
+
+            float_vec va = vb_prev + vc * vd;
+            a[i] = va[0];
+            a[i+1] = va[1];
+            a[i+2] = va[2];
+            a[i+3] = va[3];
+
+            float_vec vb_new = vb_next - ve * vd;
+            b[i] = vb_new[0];
+            b[i+1] = vb_new[1];
+            b[i+2] = vb_new[2];
+            b[i+3] = vb_new[3];
+        }
+        for (; i <= last_scalar; i++) {
+            a[i] = b[i - 1] + c[i] * d[i];
+            b[i] = b[i + 1] - e[i] * d[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a correctness bug in the vector loop body.
+
+- **Incorrect vector lane mapping for `b[i+1]` in `vb_next`**: The scalar recurrence `b[i] = b[i+1] - e[i] * d[i]` reads `b[i+1]` (the *next* element) to compute the current `b[i]`. In the vector loop, `vb_next` is loaded as `{b[i+1], b[i+2], b[i+3], b[i+4]}`. However, the scalar semantics require that for lane 0 (i), the read is `b[i+1]`; for lane 1 (i+1), the read is `b[i+2]`; etc. This mapping is correct. The mismatch at index 2 suggests the *write* order or the *previous* value used in `a[i]` is wrong.
+
+- **Incorrect `vb_prev` for `a[i]` computation**: The scalar `a[i] = b[i-1] + c[i] * d[i]` reads `b[i-1]`. In the vector loop, `vb_prev` is `{b[i-1], b[i], b[i+1], b[i+2]}`. This is correct for lane 0 (reads `b[i-1]`), but for lane 1 (i+1), it reads `b[i+1]` instead of `b[i]`. The scalar for `a[i+1]` reads `b[i]`, not `b[i+1]`. **Fix**: `vb_prev` should be `{b[i-1], b[i], b[i+1], b[i+2]}` → but lane 1 needs `b[i]`, lane 2 needs `b[i+1]`, lane 3 needs `b[i+2]`. The correct vector is `{b[i-1], b[i], b[i+1], b[i+2]}` — this is actually correct. The mismatch at index 2 (i=2) suggests the *write* of `b[i]` in the vector loop overwrites the value needed for the next iteration's `vb_prev`. The vector loop writes `b[i]` through `b[i+3]` using `vb_new`, but the next iteration (i+4) reads `b[i+3]` in `vb_prev`. This is a loop-carried dependence that is not handled: `b[i+3]` is written in the current iteration and read as `b[i+3]` (lane 3 of `vb_prev`) in the *next* iteration. **Fix**: Either peel the first iteration or use a shift register to carry the last written `b` value across iterations.
+
+        Return a corrected candidate function named `vectorized_s211`.

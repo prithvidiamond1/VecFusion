@@ -1,0 +1,104 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Revise your candidate for `s319` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s319(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)
+{
+    float sum;
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        sum = 0.;
+        float sum_a = 0.;
+        float sum_b = 0.;
+
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum_a += a[i];
+        }
+
+        for (int i = 0; i < LEN_1D; i++) {
+            b[i] = c[i] + e[i];
+            sum_b += b[i];
+        }
+
+        sum = sum_a + sum_b;
+    }
+    return sum;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float float4 __attribute__((ext_vector_type(4)));
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {
+    float sum = 0.0f;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float sum_a = 0.0f;
+        float sum_b = 0.0f;
+
+        // Vectorized first loop
+        int i = 0;
+        for (; i + 3 < LEN_1D; i += 4) {
+            float4 c_vec = *(float4 *)&c[i];
+            float4 d_vec = *(float4 *)&d[i];
+            float4 a_vec = c_vec + d_vec;
+            *(float4 *)&a[i] = a_vec;
+
+            // Horizontal sum of a_vec
+            sum_a += a_vec.x + a_vec.y + a_vec.z + a_vec.w;
+        }
+
+        // Scalar tail for first loop
+        for (; i < LEN_1D; i++) {
+            a[i] = c[i] + d[i];
+            sum_a += a[i];
+        }
+
+        // Vectorized second loop
+        i = 0;
+        for (; i + 3 < LEN_1D; i += 4) {
+            float4 c_vec = *(float4 *)&c[i];
+            float4 e_vec = *(float4 *)&e[i];
+            float4 b_vec = c_vec + e_vec;
+            *(float4 *)&b[i] = b_vec;
+
+            // Horizontal sum of b_vec
+            sum_b += b_vec.x + b_vec.y + b_vec.z + b_vec.w;
+        }
+
+        // Scalar tail for second loop
+        for (; i < LEN_1D; i++) {
+            b[i] = c[i] + e[i];
+            sum_b += b[i];
+        }
+
+        sum = sum_a + sum_b;
+    }
+
+    return sum;
+}
+        ```
+
+        Tester feedback:
+        - The test fails with a return mismatch, indicating the vectorized loop's sum does not match the scalar reference.
+- The vectorized loops compute `sum_a` and `sum_b` by accumulating horizontal sums of each vector, but the scalar loops accumulate each element individually. This is correct in principle, but the vectorized version may be accumulating incorrectly across the outer loop iterations.
+- The issue is that `sum_a` and `sum_b` are reset inside the outer loop (`for (int nl = ...)`), but `sum` is overwritten each iteration with `sum = sum_a + sum_b;`. The function returns the final `sum` after the last outer iteration, which is correct.
+- However, the mismatch suggests the horizontal sum reduction inside the vectorized loop may have a precision difference or bug. Specifically, the horizontal sum `a_vec.x + a_vec.y + a_vec.z + a_vec.w` is a single expression; floating-point associativity differences between scalar and vector could cause a mismatch.
+- To fix, ensure the reduction is performed in a way that matches scalar order. Since the scalar loop accumulates sequentially, the vectorized version should accumulate each vector element separately into `sum_a` to preserve order, but that would break vectorization.
+- Instead, accept a small floating-point tolerance in the test, but the test report shows exit code 2 (return mismatch), which may require exact match. The candidate must replicate the exact scalar sum.
+- A safer fix: accumulate the horizontal sum into a temporary float4 and then sum its components after the vector loop, but that still differs in order.
+- Since the test expects exact match, the vectorizer should not vectorize the reduction unless it can guarantee identical result (e.g., using `-ffast-math`). Here, the vectorizer should either avoid vectorizing the reduction or use a strict order-preserving method.
+
+        Return a corrected candidate function named `vectorized_s319`.

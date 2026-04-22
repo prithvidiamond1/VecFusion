@@ -1,0 +1,8 @@
+- The vectorized loop uses `LEN_1D - (LEN_1D % 8)` to compute `main_len`, but this may produce a negative value if `LEN_1D` is negative, leading to incorrect loop bounds. Ensure `main_len` is clamped to at least 0.
+- The vector load `*(v8f*)&a[i]` assumes 32-byte alignment, but `a` and `b` may not be aligned to 32 bytes, causing potential misaligned access. Use `__builtin_assume_aligned` or explicit unaligned loads if the target supports it.
+- The horizontal sum uses pointer casting which may violate strict aliasing; consider using `__builtin_reduce_add` or explicit extraction via array indexing within a union to ensure compliance.
+- The outer loop runs `8 * iterations` times, but the original scalar version may have a different iteration count; verify the transformation preserves the total number of outer iterations.
+- The test failure (exit code 2) indicates a result mismatch, likely due to floating-point accumulation order differences between vectorized and scalar tails; ensure the partial sums are accumulated in the same order or allow acceptable tolerance.
+- The vectorized loop may process elements beyond array bounds if `LEN_1D` is not a multiple of 8 and `main_len` calculation is incorrect; double-check that `i < LEN_1D` condition holds for all accesses.
+- The scalar tail loop uses `i` from the vectorized loop, which is correct, but ensure `i` is not modified elsewhere and that the tail loop executes only when `i < LEN_1D`.
+- Consider adding `-ffast-math` or similar compiler flags to allow reassociation of floating-point operations, or document that the vectorized version may have slightly different results due to summation order.

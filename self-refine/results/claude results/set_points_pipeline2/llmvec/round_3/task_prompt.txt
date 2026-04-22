@@ -1,0 +1,162 @@
+Revise your candidate for `set_points` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed, int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd, bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    // Precompute scale factors for scalable and non-scalable patches
+    float scaleWhenScalable    = normalCase ? scale : 0.0f;
+    float scaleWhenNonScalable = normalCase ? 1.0f  : scale;
+
+    // Fill src array (no dependency, can be vectorized)
+    src[0] = srcStart;
+    for (int i = 0; i < divCount; i++) {
+        src[i + 1] = divs[i];
+    }
+    src[divCount + 1] = srcEnd;
+
+    // Precompute srcDelta array
+    int* srcDelta = (int*)__builtin_alloca((divCount + 1) * sizeof(int));
+    for (int i = 0; i < divCount; i++) {
+        srcDelta[i] = src[i + 1] - src[i];
+    }
+
+    // Precompute dstDelta array using alternating isScalable (no dependency, vectorizable)
+    float* dstDelta = (float*)__builtin_alloca((divCount + 1) * sizeof(float));
+    int curScalable = (int)isScalable;
+    for (int i = 0; i < divCount; i++) {
+        float s = curScalable ? scaleWhenScalable : scaleWhenNonScalable;
+        dstDelta[i] = s * (float)srcDelta[i];
+        curScalable = !curScalable;
+    }
+
+    // Accumulate dst (sequential due to dependency)
+    dst[0] = dstStart;
+    for (int i = 0; i < divCount; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+    dst[divCount + 1] = dstEnd;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdbool.h>
+#include <alloca.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed, int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd, bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    float scaleWhenScalable    = normalCase ? scale : 0.0f;
+    float scaleWhenNonScalable = normalCase ? 1.0f  : scale;
+
+    // Use a local scratch buffer instead of writing to caller's src
+    int* srcBuf = (int*)alloca((divCount + 2) * sizeof(int));
+    srcBuf[0] = srcStart;
+    {
+        int i = 0;
+        for (; i + 3 < divCount; i += 4) {
+            srcBuf[i + 1] = divs[i];
+            srcBuf[i + 2] = divs[i + 1];
+            srcBuf[i + 3] = divs[i + 2];
+            srcBuf[i + 4] = divs[i + 3];
+        }
+        for (; i < divCount; i++) {
+            srcBuf[i + 1] = divs[i];
+        }
+    }
+    srcBuf[divCount + 1] = srcEnd;
+
+    // Copy srcBuf into caller's src array
+    {
+        int i = 0;
+        for (; i + 3 <= divCount + 1; i += 4) {
+            src[i]     = srcBuf[i];
+            src[i + 1] = srcBuf[i + 1];
+            src[i + 2] = srcBuf[i + 2];
+            src[i + 3] = srcBuf[i + 3];
+        }
+        for (; i <= divCount + 1; i++) {
+            src[i] = srcBuf[i];
+        }
+    }
+
+    // Precompute srcDelta array: divCount + 1 elements
+    int totalSegs = divCount + 1;
+    int* srcDelta = (int*)alloca(totalSegs * sizeof(int));
+    {
+        int i = 0;
+        for (; i + 3 < totalSegs; i += 4) {
+            srcDelta[i]     = srcBuf[i + 1] - srcBuf[i];
+            srcDelta[i + 1] = srcBuf[i + 2] - srcBuf[i + 1];
+            srcDelta[i + 2] = srcBuf[i + 3] - srcBuf[i + 2];
+            srcDelta[i + 3] = srcBuf[i + 4] - srcBuf[i + 3];
+        }
+        for (; i < totalSegs; i++) {
+            srcDelta[i] = srcBuf[i + 1] - srcBuf[i];
+        }
+    }
+
+    // Precompute dstDelta array: divCount + 1 elements
+    float* dstDelta = (float*)alloca(totalSegs * sizeof(float));
+    {
+        float scaleEven = (int)isScalable ? scaleWhenScalable : scaleWhenNonScalable;
+        float scaleOdd  = (int)isScalable ? scaleWhenNonScalable : scaleWhenScalable;
+
+        int i = 0;
+        for (; i + 3 < totalSegs; i += 4) {
+            dstDelta[i]     = scaleEven * (float)srcDelta[i];
+            dstDelta[i + 1] = scaleOdd  * (float)srcDelta[i + 1];
+            dstDelta[i + 2] = scaleEven * (float)srcDelta[i + 2];
+            dstDelta[i + 3] = scaleOdd  * (float)srcDelta[i + 3];
+        }
+        // Scalar cleanup with correct parity tracking
+        int curScalable = (int)isScalable;
+        // Adjust parity for where unrolled loop left off
+        // i steps were taken in pairs, so parity = i % 2
+        if (i % 2 == 1) curScalable = !curScalable;
+        // Reset parity properly
+        curScalable = ((i % 2) == 0) ? (int)isScalable : !(int)isScalable;
+        for (; i < totalSegs; i++) {
+            float s = curScalable ? scaleWhenScalable : scaleWhenNonScalable;
+            dstDelta[i] = s * (float)srcDelta[i];
+            curScalable = !curScalable;
+        }
+    }
+
+    // Accumulate dst: divCount + 2 output points
+    dst[0] = dstStart;
+    for (int i = 0; i < totalSegs; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+    dst[divCount + 1] = dstEnd;
+}
+        ```
+
+        Tester feedback:
+        The test is failing because the candidate writes back to `src` (the caller's array), but the original function's `src` parameter is meant to be read-only input (the divs are passed separately via `divs`). The candidate is incorrectly overwriting `src[0..divCount+1]` with `srcBuf` contents, corrupting the caller's data.
+
+Additionally, the `scaleEven`/`scaleOdd` logic for the dstDelta computation is wrong: it uses a fixed `isScalable` flag to pick even/odd scales, but the correct behavior alternates per-segment starting from the parity of segment index 0 (non-scalable for even segments, scalable for odd, or vice versa depending on the nine-patch convention).
+
+- **Remove the entire "Copy srcBuf into caller's src array" block** — do not write anything back to `src`. The `src` parameter should not be modified at all.
+- **Fix the even/odd scale assignment**: segment `i` is scalable if `i % 2 == (isScalable ? 1 : 0)` (odd-indexed segments are scalable in a nine-patch). Use `scaleEven = scaleWhenNonScalable` and `scaleOdd = scaleWhenScalable` unconditionally (not gated on `isScalable`), since `isScalable` controls whether the *overall* region is scalable, not the per-segment alternation.
+- **Fix the scalar cleanup parity**: after the unrolled loop ends at index `i`, the parity should be `i % 2 == 1` means odd segment → scalable. Simplify to: `bool segIsScalable = (i % 2 == 1);` and toggle each iteration.
+- **Remove the redundant double-assignment of `curScalable`** (the two conflicting lines before the scalar loop).
+- **Do not use `src` as a scratch buffer or output** — it is an input-only array in this context.
+
+        Return a corrected candidate function named `vectorized_set_points`.

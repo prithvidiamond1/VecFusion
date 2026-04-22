@@ -1,0 +1,41 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s481_pipeline2/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s481_opt(int iterations, int LEN_1D, float* a, float *b, float *c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        int early_exit = 0;\n        int exit_index = LEN_1D;\n        \n        // First check if any d[i] < 0 and find the first occurrence\n        for (int i = 0; i < LEN_1D; i++) {\n            if (d[i] < 0.0f) {\n                early_exit = 1;\n                exit_index = i;\n                break;\n            }\n        }\n        \n        // Process elements before exit_index (if any)\n        if (early_exit) {\n            for (int i = 0; i < exit_index; i++) {\n                a[i] += b[i] * c[i];\n            }\n            return;\n        }\n        \n        // No early exit - process all elements (vectorizable, no branches)\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] += b[i] * c[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s481_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s481_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s481_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: VecTrans-preprocessed input is not a single full function; cannot safely normalize handoff.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s481_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "s481",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s481_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s481/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s481_opt(int iterations, int LEN_1D, float* a, float *b, float *c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Early exit detection with partial updates preserved\n        int exit_index = LEN_1D;\n        for (int i = 0; i < LEN_1D; i++) {\n            if (d[i] < 0.0f) {\n                exit_index = i;\n                break;\n            }\n        }\n        \n        // Vectorizable computation loop up to exit_index\n        for (int i = 0; i < exit_index; i++) {\n            a[i] += b[i] * c[i];\n        }\n        \n        // Return if early exit was triggered\n        if (exit_index < LEN_1D) {\n            return;\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

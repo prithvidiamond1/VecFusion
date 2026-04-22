@@ -1,0 +1,49 @@
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b)
+{
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = (float)0.;
+        for (int i = 0; i < LEN_1D; i += 5) {
+            dot = dot + a[i] * b[i] + a[i + 1] * b[i + 1] + a[i + 2]
+                * b[i + 2] + a[i + 3] * b[i + 3] + a[i + 4] * b[i + 4];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float* b)
+{
+    float dot = 0.0f;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        dot = 0.0f;
+        for (int i = 0; i < LEN_1D; i += 5) {
+            dot = dot + a[i] * b[i] + a[i + 1] * b[i + 1] + a[i + 2]
+                * b[i + 2] + a[i + 3] * b[i + 3] + a[i + 4] * b[i + 4];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The inner loop increments `i` by 5 each iteration but accumulates into `dot` with `dot = dot + ...` (addition assignment), which is correct syntax, but the logic is wrong: it should be `dot += ...` — actually that's equivalent, so the real issue is elsewhere.
+- The root problem is that the original `s352` is a standard dot product: `dot += a[i] * b[i]` for every `i` from 0 to LEN_1D-1. The candidate manually unrolls by 5 but only processes indices `i, i+1, i+2, i+3, i+4` — this is only correct if `LEN_1D` is always a multiple of 5, which may not hold, causing wrong results.
+- Fix: revert to a simple scalar or vectorized loop with stride 1, e.g.:
+  ```c
+  for (int i = 0; i < LEN_1D; i++) {
+      dot += a[i] * b[i];
+  }
+  ```
+- Remove the manual unroll-by-5 (`i += 5`) and the multi-term accumulation; let the compiler auto-vectorize the simple loop instead.
+- The out-of-bounds accesses (e.g., `a[i+4]` when `i` is near `LEN_1D`) also risk reading past the array end if `LEN_1D % 5 != 0`, which is undefined behavior and contributes to the mismatch.
+
+        Return a corrected candidate function named `vectorized_s352`.

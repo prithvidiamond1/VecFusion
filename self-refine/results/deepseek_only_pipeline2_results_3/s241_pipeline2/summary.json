@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s241_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s241_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        // Store original a[i+1] values before modifying a[i]\n        for (int i = 0; i < LEN_1D-1; i++) {\n            float a_next = a[i+1];  // Store original a[i+1]\n            a[i] = b[i] * c[i] * d[i];\n            b[i] = a[i] * a_next * d[i];  // Use original a[i+1]\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s241_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s241_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s241_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s241(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {\n    int outer_iterations = 2 * iterations;\n    int inner_len = LEN_1D - 1;\n    \n    for (int nl = 0; nl < outer_iterations; nl++) {\n        // Vectorized main loop\n        int i = 0;\n        for (; i + 3 < inner_len; i += 4) {\n            // Load original a[i+1] values\n            float a_next0 = a[i + 1];\n            float a_next1 = a[i + 2];\n            float a_next2 = a[i + 3];\n            float a_next3 = a[i + 4];\n            \n            // Compute a[i] = b[i] * c[i] * d[i]\n            float a_val0 = b[i] * c[i] * d[i];\n            float a_val1 = b[i + 1] * c[i + 1] * d[i + 1];\n            float a_val2 = b[i + 2] * c[i + 2] * d[i + 2];\n            float a_val3 = b[i + 3] * c[i + 3] * d[i + 3];\n            \n            // Store computed a[i] values\n            a[i] = a_val0;\n            a[i + 1] = a_val1;\n            a[i + 2] = a_val2;\n            a[i + 3] = a_val3;\n            \n            // Compute b[i] = a[i] * original_a_next * d[i]\n            b[i] = a_val0 * a_next0 * d[i];\n            b[i + 1] = a_val1 * a_next1 * d[i + 1];\n            b[i + 2] = a_val2 * a_next2 * d[i + 2];\n            b[i + 3] = a_val3 * a_next3 * d[i + 3];\n        }\n        \n        // Scalar cleanup for remaining elements\n        for (; i < inner_len; i++) {\n            float a_next = a[i + 1];\n            a[i] = b[i] * c[i] * d[i];\n            b[i] = a[i] * a_next * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s241_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s241",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s241_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s241_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260419_214725/s241_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260419_214725/s241_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

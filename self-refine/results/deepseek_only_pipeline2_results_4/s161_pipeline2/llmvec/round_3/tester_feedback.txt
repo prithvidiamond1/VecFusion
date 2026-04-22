@@ -1,0 +1,8 @@
+- The vectorized loop writes to `c[i+1]` in the first pass, but the scalar reference writes to `c[i]`. This mismatch in index causes incorrect values in `c` that affect the second pass.
+- In the first pass, change the vectorized store from `c[i + lane + 1]` to `c[i + lane]` to match the scalar reference pattern.
+- The second pass reads from `c[i]` which should now be correct after the first pass fix.
+- Ensure the scalar tail for the first pass also writes to `c[i]` (it already does).
+- Verify the loop bounds: the first pass vector loop condition `i + 3 < LEN_1D - 1` should become `i + 3 < LEN_1D` after the index change, because we are storing to `c[i]` not `c[i+1]`.
+- The scalar tail for the first pass should iterate `i < LEN_1D` (not `LEN_1D - 1`) after the index fix.
+- The second pass vector loop condition `i + 3 < LEN_1D` is correct.
+- After these changes, recompile and test to ensure the mismatch in `a` is resolved.

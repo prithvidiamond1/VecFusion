@@ -1,0 +1,17 @@
+Looking at the failure: "Mismatch in parameter src on trial 0 at index 0" — the test checks `src[0]` but the function writes `src[0] = srcStart` before the loop, which should be fine. However, the unrolled loop has a critical bug: **`is0`, `is1`, `is2`, `is3` are hardcoded based on the initial `isScalable` but don't account for the alternating pattern correctly across loop iterations** — after 4 iterations, `isScalable` should be unchanged (4 flips), but the scales assigned within the loop assume a fixed pattern that doesn't track the actual `isScalable` state entering each group of 4.
+
+More critically, the unrolled loop **never updates `isScalable`** between iterations of the outer loop, so when `i` advances by 4, the next group of 4 still uses the same `is0=isScalable` — this is actually correct only if 4 flips return to original. But the real bug is:
+
+- **`is0 = isScalable`, `is1 = !isScalable`, `is2 = isScalable`, `is3 = !isScalable`** — this pattern is only correct if `isScalable` starts each group of 4 at the same parity. Since 4 flips = net zero change, this is consistent. So the unrolled logic is correct for the alternating pattern.
+
+The actual crash/mismatch bug: **`src[i+0]` in `dstDelta0` reads `src[i]` which was set in the *previous* iteration or initialization, but `src[i+1]` through `src[i+4]` are set from `divs`. The issue is `src[i+0]` for `i=0` reads `src[0] = srcStart` — that's fine.**
+
+The real problem: **the unrolled loop uses `src[i+0]` which for `i=0` is `src[0]` (set to `srcStart`), but for `i=4` is `src[4]` which was set as `divs[3]` in the previous iteration — correct.** 
+
+Wait — the mismatch is at `src` index 0. The function sets `src[0] = srcStart` unconditionally. The test likely expects `src[0]` to remain as passed in, or the function shouldn't write `src[0]`.
+
+- **Fix**: Remove `src[0] = srcStart` and `dst[0] = dstStart` — the caller likely pre-initializes these, or the function should not overwrite index 0 of `src`/`dst` since the test reports a mismatch at `src[0]`.
+- **Alternative fix**: Check whether `srcStart` should be written to `src[0]` at all — if the test passes `src[0]` with a different value and expects it preserved, remove that write.
+- The unrolled loop's `sc0`/`sc1`/`sc2`/`sc3` computation is redundant — simplify: `sc0 = sc2 = isScalable ? scaleIfScalable : scaleIfNonScalable` and `sc1 = sc3 = !isScalable ? scaleIfScalable : scaleIfNonScalable`.
+- In the unrolled loop, `src[i+0]` for the delta computation relies on the previous write, but `src[i+0]` when `i=0` is `srcStart` — if `srcStart != divs[-1]` this could be wrong; verify the initialization is intentional.
+- **Primary fix to try**: Remove `src[0] = srcStart;` and `dst[0] = dstStart;` lines, as the test expects these to be untouched (mismatch at index 0 of `src`).

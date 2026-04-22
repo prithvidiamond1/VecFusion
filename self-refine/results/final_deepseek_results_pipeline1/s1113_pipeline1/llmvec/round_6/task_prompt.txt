@@ -1,0 +1,53 @@
+
+Revise your candidate for `s1113` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s1113(int iterations, int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = a[LEN_1D/2] + b[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((__vector_size__(16)));
+
+void vectorized_s1113(int iterations, int LEN_1D, float* a, float* b) {
+    int total_iters = 2 * iterations;
+    int half = LEN_1D / 2;
+    int vec_iters = LEN_1D / 4;
+    int rem_start = vec_iters * 4;
+
+    for (int nl = 0; nl < total_iters; nl++) {
+        float a_half = a[half];
+        float32_t a_half_vec = (float32_t){a_half, a_half, a_half, a_half};
+
+        for (int i = 0; i < vec_iters; i++) {
+            int idx = i * 4;
+            float32_t b_vec = *(float32_t*)(b + idx);
+            float32_t result = a_half_vec + b_vec;
+            *(float32_t*)(a + idx) = result;
+        }
+        for (int i = rem_start; i < LEN_1D; i++) {
+            a[i] = a_half + b[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a correctness bug. The loop body uses `a[half]` as a scalar invariant, but the original scalar loop likely updated `a` elements in-place, meaning `a[half]` changes after each iteration of the inner loop. The vectorized version reads `a_half` once per outer iteration, which is wrong.
+
+**Fixes needed:**
+- The scalar `a_half = a[half]` must be read *after* each inner iteration completes, not once per outer loop. Move the read of `a[half]` inside the inner loop, or restructure to update `a_half` after each vector store.
+- The mismatch at index 65 suggests the vectorized store is overwriting the value that `a_half` depends on, because `half` (LEN_1D/2) falls inside the vectorized range. Ensure the vector loop does not write to index `half` before it is read, or reorder the read to happen before the vector stores.
+- Consider splitting the inner loop into two parts: one that stops before `half`, then reads `a_half`, then continues. Alternatively, read `a_half` at the start of each scalar iteration of the inner loop (i.e., per 4-element chunk).
+
+        Return a corrected candidate function named `vectorized_s1113`.

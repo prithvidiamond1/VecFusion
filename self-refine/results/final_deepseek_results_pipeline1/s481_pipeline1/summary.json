@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s481_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stddef.h>\n\ntypedef float float32x4_t __attribute__((ext_vector_type(4)));\ntypedef int int32x4_t __attribute__((ext_vector_type(4)));\n\nvoid vectorized_s481(int iterations, int LEN_1D, float* restrict a, float* restrict b, float* restrict c, float* restrict d) {\n    for (int nl = 0; nl < iterations; nl++) {\n        int i = 0;\n        int early_exit = 0;\n\n        for (; i <= LEN_1D - 4; i += 4) {\n            float32x4_t d_vec = *(float32x4_t*)__builtin_assume_aligned(d + i, 16);\n            float32x4_t zero = (float32x4_t){0.0f, 0.0f, 0.0f, 0.0f};\n            int32x4_t cmp = (int32x4_t)(d_vec < zero);\n            if (__builtin_reduce_or(cmp)) {\n                early_exit = 1;\n                break;\n            }\n            float32x4_t a_vec = *(float32x4_t*)__builtin_assume_aligned(a + i, 16);\n            float32x4_t b_vec = *(float32x4_t*)__builtin_assume_aligned(b + i, 16);\n            float32x4_t c_vec = *(float32x4_t*)__builtin_assume_aligned(c + i, 16);\n            a_vec += b_vec * c_vec;\n            *(float32x4_t*)(a + i) = a_vec;\n        }\n\n        if (!early_exit) {\n            for (; i < LEN_1D; i++) {\n                if (d[i] < 0.0f) {\n                    early_exit = 1;\n                    break;\n                }\n                a[i] += b[i] * c[i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 1 at index 0",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 1 at index 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s481",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s481_opt(int iterations, int LEN_1D, float* a, float *b, float *c, float* d)\n{\n    // Loop 1: Find the first negative element in d (cannot be vectorized due to early exit)\n    int limit = LEN_1D;\n    for (int i = 0; i < LEN_1D; i++) {\n        if (d[i] < (float)0.) {\n            limit = i;\n            break;\n        }\n    }\n    \n    // Loop 2: Perform the vectorizable updates (all iterations, fully vectorizable)\n    for (int nl = 0; nl < iterations; nl++) {\n        for (int i = 0; i < limit; i++) {\n            a[i] += b[i] * c[i];\n        }\n        \n        // Handle early return after first iteration if negative was found\n        if (limit < LEN_1D) {\n            return;\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s481_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s481_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline1_20260422_044515/s481_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+#include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s261(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        // Vectorized main loop
+        for (; i + 3 < LEN_1D; i += 4) {
+            float32_t va = *(float32_t*)(a + i);
+            float32_t vb = *(float32_t*)(b + i);
+            float32_t vc_prev = *(float32_t*)(c + i - 1);
+            float32_t vc = *(float32_t*)(c + i);
+            float32_t vd = *(float32_t*)(d + i);
+            
+            float32_t t1 = va + vb;
+            float32_t t2 = t1 + vc_prev;
+            *(float32_t*)(a + i) = t2;
+            
+            float32_t t3 = vc * vd;
+            *(float32_t*)(c + i) = t3;
+        }
+        // Scalar cleanup tail
+        for (; i < LEN_1D; ++i) {
+            float t;
+            t = a[i] + b[i];
+            a[i] = t + c[i-1];
+            t = c[i] * d[i];
+            c[i] = t;
+        }
+    }
+}

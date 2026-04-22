@@ -1,0 +1,26 @@
+```c
+#include <stdint.h>
+
+void vectorized_s115(int iterations, float* a, float aa[256][256])
+{
+    for (int nl = 0; nl < 1000*(iterations/256); nl++) {
+        for (int j = 0; j < 256; j++) {
+            float aj = a[j];
+            float* aa_j = aa[j];
+            int i = j + 1;
+            // Vector-friendly unrolled loop (4-wide)
+            int limit = 256 - 4;
+            for (; i <= limit; i += 4) {
+                a[i+0] -= aa_j[i+0] * aj;
+                a[i+1] -= aa_j[i+1] * aj;
+                a[i+2] -= aa_j[i+2] * aj;
+                a[i+3] -= aa_j[i+3] * aj;
+            }
+            // Scalar tail
+            for (; i < 256; i++) {
+                a[i] -= aa_j[i] * aj;
+            }
+        }
+    }
+}
+```

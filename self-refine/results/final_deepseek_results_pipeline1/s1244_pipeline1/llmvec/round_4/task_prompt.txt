@@ -1,0 +1,60 @@
+
+Revise your candidate for `s1244` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s1244(int iterations, int LEN_1D, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < LEN_1D-1; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i]*b[i] + c[i];
+            d[i] = a[i] + a[i+1];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    int n = LEN_1D - 1;
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        for (; i < n - 3; i += 4) {
+            float32_t vb = *(float32_t*)(b + i);
+            float32_t vc = *(float32_t*)(c + i);
+            float32_t vc_sq = vc * vc;
+            float32_t vb_sq = vb * vb;
+            float32_t va = vb + vc_sq + vb_sq + vc;
+            *(float32_t*)(a + i) = va;
+
+            float32_t va_next;
+            va_next[0] = a[i + 1];
+            va_next[1] = a[i + 2];
+            va_next[2] = a[i + 3];
+            va_next[3] = a[i + 4];
+            float32_t vd = va + va_next;
+            *(float32_t*)(d + i) = vd;
+        }
+        for (; i < n; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];
+            d[i] = a[i] + a[i + 1];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a **trip‑count / bounds error** in the vector loop:
+
+- The vector loop runs while `i < n - 3`, but the scalar cleanup loop runs while `i < n`.  
+- The vector loop processes 4 elements per iteration, but the `va_next` load reads `a[i+4]` — that is one element **beyond** the vector store. This means the vector loop effectively needs `i+4 < n` (i.e., `i < n-4`), not `i < n-3`.  
+- The mismatch at index 5 (the 6th element) is consistent with the vector loop writing one extra element incorrectly when `n-4 <= i < n-3`.
+
+**Fix:** Change the vector loop bound from `i < n - 3` to `i < n - 4`. This ensures the `a[i+4]` load is always in‑bounds and the scalar loop handles the remaining 0–3 elements correctly.
+
+        Return a corrected candidate function named `vectorized_s1244`.

@@ -1,0 +1,48 @@
+void vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {
+    for (int nl = 0; nl < 3 * iterations; nl++) {
+        // This loop has a loop-carried dependency: a[i+1] depends on a[i] from previous iteration
+        // (iterating backwards: i from LEN_1D-2 down to 0, writing a[i+1] = a[i] + b[i])
+        // Each iteration writes a[i+1] and reads a[i], but since we go downward,
+        // a[i] was NOT written by a previous iteration in this sweep (we write higher indices first).
+        // So a[i] is always the original a[i] from before the inner loop started.
+        // This means we can vectorize by preloading a[] snapshot.
+        
+        // We need a temporary copy of a[] to read from, since writes don't affect reads
+        // (each a[i] read is the value before this inner loop pass).
+        // Actually: i goes from LEN_1D-2 down to 0.
+        // a[LEN_1D-1] = a[LEN_1D-2] + b[LEN_1D-2]
+        // a[LEN_1D-2] = a[LEN_1D-3] + b[LEN_1D-3]
+        // ...
+        // a[1] = a[0] + b[0]
+        // Each read of a[i] uses the ORIGINAL a[i] (not yet overwritten in this pass,
+        // since we write a[i+1] which is a higher index, already processed).
+        // So reads are always from original values. We can vectorize directly.
+        
+        int i = LEN_1D - 2;
+        
+        // Process 8 elements at a time (unrolled)
+        for (; i >= 7; i -= 8) {
+            float a0 = a[i]   + b[i];
+            float a1 = a[i-1] + b[i-1];
+            float a2 = a[i-2] + b[i-2];
+            float a3 = a[i-3] + b[i-3];
+            float a4 = a[i-4] + b[i-4];
+            float a5 = a[i-5] + b[i-5];
+            float a6 = a[i-6] + b[i-6];
+            float a7 = a[i-7] + b[i-7];
+            a[i+1]   = a0;
+            a[i]     = a1;
+            a[i-1]   = a2;
+            a[i-2]   = a3;
+            a[i-3]   = a4;
+            a[i-4]   = a5;
+            a[i-5]   = a6;
+            a[i-6]   = a7;
+        }
+        
+        // Scalar cleanup
+        for (; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+    }
+}

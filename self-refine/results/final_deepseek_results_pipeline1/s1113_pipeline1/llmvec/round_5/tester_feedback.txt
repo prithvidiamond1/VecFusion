@@ -1,0 +1,6 @@
+The vectorizer candidate has a correctness bug. The loop body uses `a[half]` as a scalar invariant, but the original scalar loop likely updated `a` elements in-place, meaning `a[half]` changes after each iteration of the inner loop. The vectorized version reads `a_half` once per outer iteration, which is wrong.
+
+**Fixes needed:**
+- The scalar `a_half = a[half]` must be read *after* each inner iteration completes, not once per outer loop. Move the read of `a[half]` inside the inner loop, or restructure to update `a_half` after each vector store.
+- The mismatch at index 65 suggests the vectorized store is overwriting the value that `a_half` depends on, because `half` (LEN_1D/2) falls inside the vectorized range. Ensure the vector loop does not write to index `half` before it is read, or reorder the read to happen before the vector stores.
+- Consider splitting the inner loop into two parts: one that stops before `half`, then reads `a_half`, then continues. Alternatively, read `a_half` at the start of each scalar iteration of the inner loop (i.e., per 4-element chunk).

@@ -1,0 +1,11 @@
+The vectorized code has a correctness bug. The vector loop processes 4 elements per iteration, but the scalar remainder loop and final single-element handling are inconsistent with the original loop bounds.
+
+**Fixes needed:**
+
+1. **Fix vector loop upper bound**: Change `i <= n - 4` to `i < n - 3` to ensure the vector loop only processes full 4-element chunks without overshooting.
+
+2. **Fix remainder loop bounds**: Change `i < n - 1` to `i < n` in the scalar remainder loop to handle all remaining elements, not just up to `n-2`.
+
+3. **Remove the final `if (i == n - 1)` block**: The remainder loop should cover all remaining iterations, making this special case unnecessary and incorrect.
+
+4. **Verify `d[i]` computation in vector loop**: The vectorized code reads `a[i+1]` which may be uninitialized for the last vector iteration if the original loop didn't compute it yet—ensure the vector loop doesn't read ahead of computed values.

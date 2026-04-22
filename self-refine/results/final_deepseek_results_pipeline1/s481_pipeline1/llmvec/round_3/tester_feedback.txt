@@ -1,0 +1,4 @@
+- The `__builtin_assume_aligned` returns a `void*`, not a vector type. Cast the result to `float32x4_t` explicitly, e.g., `float32x4_t d_vec = *(float32x4_t*)__builtin_assume_aligned(d + i, 16);` (and similarly for a, b, c).  
+- The early-exit scalar loop after the vector loop uses `if (!early_exit)` but the vector loop may have partially processed elements before breaking; ensure the scalar remainder loop correctly starts at `i` and handles the case where the vector loop broke early.  
+- The outer `if (LEN_1D >= 4)` guard is redundant with the inner loop condition `i <= LEN_1D - 4`; consider removing it to simplify control flow.  
+- The `continue` after `if (early_exit)` is unnecessary since the loop body ends there; remove it to avoid confusion.

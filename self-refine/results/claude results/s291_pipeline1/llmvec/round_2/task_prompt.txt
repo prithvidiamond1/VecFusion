@@ -1,0 +1,58 @@
+Revise your candidate for `s291` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s291(int iterations,int LEN_1D, float* a,float* b)
+{
+    int im1;
+    for (int nl = 0; nl < 2*iterations; nl++) {
+        im1 = LEN_1D-1;
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = (b[i] + b[im1]) * (float).5;
+            im1 = i;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+void vectorized_s291(int iterations, int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        // First element: uses b[LEN_1D-1] as im1
+        a[0] = (b[0] + b[LEN_1D - 1]) * 0.5f;
+
+        // Remaining elements: a[i] = (b[i] + b[i-1]) * 0.5
+        // This is a simple shift-and-add, vectorizable since b[i] and b[i-1]
+        // are independent reads (no write-after-read hazard on b).
+        int i = 1;
+        // Unroll by 8 for vector-friendly access
+        int limit = LEN_1D - (LEN_1D % 8);
+        for (; i < limit; i += 8) {
+            a[i + 0] = (b[i + 0] + b[i - 1]) * 0.5f;
+            a[i + 1] = (b[i + 1] + b[i + 0]) * 0.5f;
+            a[i + 2] = (b[i + 2] + b[i + 1]) * 0.5f;
+            a[i + 3] = (b[i + 3] + b[i + 2]) * 0.5f;
+            a[i + 4] = (b[i + 4] + b[i + 3]) * 0.5f;
+            a[i + 5] = (b[i + 5] + b[i + 4]) * 0.5f;
+            a[i + 6] = (b[i + 6] + b[i + 5]) * 0.5f;
+            a[i + 7] = (b[i + 7] + b[i + 6]) * 0.5f;
+        }
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            a[i] = (b[i] + b[i - 1]) * 0.5f;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The first element computation is wrong: `a[0] = (b[0] + b[LEN_1D - 1]) * 0.5f` uses `b[LEN_1D-1]` as the "previous" element, but the reference implementation uses `b[LEN_1D-1]` only if the original loop wraps around. Check the reference: the original s291 loop is `a[i] = (b[i] + b[i-1]) * 0.5` for `i` from 0 to LEN_1D-1, where `b[-1]` is treated as `b[LEN_1D-1]` (circular). However, the mismatch is at index 0, so verify whether the reference actually does **not** wrap and instead starts from index 1 (i.e., `i` runs from 1 to LEN_1D-1 with `a[i] = (b[i] + b[i-1]) * 0.5f` and `a[0]` is left unchanged or set differently).
+- The most likely fix: the reference s291 loop runs `for (i=0; i<LEN_1D; i++) a[i] = (b[i] + b[i-1]) * 0.5f` where index `-1` wraps to `LEN_1D-1`. But if the reference does **not** wrap (i.e., `a[0] = b[0] * 0.5f` or `a[0]` is untouched), change `a[0]` accordingly. Most likely the loop starts at `i=1` and `a[0]` is not written — remove the `a[0] = ...` line entirely and start the loop from `i=1`.
+- Alternatively, if the loop truly starts at `i=0` without wrap, set `a[0] = (b[0] + b[0]) * 0.5f` (i.e., `a[0] = b[0]`) or simply `a[0] = b[0] * 0.5f` depending on the reference semantics — confirm by checking the original s291 benchmark which typically does `a[i] = (b[i] + b[i-1]) * 0.5` for `i=1..LEN_1D-1` only.
+- The safest concrete fix: **remove the `a[0]` special case** and change the loop to start at `i=1`, leaving `a[0]` unmodified (matching the reference that skips index 0).
+
+        Return a corrected candidate function named `vectorized_s291`.

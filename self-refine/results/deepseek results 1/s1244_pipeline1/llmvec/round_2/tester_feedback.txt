@@ -1,0 +1,15 @@
+- The mismatch at index 127 (which is `LEN_1D-1` when `LEN_1D=128`) indicates that `a[127]` is being overwritten by the vectorized first pass when it shouldn't be, or the scalar cleanup loop is writing to `a[LEN_1D-1]` before the explicit block does — but the real issue is that `vec_len = LEN_1D - 1 = 127`, so the scalar loop `for (; i < vec_len; i++)` runs for `i` up to 126, and then the explicit block writes `a[127]`. That part looks correct.
+
+- The actual bug: `vec_count = (LEN_1D - 1) / 4 = 127 / 4 = 31`, so the vectorized loop writes `a[0..123]`, then scalar writes `a[124..126]`, then explicit block writes `a[127]`. This is correct for the first pass.
+
+- The second pass bug: `vec_count2 = (vec_len - 1) / 4 = 126 / 4 = 31`, so the vectorized loop writes `d[0..123]`, then scalar writes `d[124..126]`. `d[126] = a[126] + a[127]` — this is correct. So `d` looks fine.
+
+- The real issue is the **formula for `a[i]`**. The reference scalar loop for s1244 is typically `a[i] = b[i] + c[i]*c[i] + b[i]*b[i] + c[i]` — check whether the reference is actually `a[i] = b[i] + c[i]*c[i] + b[i]*b[i] + c[i]` or something different like `a[i] = b[i] + c[i]*c[i]` only.
+
+- Looking at standard s1244: the loop is `d[i] = a[i] + a[i+1]` with `a[i] = b[i] + c[i]*c[i] + b[i]*b[i] + c[i]` — but the mismatch is in `a`, not `d`. This means the first-pass vectorized loop is writing incorrect values into `a`.
+
+- The vectorized first pass reads `b+i` and `c+i` with `__builtin_memcpy` into `float4` vectors and computes `ai = bi + ci*ci + bi*bi + ci`. This is correct mathematically, but **the issue is that `a` and `b`/`c` may alias or the loop overwrites `a` values that are also used as inputs** — however more likely the formula itself differs from the reference.
+
+- Check the reference: standard s1244 is just `a[i] = b[i] + c[i]*c[i] + b[i]*b[i] + c[i]` for `i` in `[1, LEN_1D]` (1-indexed). If the reference uses **1-based indexing** (`i` from 1 to LEN_1D-1 for `d`, and `a` from 1 to LEN_1D), then your 0-based loop is off by one — shift all array accesses by +1: start `i=1` and go to `LEN_1D-1` for `d[i] = a[i] + a[i+1]`, and compute `a[i]` for `i` in `[1, LEN_1D]`.
+
+- **Fix**: Change the loops to be 1-indexed: first pass computes `a[i]` for `i` from 1 to `LEN_1D` (inclusive), second pass computes `d[i]` for `i` from 1 to `LEN_1D-1` (inclusive), adjusting `vec_count` and `vec_count2` accordingly to start at index 1.

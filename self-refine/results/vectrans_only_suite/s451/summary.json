@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s451/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s451_opt(int iterations, int LEN_1D, float* a, float* b, float* c)\n{\n    int loop_count = iterations / 5;\n    \n    for (int nl = 0; nl < loop_count; nl++) {\n        for (int i = 0; i < LEN_1D; i++) {\n            float sin_val = sinf(b[i]);\n            float cos_val = cosf(c[i]);\n            a[i] = sin_val + cos_val;\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

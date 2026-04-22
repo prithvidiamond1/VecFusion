@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s442_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s442(int iterations, int LEN_1D, float* a, float *b, float* c, float *d, float* e, int* indx) {\n    if (LEN_1D <= 0) return;\n    for (int nl = 0; nl < iterations; nl++) {\n        int i = 0;\n        for (; i <= LEN_1D - 4; i += 4) {\n            int idx0 = indx[i];\n            int idx1 = indx[i+1];\n            int idx2 = indx[i+2];\n            int idx3 = indx[i+3];\n\n            float add0, add1, add2, add3;\n\n            if (idx0 == 1) add0 = b[i] * b[i];\n            else if (idx0 == 2) add0 = c[i] * c[i];\n            else if (idx0 == 3) add0 = d[i] * d[i];\n            else add0 = e[i] * e[i];\n\n            if (idx1 == 1) add1 = b[i+1] * b[i+1];\n            else if (idx1 == 2) add1 = c[i+1] * c[i+1];\n            else if (idx1 == 3) add1 = d[i+1] * d[i+1];\n            else add1 = e[i+1] * e[i+1];\n\n            if (idx2 == 1) add2 = b[i+2] * b[i+2];\n            else if (idx2 == 2) add2 = c[i+2] * c[i+2];\n            else if (idx2 == 3) add2 = d[i+2] * d[i+2];\n            else add2 = e[i+2] * e[i+2];\n\n            if (idx3 == 1) add3 = b[i+3] * b[i+3];\n            else if (idx3 == 2) add3 = c[i+3] * c[i+3];\n            else if (idx3 == 3) add3 = d[i+3] * d[i+3];\n            else add3 = e[i+3] * e[i+3];\n\n            a[i] += add0;\n            a[i+1] += add1;\n            a[i+2] += add2;\n            a[i+3] += add3;\n        }\n        for (; i < LEN_1D; i++) {\n            int idx = indx[i];\n            if (idx == 1) a[i] += b[i] * b[i];\n            else if (idx == 2) a[i] += c[i] * c[i];\n            else if (idx == 3) a[i] += d[i] * d[i];\n            else a[i] += e[i] * e[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s442_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s442",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s442_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s442_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s442_opt(int iterations, int LEN_1D, float* a, float *b, float* c, float *d, float* e, int* indx)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        for (int i = 0; i < LEN_1D; i++) {\n            float square = 0.0f;\n            float mask1 = (indx[i] == 1) ? 1.0f : 0.0f;\n            float mask2 = (indx[i] == 2) ? 1.0f : 0.0f;\n            float mask3 = (indx[i] == 3) ? 1.0f : 0.0f;\n            float mask4 = (indx[i] == 4) ? 1.0f : 0.0f;\n            \n            square += mask1 * b[i] * b[i];\n            square += mask2 * c[i] * c[i];\n            square += mask3 * d[i] * d[i];\n            square += mask4 * e[i] * e[i];\n            \n            a[i] += square;\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s442_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s442_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline1_20260422_044515/s442_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

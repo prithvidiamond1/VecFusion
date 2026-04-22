@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s211_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stddef.h>\n\ntypedef float float_vec __attribute__((__vector_size__(16)));\n\nvoid vectorized_s211(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {\n    for (int nl = 0; nl < iterations; nl++) {\n        if (LEN_1D < 3) {\n            continue;\n        }\n\n        int last_scalar = LEN_1D - 2;\n        int i = 1;\n\n        // Handle first iteration separately to break loop-carried dependence\n        a[i] = b[i - 1] + c[i] * d[i];\n        b[i] = b[i + 1] - e[i] * d[i];\n        i++;\n\n        // Vector loop: process complete 4-element chunks, ensuring safe read of b[i+4]\n        int vec_end = i + ((LEN_1D - 5 - i + 1) / 4) * 4;\n        for (; i < vec_end; i += 4) {\n            float_vec vb_prev = {b[i-1], b[i], b[i+1], b[i+2]};\n            float_vec vc = {c[i], c[i+1], c[i+2], c[i+3]};\n            float_vec vd = {d[i], d[i+1], d[i+2], d[i+3]};\n            float_vec ve = {e[i], e[i+1], e[i+2], e[i+3]};\n            float_vec vb_next = {b[i+1], b[i+2], b[i+3], b[i+4]};\n\n            float_vec va = vb_prev + vc * vd;\n            a[i] = va[0];\n            a[i+1] = va[1];\n            a[i+2] = va[2];\n            a[i+3] = va[3];\n\n            float_vec vb_new = vb_next - ve * vd;\n            b[i] = vb_new[0];\n            b[i+1] = vb_new[1];\n            b[i+2] = vb_new[2];\n            b[i+3] = vb_new[3];\n        }\n\n        // Scalar cleanup for remaining elements\n        for (; i <= last_scalar; i++) {\n            a[i] = b[i - 1] + c[i] * d[i];\n            b[i] = b[i + 1] - e[i] * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 3",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 3",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s211_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s211",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s211_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s211_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s211_opt(int iterations, int LEN_1D, float*a, float*b,float*c,float*d,float*e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Store original b[i+1] values needed for b[i] computation\n        float* orig_b_next = (float*)malloc((LEN_1D - 1) * sizeof(float));\n        for (int i = 1; i < LEN_1D - 1; i++) {\n            orig_b_next[i] = b[i + 1];\n        }\n        \n        // First compute b[i] using original b[i+1]\n        for (int i = 1; i < LEN_1D - 1; i++) {\n            b[i] = orig_b_next[i] - e[i] * d[i];\n        }\n        \n        // Then compute a[i] using the updated b[i-1]\n        for (int i = 1; i < LEN_1D - 1; i++) {\n            a[i] = b[i - 1] + c[i] * d[i];\n        }\n        \n        free(orig_b_next);\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s211_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s211_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline1_20260422_044515/s211_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

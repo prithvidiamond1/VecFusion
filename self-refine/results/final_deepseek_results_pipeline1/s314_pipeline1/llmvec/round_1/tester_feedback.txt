@@ -1,0 +1,11 @@
+- **Fix type mismatch for comparison result**: `va > vmax` produces a vector of `int` (or `int32_t`), not `v4f`. Declare `mask` as `v4f_signed` (or `int32_t __attribute__((ext_vector_type(4)))`) and define `v4f_signed` via typedef, or use a built-in like `__builtin_convertvector` to convert the comparison result to a float mask.
+
+- **Remove broken manual blend code**: The line attempting bitwise operations on float vectors is invalid and unnecessary. Replace the entire blend attempt with the simpler conditional expression `vmax = (va > vmax) ? va : vmax;` which is already present on line 40 but preceded by the broken code. Delete lines 37–39.
+
+- **Define `v4f_signed` type**: Add `typedef int32_t v4f_signed __attribute__((ext_vector_type(4)));` at the top if you intend to keep the bitwise approach, but the ternary operator is cleaner and avoids this.
+
+- **Ensure vector load alignment**: `*(v4f*)(a + i)` assumes 16-byte alignment. If `a` is not guaranteed aligned, use `__builtin_assume_aligned(a, 16)` or a vector load builtin like `__builtin_ia32_loadups` for unaligned access.
+
+- **Check loop bound correctness**: The inner vector loop condition `i + 4 <= LEN_1D` is correct for 4-element vectors. The scalar tail loop `for (; i < LEN_1D; i++)` correctly handles remaining elements. No fix needed here.
+
+- **Remove dead code**: The line `vmax = __builtin_shufflevector(vmax, va, 0, 1, 2, 3);` is a no-op (selects all from vmax) and should be deleted to avoid confusion.

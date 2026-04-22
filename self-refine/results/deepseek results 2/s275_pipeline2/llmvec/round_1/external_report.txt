@@ -1,0 +1,46 @@
+Compile failed.
+            Command: clang results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:15:13: warning: variable 'col_count' set but not used [-Wunused-but-set-variable]
+   15 |         int col_count = 0;
+      |             ^
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:53:28: error: invalid operands to binary expression ('v8sf' (vector of 8 'float' values) and 'v8sf')
+   53 |             v8sf c = (mask & one);  // bitwise and with 1.0f bits
+      |                       ~~~~ ^ ~~~
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:119:34: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  119 |                 s275(iterations, aa_scalar, bb_scalar, cc_scalar); vectorized_s275(iterations, aa_vector, bb_vector, cc_vector);
+      |                                  ^~~~~~~~~
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:8:41: note: passing argument to parameter 'aa' here
+    8 |         void s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+      |                                         ^
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:119:45: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  119 |                 s275(iterations, aa_scalar, bb_scalar, cc_scalar); vectorized_s275(iterations, aa_vector, bb_vector, cc_vector);
+      |                                             ^~~~~~~~~
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:8:61: note: passing argument to parameter 'bb' here
+    8 |         void s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+      |                                                             ^
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:119:56: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  119 |                 s275(iterations, aa_scalar, bb_scalar, cc_scalar); vectorized_s275(iterations, aa_vector, bb_vector, cc_vector);
+      |                                                        ^~~~~~~~~
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:8:81: note: passing argument to parameter 'cc' here
+    8 |         void s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+      |                                                                                 ^
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:119:96: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  119 |                 s275(iterations, aa_scalar, bb_scalar, cc_scalar); vectorized_s275(iterations, aa_vector, bb_vector, cc_vector);
+      |                                                                                                ^~~~~~~~~
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:40:44: note: passing argument to parameter 'aa' here
+   40 | void vectorized_s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+      |                                            ^
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:119:107: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  119 |                 s275(iterations, aa_scalar, bb_scalar, cc_scalar); vectorized_s275(iterations, aa_vector, bb_vector, cc_vector);
+      |                                                                                                           ^~~~~~~~~
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:40:64: note: passing argument to parameter 'bb' here
+   40 | void vectorized_s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+      |                                                                ^
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:119:118: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  119 |                 s275(iterations, aa_scalar, bb_scalar, cc_scalar); vectorized_s275(iterations, aa_vector, bb_vector, cc_vector);
+      |                                                                                                                      ^~~~~~~~~
+results/all_tests_rerun_20260418_133434/s275_pipeline2/llmvec/candidate_round_1.c:40:84: note: passing argument to parameter 'cc' here
+   40 | void vectorized_s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+      |                                                                                    ^
+7 warnings and 1 error generated.

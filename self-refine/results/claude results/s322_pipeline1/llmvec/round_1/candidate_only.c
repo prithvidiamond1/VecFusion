@@ -1,0 +1,34 @@
+void vectorized_s322(int iterations, int LEN_1D, float* a, float *b, float* c)
+{
+    // This loop has a loop-carried dependency through a[i] (reads a[i-1] and a[i-2])
+    // so true vectorization across i is not safe. We can unroll the outer loop instead.
+    int nl_limit = iterations / 2;
+    int nl = 0;
+
+    // Unroll outer loop by 4
+    for (; nl <= nl_limit - 4; nl += 4) {
+        // Iteration 1
+        for (int i = 2; i < LEN_1D; i++) {
+            a[i] = a[i] + a[i - 1] * b[i] + a[i - 2] * c[i];
+        }
+        // Iteration 2
+        for (int i = 2; i < LEN_1D; i++) {
+            a[i] = a[i] + a[i - 1] * b[i] + a[i - 2] * c[i];
+        }
+        // Iteration 3
+        for (int i = 2; i < LEN_1D; i++) {
+            a[i] = a[i] + a[i - 1] * b[i] + a[i - 2] * c[i];
+        }
+        // Iteration 4
+        for (int i = 2; i < LEN_1D; i++) {
+            a[i] = a[i] + a[i - 1] * b[i] + a[i - 2] * c[i];
+        }
+    }
+
+    // Scalar cleanup for remaining outer iterations
+    for (; nl < nl_limit; nl++) {
+        for (int i = 2; i < LEN_1D; i++) {
+            a[i] = a[i] + a[i - 1] * b[i] + a[i - 2] * c[i];
+        }
+    }
+}

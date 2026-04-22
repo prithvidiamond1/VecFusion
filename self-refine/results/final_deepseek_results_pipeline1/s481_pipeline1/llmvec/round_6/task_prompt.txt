@@ -1,0 +1,70 @@
+
+Revise your candidate for `s481` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s481(int iterations,int LEN_1D, float* a, float *b, float *c, float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            if (d[i] < (float)0.) {
+                return;
+            }
+            a[i] += b[i] * c[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32x4_t __attribute__((ext_vector_type(4)));
+typedef int int32x4_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s481(int iterations, int LEN_1D, float* restrict a, float* restrict b, float* restrict c, float* restrict d) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        int early_exit = 0;
+
+        for (; i <= LEN_1D - 4; i += 4) {
+            float32x4_t d_vec = *(float32x4_t*)__builtin_assume_aligned(d + i, 16);
+            float32x4_t zero = (float32x4_t){0.0f, 0.0f, 0.0f, 0.0f};
+            int32x4_t cmp = (int32x4_t)(d_vec < zero);
+            if (__builtin_reduce_or(cmp)) {
+                for (int j = 0; j < 4; j++) {
+                    if (d[i + j] < 0.0f) {
+                        early_exit = 1;
+                        break;
+                    }
+                }
+                if (early_exit) break;
+            }
+            float32x4_t a_vec = *(float32x4_t*)__builtin_assume_aligned(a + i, 16);
+            float32x4_t b_vec = *(float32x4_t*)__builtin_assume_aligned(b + i, 16);
+            float32x4_t c_vec = *(float32x4_t*)__builtin_assume_aligned(c + i, 16);
+            a_vec += b_vec * c_vec;
+            *(float32x4_t*)(a + i) = a_vec;
+        }
+
+        for (; i < LEN_1D; i++) {
+            if (d[i] < 0.0f) {
+                early_exit = 1;
+                break;
+            }
+            a[i] += b[i] * c[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a correctness bug in the early-exit logic.
+
+- The vectorized loop checks `d_vec < zero` and then, if any element is negative, enters a scalar sub-loop that iterates over the same 4 elements. This duplicates the check and can cause the early-exit flag to be set for an element that was already processed in the vector path, leading to incorrect results.
+- The scalar sub-loop inside the vector loop should not exist. Instead, the vector loop should directly break when any element of `d_vec` is negative, without re-checking individual elements.
+- The fix: remove the inner `for (int j = 0; j < 4; j++)` loop and the associated `if (d[i + j] < 0.0f)` check. Replace it with a simple `early_exit = 1; break;` when `__builtin_reduce_or(cmp)` is true.
+- Additionally, ensure that when the vector loop breaks early, the scalar remainder loop correctly handles the remaining elements starting from the current `i` (which is already the case, but the duplicate check corrupts the state).
+
+        Return a corrected candidate function named `vectorized_s481`.

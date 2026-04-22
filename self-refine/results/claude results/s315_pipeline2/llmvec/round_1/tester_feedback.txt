@@ -1,0 +1,21 @@
+The issue is that the second-pass lane logic is wrong. Each lane `neg1`, `neg2`, `neg3` only updates when `cand > neg_lane`, but since `cand0 = -i`, `cand1 = -(i+1)`, `cand2 = -(i+2)`, `cand3 = -(i+3)` are all different values, the lanes are tracking independent "best negative index" but they're not correctly finding the **minimum** index across all lanes.
+
+The core bug: `neg1`, `neg2`, `neg3` start at `-LEN_1D` and only update when `cand > neg_lane`. Since `cand1 = -(i+1) < -(i+0) = cand0`, lane 1 will never update if lane 0 already found a match at a smaller index. But more critically, the lanes are independent — lane 1 only sees indices `1, 5, 9, ...` and lane 0 sees `0, 4, 8, ...`, so the merge at the end is correct in principle. The actual bug is:
+
+- `if (c0 & (cand0 > neg0))` uses bitwise `&` on `int` — this is fine for 0/1 values but the condition logic is: update `neg0` only if `c0==1` AND `cand0 > neg0`. Since `cand0` decreases as `i` increases, `cand0 > neg0` is **never true** after the first match (neg0 gets set to 0 or negative, and subsequent cand0 values are more negative). So only the **first** occurrence in each lane is captured — which is actually correct for finding the minimum index.
+
+The real bug: the initial values `neg0=neg1=neg2=neg3 = -LEN_1D`. If `cand0 = 0` (i=0), then `cand0 > neg0` → `0 > -LEN_1D` → true. That's fine. But for lane 1 at i=0: `cand1 = -1`, and `neg1 = -LEN_1D`, so `-1 > -LEN_1D` → true. Also fine.
+
+The actual problem is the **merge**: after the loop, `neg0` holds the best (largest = least negative = smallest index) from positions `0,4,8,...`; `neg1` from `1,5,9,...` etc. The merge `n01 = neg0 > neg1` picks the larger (= smaller index). This is correct.
+
+- The bug is that `neg1`, `neg2`, `neg3` are never updated in the scalar tail loop — only `neg0` is. Fix: use separate tail handling or merge all into `neg0` in the tail.
+- Specifically in the tail loop, matches at indices `limit+1`, `limit+2`, etc. only update `neg0`, but those should compete with `neg1`/`neg2`/`neg3` in the final merge. Since `neg1..neg3` remain at `-LEN_1D` if no match was found in the main loop, the merge will incorrectly return `index = LEN_1D` if no match found in lanes 1-3. **Fix**: initialize `neg1=neg2=neg3 = -(LEN_1D+1)` or better, after the loops merge all into a single variable before the tail, or simply use a single non-unrolled index-finding loop for correctness.
+
+**Simplest fix**: replace the entire second pass with a simple scalar loop:
+
+```c
+index = 0;
+for (int j = 0; j < LEN_1D; j++) {
+    if (a[j] == max_val) { index = j; break; }
+}
+```

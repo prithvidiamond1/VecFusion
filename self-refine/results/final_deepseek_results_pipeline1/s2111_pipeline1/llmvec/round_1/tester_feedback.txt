@@ -1,0 +1,7 @@
+1. **Remove stray markdown fence** – Line 19 contains ````c` which is not valid C. Delete that line entirely.
+
+2. **Fix array dimension mismatch** – The test harness passes `float aa[128]` (a 1D array of 128 floats) but the function expects `float aa[256][256]`. Change the function signature to accept `float aa[128]` and reinterpret it as a 2D array of size `[128][1]` or adjust the loop bounds accordingly.
+
+3. **Adjust loop bounds for actual array size** – Since the array is only 128 elements total, the inner loops iterating up to 256 will cause out-of-bounds access. Change all loop upper bounds from `256` to `128` (or compute the correct 2D dimensions from the 1D layout).
+
+4. **Fix trip count calculation** – `total_iters = 100 * (iterations / 256)` assumes `iterations` is at least 256; if `iterations` is small (e.g., 1), the division yields 0 and the function returns early, skipping all work. Use `total_iters = 100 * (iterations / 128)` or a safer formula based on actual array size.

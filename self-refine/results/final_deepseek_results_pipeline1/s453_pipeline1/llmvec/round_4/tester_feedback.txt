@@ -1,0 +1,9 @@
+The vectorizer candidate fails because the **initial value of `s` is incorrect** for the original scalar semantics.
+
+**Fixes needed:**
+
+1. **Restore correct initial `s` per outer iteration** – The original code starts `s = 0.0f` before the inner loop, then increments `s` before each use. The candidate sets `s = 1.0f` before the vector loop, which shifts all computed values by +1.0.
+
+2. **Fix the vectorized accumulation** – With `s` starting at 0.0f, the first vector chunk should use `s_vec = {1.0f, 2.0f, 3.0f, 4.0f}` (i.e., `s+1` through `s+4`). The current code uses `s` directly, producing `{1,2,3,4}` when `s=1`, but the correct first values are `{1,2,3,4}` starting from `s=0`. The simplest fix: keep `s = 0.0f` and change the vector load to `s_vec = {s+1, s+2, s+3, s+4}`.
+
+3. **Align scalar tail** – The tail loop must also start with the correct `s` value (the one after the last vector chunk). Currently it inherits `s` from the vector loop, which is off by 1.0.

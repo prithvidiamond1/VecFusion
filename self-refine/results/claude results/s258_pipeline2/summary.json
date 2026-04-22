@@ -1,0 +1,53 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s258_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s258_opt(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])\n{\n    float s;\n    for (int nl = 0; nl < iterations; nl++) {\n        s = 0.;\n        // First pass: compute s values and store them\n        float s_arr[256];\n        for (int i = 0; i < 256; ++i) {\n            if (a[i] > 0.) {\n                s = d[i] * d[i];\n            }\n            s_arr[i] = s;\n        }\n        // Second pass: compute b[i] - vectorizable\n        for (int i = 0; i < 256; ++i) {\n            b[i] = s_arr[i] * c[i] + d[i];\n        }\n        // Third pass: compute e[i] - vectorizable\n        for (int i = 0; i < 256; ++i) {\n            e[i] = (s_arr[i] + (float)1.) * aa[0][i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s258_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s258_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s258_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])\n{\n    float s;\n    for (int nl = 0; nl < iterations; nl++) {\n        s = 0.f;\n        float s_arr[256];\n\n        /* First pass: carry-dependent, scalar */\n        for (int i = 0; i < 256; ++i) {\n            if (a[i] > 0.f) {\n                s = d[i] * d[i];\n            }\n            s_arr[i] = s;\n        }\n\n        /* Second pass: vectorizable */\n        for (int i = 0; i < 256; ++i) {\n            b[i] = s_arr[i] * c[i] + d[i];\n        }\n\n        /* Third pass: vectorizable */\n        for (int i = 0; i < 256; ++i) {\n            e[i] = (s_arr[i] + 1.f) * aa[0][i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s258_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s258",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s258_pipeline2/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s258(int iterations, float* a,float* b,float* c, float* d,float* e, float aa[256][256])\n{\n    float s;\n    for (int nl = 0; nl < iterations; nl++) {\n        s = 0.;\n        for (int i = 0; i < 256; ++i) {\n            if (a[i] > 0.) {\n                s = d[i] * d[i];\n            }\n            b[i] = s * c[i] + d[i];\n            e[i] = (s + (float)1.) * aa[0][i];\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s258_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s112_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {\n    for (int nl = 0; nl < 3 * iterations; nl++) {\n        // This loop has a loop-carried dependency: a[i+1] depends on a[i] from previous iteration\n        // (iterating backwards: i from LEN_1D-2 down to 0, writing a[i+1] = a[i] + b[i])\n        // Each iteration writes a[i+1] and reads a[i], but since we go downward,\n        // a[i] was NOT written by a previous iteration in this sweep (we write higher indices first).\n        // So a[i] is always the original a[i] from before the inner loop started.\n        // This means we can vectorize by preloading a[] snapshot.\n        \n        // We need a temporary copy of a[] to read from, since writes don't affect reads\n        // (each a[i] read is the value before this inner loop pass).\n        // Actually: i goes from LEN_1D-2 down to 0.\n        // a[LEN_1D-1] = a[LEN_1D-2] + b[LEN_1D-2]\n        // a[LEN_1D-2] = a[LEN_1D-3] + b[LEN_1D-3]\n        // ...\n        // a[1] = a[0] + b[0]\n        // Each read of a[i] uses the ORIGINAL a[i] (not yet overwritten in this pass,\n        // since we write a[i+1] which is a higher index, already processed).\n        // So reads are always from original values. We can vectorize directly.\n        \n        int i = LEN_1D - 2;\n        \n        // Process 8 elements at a time (unrolled)\n        for (; i >= 7; i -= 8) {\n            float a0 = a[i]   + b[i];\n            float a1 = a[i-1] + b[i-1];\n            float a2 = a[i-2] + b[i-2];\n            float a3 = a[i-3] + b[i-3];\n            float a4 = a[i-4] + b[i-4];\n            float a5 = a[i-5] + b[i-5];\n            float a6 = a[i-6] + b[i-6];\n            float a7 = a[i-7] + b[i-7];\n            a[i+1]   = a0;\n            a[i]     = a1;\n            a[i-1]   = a2;\n            a[i-2]   = a3;\n            a[i-3]   = a4;\n            a[i-4]   = a5;\n            a[i-5]   = a6;\n            a[i-6]   = a7;\n        }\n        \n        // Scalar cleanup\n        for (; i >= 0; i--) {\n            a[i + 1] = a[i] + b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s112_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s112",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s112_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s112_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s112_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

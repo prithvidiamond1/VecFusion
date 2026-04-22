@@ -1,0 +1,4 @@
+Compile succeeded for round 4.
+Exit code: -6
+stderr:
+Mismatch in parameter dst on trial 0 at index 0

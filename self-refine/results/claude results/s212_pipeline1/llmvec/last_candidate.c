@@ -1,0 +1,33 @@
+#include <stdint.h>
+
+void vectorized_s212(int n, float *a, float *b, float *c, float *d) {
+    typedef float float4 __attribute__((vector_size(16)));
+
+    int limit = n - 1;
+    int i = 0;
+
+    /* Pass 1: b[i] += a[i+1] * d[i] using original a values */
+    for (i = 0; i <= limit - 4; i += 4) {
+        float4 ai1, di, bi;
+        __builtin_memcpy(&ai1, &a[i+1], sizeof(float4));
+        __builtin_memcpy(&di,  &d[i],   sizeof(float4));
+        __builtin_memcpy(&bi,  &b[i],   sizeof(float4));
+        bi = bi + ai1 * di;
+        __builtin_memcpy(&b[i], &bi, sizeof(float4));
+    }
+    for (; i < limit; i++) {
+        b[i] += a[i+1] * d[i];
+    }
+
+    /* Pass 2: a[i] *= c[i] */
+    for (i = 0; i <= limit - 4; i += 4) {
+        float4 ai, ci;
+        __builtin_memcpy(&ai, &a[i], sizeof(float4));
+        __builtin_memcpy(&ci, &c[i], sizeof(float4));
+        ai = ai * ci;
+        __builtin_memcpy(&a[i], &ai, sizeof(float4));
+    }
+    for (; i < limit; i++) {
+        a[i] *= c[i];
+    }
+}

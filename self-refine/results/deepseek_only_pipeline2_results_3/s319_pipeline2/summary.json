@@ -1,0 +1,55 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s319_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s319_opt(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e) {\n    float sum;\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        float sum_a = 0.;\n        float sum_b = 0.;\n        \n        // First loop: compute a[i] and accumulate its sum\n        for (int i = 0; i < LEN_1D; i++) {\n            float tmp_a = c[i] + d[i];\n            a[i] = tmp_a;\n            sum_a += tmp_a;\n        }\n        \n        // Second loop: compute b[i] and accumulate its sum\n        for (int i = 0; i < LEN_1D; i++) {\n            float tmp_b = c[i] + e[i];\n            b[i] = tmp_b;\n            sum_b += tmp_b;\n        }\n        \n        // Combine the partial sums\n        sum = sum_a + sum_b;\n    }\n    return sum;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s319_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s319_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s319_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {\n    float sum = 0.0f;\n\n    for (int nl = 0; nl < iterations; nl++) {\n        float sum_a = 0.0f;\n        float sum_b = 0.0f;\n\n        // First loop: compute a[i] = c[i] + d[i] and accumulate sum_a\n        int i = 0;\n        typedef float v4f __attribute__((vector_size(16)));\n        v4f sum_a_vec = (v4f){0.0f, 0.0f, 0.0f, 0.0f};\n\n        // Vectorized part for a[i]\n        for (; i + 3 < LEN_1D; i += 4) {\n            v4f c_vec, d_vec;\n            __builtin_memcpy(&c_vec, &c[i], 16);\n            __builtin_memcpy(&d_vec, &d[i], 16);\n            v4f tmp_a_vec = c_vec + d_vec;\n\n            __builtin_memcpy(&a[i], &tmp_a_vec, 16);\n            sum_a_vec += tmp_a_vec;\n        }\n\n        // Reduce vector sum for sum_a\n        float sum_a_vec_arr[4];\n        __builtin_memcpy(sum_a_vec_arr, &sum_a_vec, 16);\n        sum_a = sum_a_vec_arr[0] + sum_a_vec_arr[1] + sum_a_vec_arr[2] + sum_a_vec_arr[3];\n\n        // Scalar tail for a[i]\n        for (; i < LEN_1D; i++) {\n            float tmp_a = c[i] + d[i];\n            a[i] = tmp_a;\n            sum_a += tmp_a;\n        }\n\n        // Second loop: compute b[i] = c[i] + (c[i] < 0 ? d[i] : e[i]) and accumulate sum_b\n        i = 0;\n        v4f sum_b_vec = (v4f){0.0f, 0.0f, 0.0f, 0.0f};\n\n        // Vectorized part for b[i] with conditional selection\n        for (; i + 3 < LEN_1D; i += 4) {\n            v4f c_vec, d_vec, e_vec;\n            __builtin_memcpy(&c_vec, &c[i], 16);\n            __builtin_memcpy(&d_vec, &d[i], 16);\n            __builtin_memcpy(&e_vec, &e[i], 16);\n\n            // Create mask for c_vec < 0\n            v4f zero_vec = (v4f){0.0f, 0.0f, 0.0f, 0.0f};\n            v4f mask = __builtin_convertvector(c_vec < zero_vec, v4f);\n\n            // Bitwise blend: selected_vec = (mask & d_vec) | (~mask & e_vec)\n            typedef int v4i __attribute__((vector_size(16)));\n            v4i mask_int = __builtin_convertvector(mask, v4i);\n            v4i not_mask_int = ~mask_int;\n            \n            v4f selected_vec;\n            __builtin_memcpy(&selected_vec, &mask_int, 16);\n            selected_vec = selected_vec & d_vec;\n            \n            v4f e_part;\n            __builtin_memcpy(&e_part, &not_mask_int, 16);\n            e_part = e_part & e_vec;\n            \n            selected_vec = selected_vec | e_part;\n\n            // Compute b[i] = c[i] + selected_vec\n            v4f tmp_b_vec = c_vec + selected_vec;\n\n            __builtin_memcpy(&b[i], &tmp_b_vec, 16);\n            sum_b_vec += tmp_b_vec;\n        }\n\n        // Reduce vector sum for sum_b\n        float sum_b_vec_arr[4];\n        __builtin_memcpy(sum_b_vec_arr, &sum_b_vec, 16);\n        sum_b = sum_b_vec_arr[0] + sum_b_vec_arr[1] + sum_b_vec_arr[2] + sum_b_vec_arr[3];\n\n        // Scalar tail for b[i] with conditional\n        for (; i < LEN_1D; i++) {\n            float selected = (c[i] < 0.0f) ? d[i] : e[i];\n            float tmp_b = c[i] + selected;\n            b[i] = tmp_b;\n            sum_b += tmp_b;\n        }\n\n        // Accumulate across outer iterations\n        sum += sum_a + sum_b;\n    }\n\n    return sum;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile failed.\n            Command: clang results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6\n            stderr:\n            results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c:91:41: error: invalid operands to binary expression ('v4f' (vector of 4 'float' values) and 'v4f')\n   91 |             selected_vec = selected_vec & d_vec;\n      |                            ~~~~~~~~~~~~ ^ ~~~~~\nresults/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c:95:29: error: invalid operands to binary expression ('v4f' (vector of 4 'float' values) and 'v4f')\n   95 |             e_part = e_part & e_vec;\n      |                      ~~~~~~ ^ ~~~~~\nresults/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c:97:41: error: invalid operands to binary expression ('v4f' (vector of 4 'float' values) and 'v4f')\n   97 |             selected_vec = selected_vec | e_part;\n      |                            ~~~~~~~~~~~~ ^ ~~~~~~\n3 errors generated.",
+      "unit_test_output": "Compile failed.\n            Command: clang results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6\n            stderr:\n            results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c:91:41: error: invalid operands to binary expression ('v4f' (vector of 4 'float' values) and 'v4f')\n   91 |             selected_vec = selected_vec & d_vec;\n      |                            ~~~~~~~~~~~~ ^ ~~~~~\nresults/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c:95:29: error: invalid operands to binary expression ('v4f' (vector of 4 'float' values) and 'v4f')\n   95 |             e_part = e_part & e_vec;\n      |                      ~~~~~~ ^ ~~~~~\nresults/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/candidate_round_6.c:97:41: error: invalid operands to binary expression ('v4f' (vector of 4 'float' values) and 'v4f')\n   97 |             selected_vec = selected_vec | e_part;\n      |                            ~~~~~~~~~~~~ ^ ~~~~~~\n3 errors generated.",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s319",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s319_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "float s319(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)\n{\n    float sum;\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        sum = 0.;\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = c[i] + d[i];\n            sum += a[i];\n            b[i] = c[i] + e[i];\n            sum += b[i];\n        }\n    }\n    return sum;\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s319_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

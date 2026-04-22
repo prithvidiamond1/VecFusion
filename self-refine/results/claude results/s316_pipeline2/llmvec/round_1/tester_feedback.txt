@@ -1,0 +1,12 @@
+The errors occur because Clang's vector comparison (`<`) returns an integer mask vector, which cannot be used directly as a ternary condition. Fix by replacing the ternary-based min with explicit element-wise operations or using `__builtin_elementwise_min`:
+
+- Replace all `float4 mX = a < b ? a : b;` patterns with `__builtin_elementwise_min(a, b)`, e.g.:
+  ```c
+  float4 m0 = __builtin_elementwise_min(vmin, v0);
+  float4 m1 = __builtin_elementwise_min(v1, v2);
+  float4 m2 = __builtin_elementwise_min(m0, m1);
+  float4 m3 = __builtin_elementwise_min(m2, v3);
+  vmin = m3;
+  ```
+- Similarly replace `vmin = vmin < v ? vmin : v;` with `vmin = __builtin_elementwise_min(vmin, v);`
+- `__builtin_elementwise_min` is available in Clang 15+ and works correctly with `float` vector types without the integer-mask issue.

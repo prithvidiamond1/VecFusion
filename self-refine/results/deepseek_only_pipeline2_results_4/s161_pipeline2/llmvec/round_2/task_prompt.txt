@@ -1,0 +1,120 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s161` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        // First pass: compute all c[i+1] updates for b[i] < 0
+        // Use original a[i] values before any updates in this iteration
+        for (int i = 0; i < LEN_1D-1; ++i) {
+            if (b[i] < (float)0.) {
+                c[i+1] = a[i] + d[i] * d[i];
+            }
+        }
+
+        // Second pass: compute all a[i] updates for b[i] >= 0
+        // Use updated c[i] values from first pass when needed
+        for (int i = 0; i < LEN_1D; ++i) {
+            if (b[i] >= (float)0.) {
+                a[i] = c[i] + d[i] * e[i];
+            }
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+void vectorized_s161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e) {
+    typedef float v4f __attribute__((vector_size(16)));
+    typedef int v4i __attribute__((vector_size(16)));
+
+    int outer_loop_count = iterations / 2;
+
+    for (int nl = 0; nl < outer_loop_count; nl++) {
+        // First pass: compute c[i+1] for b[i] < 0
+        int i = 0;
+        for (; i + 3 < LEN_1D - 1; i += 4) {
+            v4f b_vec = *(v4f*)&b[i];
+            v4f zero_vec = (v4f){0.0f, 0.0f, 0.0f, 0.0f};
+            v4i mask_vec = b_vec < zero_vec;
+
+            // Extract mask to check which lanes are active
+            int mask = __builtin_convertvector(mask_vec, int);
+
+            if (mask != 0) {
+                v4f a_vec = *(v4f*)&a[i];
+                v4f d_vec = *(v4f*)&d[i];
+                v4f d_sq_vec = d_vec * d_vec;
+                v4f result_vec = a_vec + d_sq_vec;
+
+                // Store results for active lanes only
+                for (int lane = 0; lane < 4; lane++) {
+                    if (mask & (1 << lane)) {
+                        c[i + lane + 1] = result_vec[lane];
+                    }
+                }
+            }
+        }
+
+        // Scalar tail for first pass
+        for (; i < LEN_1D - 1; ++i) {
+            if (b[i] < 0.0f) {
+                c[i + 1] = a[i] + d[i] * d[i];
+            }
+        }
+
+        // Second pass: compute a[i] for b[i] >= 0
+        i = 0;
+        for (; i + 3 < LEN_1D; i += 4) {
+            v4f b_vec = *(v4f*)&b[i];
+            v4f zero_vec = (v4f){0.0f, 0.0f, 0.0f, 0.0f};
+            v4i mask_vec = b_vec >= zero_vec;
+
+            int mask = __builtin_convertvector(mask_vec, int);
+
+            if (mask != 0) {
+                v4f c_vec = *(v4f*)&c[i];
+                v4f d_vec = *(v4f*)&d[i];
+                v4f e_vec = *(v4f*)&e[i];
+                v4f de_vec = d_vec * e_vec;
+                v4f result_vec = c_vec + de_vec;
+
+                // Store results for active lanes only
+                for (int lane = 0; lane < 4; lane++) {
+                    if (mask & (1 << lane)) {
+                        a[i + lane] = result_vec[lane];
+                    }
+                }
+            }
+        }
+
+        // Scalar tail for second pass
+        for (; i < LEN_1D; ++i) {
+            if (b[i] >= 0.0f) {
+                a[i] = c[i] + d[i] * e[i];
+            }
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - Fix the `__builtin_convertvector` calls: the second argument must be a vector type, not a scalar. Use `v4i` instead of `int`.
+- Change `int mask = __builtin_convertvector(mask_vec, int);` to `v4i mask_v = __builtin_convertvector(mask_vec, v4i);` in both occurrences.
+- Since the subsequent code expects a scalar integer mask, extract it by converting the vector mask to an integer mask using bit operations. For example, use `int mask = (mask_v[0] & 1) | ((mask_v[1] & 1) << 1) | ((mask_v[2] & 1) << 2) | ((mask_v[3] & 1) << 3);`.
+- Alternatively, use a simpler approach: directly compute a scalar mask by checking each lane of `mask_vec` without `__builtin_convertvector`. For instance, `int mask = (mask_vec[0] ? 1 : 0) | (mask_vec[1] ? 2 : 0) | (mask_vec[2] ? 4 : 0) | (mask_vec[3] ? 8 : 0);`.
+- Ensure the fix is applied in both the first pass (line 46) and the second pass (line 77) of the vectorized loop.
+- After fixing, recompile to verify no further type errors exist.
+
+        Return a corrected candidate function named `vectorized_s161`.

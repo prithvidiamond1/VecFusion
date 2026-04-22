@@ -1,13 +1,22 @@
 #!/bin/bash
 
-export BISHENG_HOME=~/BiShengCompiler
-export LLM_BASE_URL="https://api.siliconflow.cn/v1"
-export API_KEY=""
-export ENGINE="Pro/deepseek-ai/DeepSeek-V3"
-export ALIVE2_HOME=~/ALIVE2
-#
-export PATH=$BISHENG_HOME/bin:$ALIVE2_HOME:$PATH
-export LD_LIBRARY_LIB=$BISHENG_HOME/lib:$LD_LIBRARY_LIB
-#
-export CLANG_PATH=$BISHENG_HOME/bin/clang
-export PYTHONPATH=".:../:.:src:../:../../:.:prompt-lib"
+export DEEPSEEK_API_KEY=""
+
+# VecTrans / OpenAI-compatible DeepSeek path
+export LLM_BASE_URL="https://api.deepseek.com/v1"
+export OPENAI_API_KEY="$DEEPSEEK_API_KEY"
+export API_KEY="$DEEPSEEK_API_KEY"
+export ENGINE="deepseek-chat"
+
+# LLM-Vectorizer / Anthropic-compatible DeepSeek path
+export ANTHROPIC_API_KEY="$DEEPSEEK_API_KEY"
+export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
+export LLM_VECTORIZER_MODEL="deepseek-chat"
+
+# Clear stale old-provider vars
+unset CLAUDE_API_KEY
+unset ANTHROPIC_AUTH_TOKEN
+
+export ALIVE2_HOME=$HOME/ALIVE2/build
+export BISHENG_HOME=~/BISHENG
+export PATH="$BISHENG_HOME/bin:$ALIVE2_HOME:$PATH"

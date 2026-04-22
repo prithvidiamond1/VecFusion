@@ -1,0 +1,55 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s319_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s319_opt(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)\n{\n    float sum;\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        sum = 0.;\n        for (int i = 0; i < LEN_1D; i++) {\n            float ai = c[i] + d[i];\n            float bi = c[i] + e[i];\n            a[i] = ai;\n            b[i] = bi;\n            sum += ai + bi;\n        }\n    }\n    return sum;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s319_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s319_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s319_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {\n    float sum = 0.0f;\n    int outer_loop_count = 2 * iterations;\n\n    for (int nl = 0; nl < outer_loop_count; nl++) {\n        float sum_inner = 0.0f;\n        int i = 0;\n\n        // Vectorized main loop\n        for (; i + 3 < LEN_1D; i += 4) {\n            float c0 = c[i];\n            float c1 = c[i+1];\n            float c2 = c[i+2];\n            float c3 = c[i+3];\n\n            float d0 = d[i];\n            float d1 = d[i+1];\n            float d2 = d[i+2];\n            float d3 = d[i+3];\n\n            float e0 = e[i];\n            float e1 = e[i+1];\n            float e2 = e[i+2];\n            float e3 = e[i+3];\n\n            float ai0 = c0 + d0;\n            float ai1 = c1 + d1;\n            float ai2 = c2 + d2;\n            float ai3 = c3 + d3;\n\n            float bi0 = c0 + e0;\n            float bi1 = c1 + e1;\n            float bi2 = c2 + e2;\n            float bi3 = c3 + e3;\n\n            a[i] = ai0;\n            a[i+1] = ai1;\n            a[i+2] = ai2;\n            a[i+3] = ai3;\n\n            b[i] = bi0;\n            b[i+1] = bi1;\n            b[i+2] = bi2;\n            b[i+3] = bi3;\n\n            // Corrected: accumulate (ai + bi) for each element once\n            sum_inner += (ai0 + bi0) + (ai1 + bi1) + (ai2 + bi2) + (ai3 + bi3);\n        }\n\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            float ai = c[i] + d[i];\n            float bi = c[i] + e[i];\n            a[i] = ai;\n            b[i] = bi;\n            sum_inner += ai + bi;\n        }\n\n        sum += sum_inner;\n    }\n\n    return sum;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s319_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s319",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s319_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s319_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "float s319(int iterations,int LEN_1D, float * a, float*b,float*c,float*d, float*e)\n{\n    float sum;\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        sum = 0.;\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] = c[i] + d[i];\n            sum += a[i];\n            b[i] = c[i] + e[i];\n            sum += b[i];\n        }\n    }\n    return sum;\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s319_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

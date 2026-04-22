@@ -1,0 +1,8 @@
+The vectorizer candidate compiles but produces incorrect results (exit code 2 indicates a runtime mismatch).
+
+Specific issues to fix:
+
+- The inner loop multiplies `inner_product` by `0.99f^4` for each 4-element chunk, but the original scalar semantics multiply by `0.99f` for each individual iteration — the vectorized version incorrectly computes `(0.99^4)^(inner_len/4)` instead of `0.99^inner_len`
+- The reduction `inner_product *= ...` is not associative with floating-point multiplication, so the vectorized accumulation order changes the result; use `#pragma STDC FP_CONTRACT OFF` or accumulate with explicit sequential multiplication
+- The outer loop multiplies `q` by `inner_product` each iteration, but the vectorized inner product value is already wrong, cascading the error across all outer iterations
+- Fix by either: (a) keeping the inner loop scalar, or (b) using a correctly ordered reduction that multiplies `0.99f` exactly `inner_len` times (e.g., compute `powf(0.99f, inner_len)` instead of chunked multiplication)

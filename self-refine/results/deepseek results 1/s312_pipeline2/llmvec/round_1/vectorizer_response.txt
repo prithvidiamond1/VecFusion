@@ -1,0 +1,41 @@
+```c
+#include <stdint.h>
+
+float vectorized_s312(int iterations, int LEN_1D, float* a)
+{
+    float prod;
+    int total_outer = 10 * iterations;
+
+    for (int nl = 0; nl < total_outer; nl++) {
+        prod = 1.0f;
+
+        // Unroll by 8 to allow better pipelining/vectorization
+        float p0 = 1.0f, p1 = 1.0f, p2 = 1.0f, p3 = 1.0f;
+        float p4 = 1.0f, p5 = 1.0f, p6 = 1.0f, p7 = 1.0f;
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 8);
+
+        for (; i < limit; i += 8) {
+            p0 *= a[i + 0];
+            p1 *= a[i + 1];
+            p2 *= a[i + 2];
+            p3 *= a[i + 3];
+            p4 *= a[i + 4];
+            p5 *= a[i + 5];
+            p6 *= a[i + 6];
+            p7 *= a[i + 7];
+        }
+
+        // Combine partial products
+        prod = p0 * p1 * p2 * p3 * p4 * p5 * p6 * p7;
+
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            prod *= a[i];
+        }
+    }
+
+    return prod;
+}
+```

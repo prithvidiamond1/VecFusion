@@ -1,0 +1,41 @@
+```c
+#include <stddef.h>
+
+typedef float float32x4_t __attribute__((__vector_size__(16)));
+
+void vectorized_s1213(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    if (LEN_1D < 3) return;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        int last = LEN_1D - 1;
+
+        // Handle first element separately to break the dependence
+        if (i < last) {
+            a[i] = b[i-1] + c[i];
+            b[i] = a[i+1] * d[i];
+            i++;
+        }
+
+        // Now vectorize: for i >= 2, a[i+1] is not yet written by this iteration
+        for (; i <= last - 4; i += 4) {
+            float32x4_t b_orig = *(float32x4_t*)(b + i - 1);
+            float32x4_t c_vec = *(float32x4_t*)(c + i);
+            float32x4_t a_next = *(float32x4_t*)(a + i + 1);
+            float32x4_t d_vec = *(float32x4_t*)(d + i);
+
+            float32x4_t a_new = b_orig + c_vec;
+            *(float32x4_t*)(a + i) = a_new;
+
+            float32x4_t b_new = a_next * d_vec;
+            *(float32x4_t*)(b + i) = b_new;
+        }
+
+        // Scalar cleanup
+        for (int k = i; k < last; k++) {
+            a[k] = b[k-1] + c[k];
+            b[k] = a[k+1] * d[k];
+        }
+    }
+}
+```

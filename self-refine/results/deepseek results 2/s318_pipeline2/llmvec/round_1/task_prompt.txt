@@ -1,0 +1,19 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Vectorize the scalar C function `s318` below.
+
+        Scalar source:
+        ```c
+        if (fabsf(a[k]) <= max) {
+    goto L5;
+}
+index = i;
+max = fabsf(a[k]);
+        ```
+
+        Produce a candidate function named `vectorized_s318`.

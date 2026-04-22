@@ -1,0 +1,9 @@
+The vectorizer has a correctness bug in the vectorized loop body.
+
+- **Incorrect scalar recurrence for `b[i]`**: The vectorized loop computes `b[i]` using `vb_prev[3]` (the last element of the previous vector), but the original scalar code uses `b[i-1]` (the immediate previous element). This breaks the true dependence chain when `i` advances by 4.
+
+- **Fix**: The vectorized loop must compute `b[i]` through `b[i+3]` as a sequential scalar recurrence, not by extracting from the previous vector. The current approach assumes `b[i-1]` equals `b[i-4+3]`, which is only true if the recurrence is linear with no data-dependent changes—but the original code has a true loop-carried dependence on `b`.
+
+- **Trip count / bounds**: The loop bounds `i <= LEN_1D - 4` and the scalar remainder loop `i < LEN_1D` are correct for the iteration space, but the vector body's logic is unsound for the recurrence.
+
+- **Suggested fix**: Either (a) keep the vector loop but compute `b[i]..b[i+3]` as a sequential scalar chain using the last computed `b` value, or (b) mark this loop as non-vectorizable due to the tight recurrence and fall back to scalar.

@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s221_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s221(int iterations, int LEN_1D, float*a, float*b, float*c, float*d)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        // The inner loop has a loop-carried dependency in b[i] = b[i-1] + ...\n        // so we cannot vectorize the b update. We can vectorize the a update\n        // and keep b sequential.\n        \n        // First pass: vectorize a[i] += c[i] * d[i]\n        int i = 1;\n        \n        // Vector width of 4 floats\n        int vec_end = 1 + ((LEN_1D - 1) / 4) * 4;\n        \n        for (; i < vec_end; i += 4) {\n            a[i]   += c[i]   * d[i];\n            a[i+1] += c[i+1] * d[i+1];\n            a[i+2] += c[i+2] * d[i+2];\n            a[i+3] += c[i+3] * d[i+3];\n        }\n        // Scalar cleanup for a\n        for (; i < LEN_1D; i++) {\n            a[i] += c[i] * d[i];\n        }\n        \n        // Second pass: b[i] = b[i-1] + a[i] + d[i] (sequential, loop-carried dep)\n        for (i = 1; i < LEN_1D; i++) {\n            b[i] = b[i-1] + a[i] + d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s221_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s221",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s221_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s221_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s221_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

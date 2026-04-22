@@ -1,0 +1,34 @@
+```c
+#include <stdint.h>
+
+typedef float float4 __attribute__((vector_size(16)));
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float* b)
+{
+    float dot = 0.0f;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        /* Use contiguous vectorization: process 4 floats at a time */
+        float4 vsum = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        int limit = (LEN_1D / 4) * 4;
+        int i = 0;
+
+        for (; i < limit; i += 4) {
+            float4 va, vb;
+            va[0] = a[i];   va[1] = a[i+1]; va[2] = a[i+2]; va[3] = a[i+3];
+            vb[0] = b[i];   vb[1] = b[i+1]; vb[2] = b[i+2]; vb[3] = b[i+3];
+            vsum += va * vb;
+        }
+
+        float total = vsum[0] + vsum[1] + vsum[2] + vsum[3];
+
+        /* Scalar tail for remaining elements */
+        for (; i < LEN_1D; i++) {
+            total += a[i] * b[i];
+        }
+
+        dot = total;
+    }
+    return dot;
+}
+```

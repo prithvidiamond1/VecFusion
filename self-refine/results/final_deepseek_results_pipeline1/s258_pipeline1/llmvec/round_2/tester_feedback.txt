@@ -1,0 +1,8 @@
+The candidate has a **semantic bug**: the scalar loop’s `s` update depends on the *last* `a[i] > 0.0f` condition in each inner iteration, but the vectorized version incorrectly uses `s_vec[3]` (the last element of the current chunk) as the new `s` for the *next* chunk.
+
+**Fix:**  
+- The scalar `s` is updated only when `a[i] > 0.0f`; otherwise it retains its previous value.  
+- In the vectorized version, after processing a chunk, `s` must be set to the value of `s_vec` at the *last index where `a[i] > 0.0f`*, or kept unchanged if none were true.  
+- Replace `s = s_vec[3];` with a loop over the chunk that updates `s` only when `a[i+j] > 0.0f`.  
+
+This mismatch causes the wrong `s` to propagate into subsequent chunks, producing the reported output error.

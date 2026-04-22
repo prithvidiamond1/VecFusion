@@ -1,0 +1,58 @@
+#include <stdint.h>
+
+float vectorized_s332(int iterations, int LEN_1D, int t, float* a)
+{
+    int index;
+    float value;
+    float chksum;
+    float ft = (float)t;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        index = -2;
+        value = -1.f;
+
+        // Vectorized search: find first i where a[i] > t
+        // We'll process in chunks of 8 to find the first match
+        int found = 0;
+        int i = 0;
+
+        // Process in chunks of 8
+        for (; i <= LEN_1D - 8 && !found; i += 8) {
+            // Check if any element in this chunk satisfies a[i] > t
+            int mask = 0;
+            mask |= (a[i+0] > ft) ? (1 << 0) : 0;
+            mask |= (a[i+1] > ft) ? (1 << 1) : 0;
+            mask |= (a[i+2] > ft) ? (1 << 2) : 0;
+            mask |= (a[i+3] > ft) ? (1 << 3) : 0;
+            mask |= (a[i+4] > ft) ? (1 << 4) : 0;
+            mask |= (a[i+5] > ft) ? (1 << 5) : 0;
+            mask |= (a[i+6] > ft) ? (1 << 6) : 0;
+            mask |= (a[i+7] > ft) ? (1 << 7) : 0;
+
+            if (mask != 0) {
+                // Find the lowest set bit
+                int bit = 0;
+                while (bit < 8 && !(mask & (1 << bit))) bit++;
+                index = i + bit;
+                value = a[index];
+                found = 1;
+            }
+        }
+
+        // Scalar cleanup tail
+        if (!found) {
+            for (; i < LEN_1D; i++) {
+                if (a[i] > ft) {
+                    index = i;
+                    value = a[i];
+                    found = 1;
+                    break;
+                }
+            }
+        }
+
+        chksum = value + (float)index;
+    }
+
+    return value;
+}

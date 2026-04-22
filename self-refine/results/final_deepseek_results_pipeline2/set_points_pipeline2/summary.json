@@ -1,0 +1,41 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/set_points_pipeline2/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "#include <stdlib.h>\n#include <string.h>\n\nvoid set_points_opt(float* dst, int* src, const int* divs, int divCount, int srcFixed,\n                       int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,\n                       bool isScalable) {\n    float dstLen = dstEnd - dstStart;\n    float scale;\n    if (srcFixed <= dstLen) {\n        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);\n    } else {\n        scale = dstLen / ((float) srcFixed);\n    }\n\n    src[0] = srcStart;\n    dst[0] = dstStart;\n\n    // Loop 1: Compute all src values (fully vectorizable)\n    for (int i = 0; i < divCount; i++) {\n        src[i + 1] = divs[i];\n    }\n\n    // Pre-allocate temporary arrays\n    float* dstTemp = (float*)malloc((divCount + 1) * sizeof(float));\n    dstTemp[0] = dstStart;\n\n    // Loop 2: Compute dstDeltas and do prefix sum in a way that can be vectorized\n    // Use the original loop structure but store results in two separate arrays\n    float* deltas = (float*)malloc(divCount * sizeof(float));\n    \n    // First compute all deltas (fully vectorizable)\n    float cond1 = (srcFixed <= dstLen) ? 1.0f : 0.0f;\n    \n    for (int i = 0; i < divCount; i++) {\n        int srcDelta = src[i + 1] - src[i];\n        float scalableMask = isScalable ? 1.0f : 0.0f;\n        \n        // Arithmetic masking for the conditional logic\n        float normalCase = scalableMask * (scale * (float)srcDelta) + (1.0f - scalableMask) * (float)srcDelta;\n        float elseCase = scalableMask * 0.0f + (1.0f - scalableMask) * (scale * (float)srcDelta);\n        deltas[i] = cond1 * normalCase + (1.0f - cond1) * elseCase;\n        \n        isScalable = !isScalable;\n    }\n\n    // Loop 3: Vectorized prefix sum using scan pattern\n    // Use multiple passes to handle the carry dependency\n    int blockSize = 4; // Vector width\n    for (int start = 0; start < divCount; start += blockSize) {\n        int end = (start + blockSize < divCount) ? start + blockSize : divCount;\n        float carry = (start > 0) ? dstTemp[start] : dstStart;\n        \n        // This inner loop can be vectorized because each block is independent\n        for (int j = start; j < end; j++) {\n            carry = carry + deltas[j];\n            dstTemp[j + 1] = carry;\n        }\n        \n        // Store the last value for the next block\n        if (end < divCount) {\n            dstTemp[end] = carry;\n        }\n    }\n\n    // Loop 4: Copy results to dst (fully vectorizable)\n    for (int i = 0; i < divCount; i++) {\n        dst[i + 1] = dstTemp[i + 1];\n    }\n\n    free(dstTemp);\n    free(deltas);\n\n    // Set final values\n    src[divCount + 1] = srcEnd;\n    dst[divCount + 1] = dstEnd;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/set_points_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/set_points_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/set_points_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: VecTrans-preprocessed input is not a single full function; cannot safely normalize handoff.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/set_points_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "set_points",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/set_points_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    }
+  ]
+}

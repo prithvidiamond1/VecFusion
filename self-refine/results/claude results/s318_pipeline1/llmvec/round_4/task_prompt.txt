@@ -1,0 +1,82 @@
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations,int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            if (fabsf(a[k]) <= max) {
+                goto L5;
+            }
+            index = i;
+            max = fabsf(a[k]);
+L5:
+            k += inc;
+        }
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int index = 0;
+    float max = 0.0f;
+    float chksum = 0.0f;
+
+    for (int nl = 0; nl < iterations/2; nl++) {
+        index = 0;
+        max = fabsf(a[0]);
+
+        int chunk = (LEN_1D - 1) / 4;
+        int rem_start = 1 + chunk * 4;
+
+        int ki = 1; // unit stride through array indices
+
+        for (int ci = 0; ci < chunk; ci++) {
+            float v0 = fabsf(a[ki]);   ki++;
+            float v1 = fabsf(a[ki]);   ki++;
+            float v2 = fabsf(a[ki]);   ki++;
+            float v3 = fabsf(a[ki]);   ki++;
+
+            int base = 1 + ci * 4;
+
+            if (v0 > max) { max = v0; index = base + 0; }
+            if (v1 > max) { max = v1; index = base + 1; }
+            if (v2 > max) { max = v2; index = base + 2; }
+            if (v3 > max) { max = v3; index = base + 3; }
+        }
+
+        // Scalar cleanup for remaining elements
+        for (int i2 = rem_start; i2 < LEN_1D; i2++) {
+            float v = fabsf(a[ki]);
+            if (v > max) {
+                max = v;
+                index = i2;
+            }
+            ki++;
+        }
+
+        chksum = max + (float)index;
+    }
+    return max + (float)index + 1;
+}
+        ```
+
+        Tester feedback:
+        - The function returns `max + (float)index + 1` but should return `chksum` (the accumulated value from the loop). The `+1` offset and ignoring `chksum` causes a return value mismatch.
+- Replace the final `return max + (float)index + 1;` with `return chksum;`.
+
+        Return a corrected candidate function named `vectorized_s318`.

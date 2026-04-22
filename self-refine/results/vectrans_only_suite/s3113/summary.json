@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s3113/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nfloat s3113_opt(int iterations,int LEN_1D, float* a)\n{\n    float max;\n    int outer_loop_count = iterations * 4;\n    \n    for (int nl = 0; nl < outer_loop_count; nl++) {\n        float current_max = fabsf(a[0]);\n        \n        for (int i = 0; i < LEN_1D; i++) {\n            float abs_val = fabsf(a[i]);\n            if (abs_val > current_max) {\n                current_max = abs_val;\n            }\n        }\n        \n        max = current_max;\n    }\n    \n    return max;\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s481_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s481_opt(int iterations,int LEN_1D, float* a, float *b, float *c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // First pass: check condition and compute partial updates\n        int should_return = 0;\n        int last_safe = 0;\n        \n        for (int i = 0; i < LEN_1D; i++) {\n            if (d[i] < (float)0.) {\n                should_return = 1;\n                last_safe = i;\n                break;\n            }\n        }\n        \n        // Update only up to last_safe (or all if no negative found)\n        int limit = should_return ? last_safe : LEN_1D;\n        for (int i = 0; i < limit; i++) {\n            a[i] += b[i] * c[i];\n        }\n        \n        if (should_return) return;\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s481_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s481_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s481_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nvoid vectorized_s481(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {\n    typedef float v8f __attribute__((__vector_size__(32), __aligned__(1)));\n    typedef int32_t v8i __attribute__((__vector_size__(32), __aligned__(1)));\n    \n    const int VF = 8;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        // Vectorized check for negative values in d\n        int should_return = 0;\n        int last_safe = 0;\n        int i = 0;\n        \n        for (; i + VF <= LEN_1D; i += VF) {\n            v8f dv = *(v8f*)&d[i];\n            v8i mask = (v8i)(dv < (v8f){0,0,0,0,0,0,0,0});\n            \n            // Check if any lane has negative value\n            int any_negative = 0;\n            for (int lane = 0; lane < VF; lane++) {\n                if (mask[lane]) {\n                    any_negative = 1;\n                    last_safe = i + lane;\n                    break;\n                }\n            }\n            \n            if (any_negative) {\n                should_return = 1;\n                break;\n            }\n        }\n        \n        // Scalar tail for the check\n        if (!should_return) {\n            for (; i < LEN_1D; i++) {\n                if (d[i] < 0.0f) {\n                    should_return = 1;\n                    last_safe = i;\n                    break;\n                }\n            }\n        }\n        \n        // Determine limit for update\n        int limit = should_return ? last_safe : LEN_1D;\n        \n        // Vectorized update: a[i] += b[i] * c[i]\n        i = 0;\n        for (; i + VF <= limit; i += VF) {\n            v8f av = *(v8f*)&a[i];\n            v8f bv = *(v8f*)&b[i];\n            v8f cv = *(v8f*)&c[i];\n            av += bv * cv;\n            *(v8f*)&a[i] = av;\n        }\n        \n        // Scalar tail for update\n        for (; i < limit; i++) {\n            a[i] += b[i] * c[i];\n        }\n        \n        if (should_return) return;\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s481_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s481",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s481_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s481_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s481_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s481_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

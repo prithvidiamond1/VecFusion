@@ -1,0 +1,4 @@
+- The function resets `vsum` to zero at the start of each `nl` iteration and overwrites `dot = total` each time, which is correct structurally, but the reference implementation accumulates `dot` across the outer loop (i.e., `dot += a[i]*b[i]` inside the outer loop, not a fresh dot product each iteration).
+- The original `s352` kernel does `dot += a[i]*b[i]` — it **accumulates** into `dot` across all outer `nl` iterations, not resets each time.
+- Fix: initialize `dot = 0.0f` before the outer loop (already done), but inside the outer loop **add** `total` to `dot` instead of assigning: change `dot = total;` to `dot += total;`.
+- Also initialize `vsum` outside or accumulate properly — since each `nl` pass should add to the running `dot`, the simplest fix is `dot += total;` (keep `vsum` reset per inner pass, just accumulate into `dot`).

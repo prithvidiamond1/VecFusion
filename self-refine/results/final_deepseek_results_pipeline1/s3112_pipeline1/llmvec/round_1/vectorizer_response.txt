@@ -1,0 +1,28 @@
+```c
+typedef float float32 __attribute__((ext_vector_type(4)));
+
+float vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)
+{
+    float sum = 0.0f;
+    for (int nl = 0; nl < iterations; nl++) {
+        float32 vec_sum = {0.0f, 0.0f, 0.0f, 0.0f};
+        float scalar_sum = 0.0f;
+        int i;
+        for (i = 0; i <= LEN_1D - 4; i += 4) {
+            float32 va = *(float32*)(a + i);
+            vec_sum += va;
+            float32 vb = {vec_sum[0], vec_sum[1], vec_sum[2], vec_sum[3]};
+            *(float32*)(b + i) = vb;
+        }
+        // Compute final scalar sum from vector
+        scalar_sum = vec_sum[0] + vec_sum[1] + vec_sum[2] + vec_sum[3];
+        // Tail handling
+        for (; i < LEN_1D; i++) {
+            scalar_sum += a[i];
+            b[i] = scalar_sum;
+        }
+        sum = scalar_sum;
+    }
+    return sum;
+}
+```

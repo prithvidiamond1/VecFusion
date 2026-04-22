@@ -1,0 +1,63 @@
+#include <stdint.h>
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)
+{
+    float sum = 0.0f;
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        sum = 0.0f;
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 8);
+
+        float sum0 = 0.0f, sum1 = 0.0f, sum2 = 0.0f, sum3 = 0.0f;
+        float sum4 = 0.0f, sum5 = 0.0f, sum6 = 0.0f, sum7 = 0.0f;
+
+        for (; i < limit; i += 8) {
+            /* Read all inputs before any writes */
+            float c0 = c[i+0], c1 = c[i+1], c2 = c[i+2], c3 = c[i+3];
+            float c4 = c[i+4], c5 = c[i+5], c6 = c[i+6], c7 = c[i+7];
+
+            float d0 = d[i+0], d1 = d[i+1], d2 = d[i+2], d3 = d[i+3];
+            float d4 = d[i+4], d5 = d[i+5], d6 = d[i+6], d7 = d[i+7];
+
+            float e0 = e[i+0], e1 = e[i+1], e2 = e[i+2], e3 = e[i+3];
+            float e4 = e[i+4], e5 = e[i+5], e6 = e[i+6], e7 = e[i+7];
+
+            float a0 = c0 + d0, a1 = c1 + d1, a2 = c2 + d2, a3 = c3 + d3;
+            float a4 = c4 + d4, a5 = c5 + d5, a6 = c6 + d6, a7 = c7 + d7;
+
+            float b0 = c0 + e0, b1 = c1 + e1, b2 = c2 + e2, b3 = c3 + e3;
+            float b4 = c4 + e4, b5 = c5 + e5, b6 = c6 + e6, b7 = c7 + e7;
+
+            /* Now write outputs */
+            a[i+0] = a0; a[i+1] = a1; a[i+2] = a2; a[i+3] = a3;
+            a[i+4] = a4; a[i+5] = a5; a[i+6] = a6; a[i+7] = a7;
+
+            b[i+0] = b0; b[i+1] = b1; b[i+2] = b2; b[i+3] = b3;
+            b[i+4] = b4; b[i+5] = b5; b[i+6] = b6; b[i+7] = b7;
+
+            sum0 += a0 + b0;
+            sum1 += a1 + b1;
+            sum2 += a2 + b2;
+            sum3 += a3 + b3;
+            sum4 += a4 + b4;
+            sum5 += a5 + b5;
+            sum6 += a6 + b6;
+            sum7 += a7 + b7;
+        }
+
+        sum = (sum0 + sum1) + (sum2 + sum3) + (sum4 + sum5) + (sum6 + sum7);
+
+        for (; i < LEN_1D; i++) {
+            float ci = c[i], di = d[i], ei = e[i];
+            float ai = ci + di;
+            float bi = ci + ei;
+            a[i] = ai;
+            b[i] = bi;
+            sum += ai + bi;
+        }
+
+        a[0] = sum;
+    }
+    return a[0];
+}

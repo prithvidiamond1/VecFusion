@@ -1,0 +1,105 @@
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations,int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            if (fabsf(a[k]) <= max) {
+                goto L5;
+            }
+            index = i;
+            max = fabsf(a[k]);
+L5:
+            k += inc;
+        }
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    chksum = 0.0f;
+    max = 0.0f;
+    index = 0;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        float cur_max = max;
+        int cur_idx = 0;
+
+        int i = 1;
+        /* Unrolled by 4, stop when fewer than 4 elements remain */
+        int end4 = LEN_1D - 3;
+
+        for (; i < end4; i += 4) {
+            float v0 = fabsf(a[k]);
+            float v1 = fabsf(a[k + inc]);
+            float v2 = fabsf(a[k + 2*inc]);
+            float v3 = fabsf(a[k + 3*inc]);
+
+            if (v0 > cur_max) { cur_max = v0; cur_idx = i; }
+            if (v1 > cur_max) { cur_max = v1; cur_idx = i+1; }
+            if (v2 > cur_max) { cur_max = v2; cur_idx = i+2; }
+            if (v3 > cur_max) { cur_max = v3; cur_idx = i+3; }
+
+            k += 4*inc;
+        }
+
+        /* Scalar cleanup for remaining elements */
+        for (; i < LEN_1D; i++) {
+            float v = fabsf(a[k]);
+            if (v > cur_max) {
+                cur_max = v;
+                cur_idx = i;
+            }
+            k += inc;
+        }
+
+        max = cur_max;
+        index = cur_idx;
+
+        chksum = max + (float)index;
+    }
+    return chksum;
+}
+        ```
+
+        Tester feedback:
+        Looking at the code, the issue is that the loop starts with `a[0]` for index 0, but then increments `k += inc` before the loop, so the unrolled loop accesses `a[k]` starting at index `inc` (i=1). However, the original s318 idiom uses `a[k]` where `k` starts at 0 and increments by `inc` each step — meaning `a[k]` for iteration `i` should be `a[i * inc]`.
+
+The bug: after initializing `max = fabsf(a[0])` and doing `k += inc`, the unrolled loop body accesses `a[k]`, `a[k+inc]`, `a[k+2*inc]`, `a[k+3*inc]` — but `k` is already at `1*inc`, so these are elements at `inc, 2*inc, 3*inc, 4*inc` which is correct for i=1,2,3,4. But `k` is only advanced by `4*inc` per iteration, so this part is fine.
+
+The real problem: **the initial element uses `a[0]` but should use `a[k]` where `k=0` (i.e., `a[0]` is correct only if `inc` steps through indices 0, inc, 2*inc...). The reference likely uses `a[k]` with `k` starting at 0 and stepping by `inc`, so `a[0]` is correct for the first element.
+
+The actual bug is that `k` starts at 0, we read `a[0]`, then do `k += inc` making `k = inc`. In the unrolled loop for `i=1`, we read `a[k] = a[inc]` — correct. But the loop condition `i < end4` where `end4 = LEN_1D - 3` means for `LEN_1D=32`, `end4=29`, so the loop runs for `i=1,5,9,...,25` (last iteration i=25, reads i=25,26,27,28), then cleanup handles i=29,30,31. This looks correct.
+
+- The most likely issue: **`end4` should be `LEN_1D - 3` but the loop condition `i < end4` with step 4 means the last full group starts at `i` where `i+3 < LEN_1D`, i.e., `i <= LEN_1D-4`, so `end4 = LEN_1D - 3` is wrong — it should be `LEN_1D - 2` (i.e., `i < LEN_1D - 3` means last valid i is `LEN_1D-4`, which is correct). Actually `i < LEN_1D - 3` ↔ `i <= LEN_1D - 4` — this **is** correct.
+
+- The real bug: the reference `s318` likely uses `a[k]` with `k` starting at 0 and `k += inc` each step, but the **initial max uses `a[0]`** while it should use `a[k]` with `k=0*inc=0` — that's fine. However, the reference probably initializes `max` inside the loop at `i=0` without a separate pre-step. **Remove the pre-increment `k += inc` before the unrolled loop** and start `i=0` with `max = fabsf(a[0])` already set and `cur_idx=0`, but then the loop at `i=1` should start with `k=inc`. The pre-increment is correct.
+
+- **The actual bug**: `cur_idx` and `index` are 0-based loop indices, but the reference `s318` stores the **array index** (the value of `k` / `inc`, i.e., the position). Since `k = i * inc`, `cur_idx = i` is the loop index not the `k`-based index. If the reference stores `k` (the actual array subscript), replace `cur_idx = i` with `cur_idx = k/inc` or equivalently track it as `i`. These should be the same if `inc=1`, but for other `inc` values they differ.
+
+- **Fix**: Replace `cur_idx = i`, `cur_idx = i+1`, etc. with the actual `k`-relative index. Since `k = i * inc` at the start of each unrolled block, use `cur_idx = i`, `i+1`, `i+2`, `i+3` only if the reference uses loop-counter indexing. Verify the reference uses `index = i` not `index = k`.
+
+- **Most likely fix**: The reference s318 sets `index = k` (the raw subscript into `a`), not `index = i`. Change all `cur_idx = i+N` assignments to `cur_idx = k + N*inc` (or divide by inc if needed), and similarly for the scalar cleanup use `cur_idx = k` instead of `cur_idx = i`.
+
+        Return a corrected candidate function named `vectorized_s318`.

@@ -1,0 +1,34 @@
+#include <stdint.h>
+
+void vectorized_s1213(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    for (int nl = 0; nl < iterations; nl++) {
+        // First loop: b[i] = a[i+1] * d[i] for i in [1, LEN_1D-2]
+        int i = 1;
+        int limit = LEN_1D - 1;
+        int vec_end = 1 + ((limit - 1) / 4) * 4;
+
+        for (; i <= vec_end - 4; i += 4) {
+            b[i]   = a[i+1]   * d[i];
+            b[i+1] = a[i+2] * d[i+1];
+            b[i+2] = a[i+3] * d[i+2];
+            b[i+3] = a[i+4] * d[i+3];
+        }
+        for (; i < limit; i++) {
+            b[i] = a[i+1] * d[i];
+        }
+
+        // Second loop: a[i] = b[i-1] + c[i] for i in [1, LEN_1D-2]
+        i = 1;
+        vec_end = 1 + ((limit - 1) / 4) * 4;
+
+        for (; i <= vec_end - 4; i += 4) {
+            a[i]   = b[i-1] + c[i];
+            a[i+1] = b[i]   + c[i+1];
+            a[i+2] = b[i+1] + c[i+2];
+            a[i+3] = b[i+2] + c[i+3];
+        }
+        for (; i < limit; i++) {
+            a[i] = b[i-1] + c[i];
+        }
+    }
+}

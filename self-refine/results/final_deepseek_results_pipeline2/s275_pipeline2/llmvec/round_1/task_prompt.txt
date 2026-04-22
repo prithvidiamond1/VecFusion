@@ -1,0 +1,42 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Vectorize the scalar C function `s275` below.
+
+        Scalar source:
+        ```c
+        void s275(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])
+{
+    int nl_iterations = 10 * (iterations / 256);
+
+    for (int nl = 0; nl < nl_iterations; nl++) {
+        // Store initial values of aa[0][i] before any modifications
+        float init_aa0[256];
+        for (int i = 0; i < 256; i++) {
+            init_aa0[i] = aa[0][i];
+        }
+
+        // Process each column independently
+        for (int i = 0; i < 256; i++) {
+            if (init_aa0[i] > 0.0f) {
+                float prev = init_aa0[i];
+                // Process with explicit dependency chain
+                for (int j = 1; j < 256; j++) {
+                    prev = prev + bb[j][i] * cc[j][i];
+                    aa[j][i] = prev;
+                }
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s275`.

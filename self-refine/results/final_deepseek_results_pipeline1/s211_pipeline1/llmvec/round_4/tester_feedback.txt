@@ -1,0 +1,9 @@
+The vectorizer candidate has a correctness bug.
+
+- **Incorrect vector loop bounds**: The vector loop processes 4 elements per iteration, but the scalar cleanup loop starts at `i = vec_end` and runs while `i <= last_scalar`. This means the vector loop may skip elements between `vec_end` and `last_scalar` if `last_scalar - i + 1` is not a multiple of 4. The mismatch at index 3 suggests the vector loop is processing indices that should be handled by the scalar cleanup, or vice versa.
+
+- **Fix**: Ensure the vector loop only processes complete 4-element chunks that align with the scalar cleanup. Change the vector loop bound to `i + ((last_scalar - i + 1) / 4) * 4` and ensure the scalar cleanup starts at `i` after the vector loop. The current code already does this, but the mismatch indicates the vector loop is incorrectly computing `vec_end` or the scalar cleanup is not covering the remaining elements.
+
+- **Check the first iteration handling**: The first iteration (`i = 1`) is handled separately, but the vector loop starts at `i = 2` (after `i++`). Ensure the vector loop correctly processes indices 2, 3, 4, 5, etc., and the scalar cleanup handles the remaining indices up to `last_scalar`. The mismatch at index 3 suggests the vector loop may be overwriting or skipping index 3.
+
+- **Verify the vector loop's `vb_prev` and `vb_next` loads**: The vector loop loads `b[i-1]` through `b[i+4]`, which may read out-of-bounds if `i + 4 > LEN_1D - 1`. Ensure the vector loop bounds are adjusted to prevent out-of-bounds reads.

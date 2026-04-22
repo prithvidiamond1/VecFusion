@@ -1,0 +1,11 @@
+- The vectorizer must ensure that the inner loop’s induction variable `k` is correctly updated per iteration: `k += inc` after each access. The current candidate does not show explicit vectorized handling of `k`; verify that the vectorized version increments `k` by `inc` for each element, not by a fixed stride.
+
+- The inner loop bounds are `i = 1` to `i < LEN_1D`, which is non-canonical (starting at 1). The vectorizer should canonicalize this to start at 0 by adjusting the initial `k` and `max` computation, or explicitly handle the first iteration separately to avoid off-by-one errors in vectorized accesses.
+
+- The reduction of `max` (via conditional update) and the scalar `index` assignment are data-dependent. The vectorizer must preserve the sequential semantics: only update `index` when a new maximum is found. If using masked operations, ensure the mask correctly reflects the comparison and that `index` is set to the last occurrence (since `val > max` uses strict greater-than, ties keep earlier index).
+
+- The outer loop `nl` is a repeat loop for testing; the vectorizer should not attempt to vectorize it, only the inner loop. Confirm that the outer loop remains scalar and that `chksum` is correctly accumulated across outer iterations.
+
+- The return value `chksum + 1.0f` is a scalar operation; ensure no vectorization artifacts affect this final addition.
+
+- The compile succeeded but exit code 2 indicates a runtime mismatch. Focus on the inner loop’s trip count: `LEN_1D - 1` iterations. Verify that the vectorized loop processes exactly that many elements, with the first element (`a[0]`) handled before the loop.

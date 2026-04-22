@@ -1,0 +1,5 @@
+The errors are in the test harness code (line 62), not in the candidate function itself. The test harness uses `float __restrict__ arr[128]` which is invalid — `__restrict__` cannot be applied to array declarations, only to pointers/references.
+
+- **Fix**: In the test harness array declarations, remove `__restrict__` from stack-allocated array variables (e.g., change `float __restrict__ a_scalar[128]` to `float a_scalar[128]`). Arrays are not pointers and cannot be `restrict`-qualified.
+- The candidate function `vectorized_s451` itself is correct and does not need changes.
+- All six array declarations on line 62 (`a_scalar`, `a_vector`, `b_scalar`, `b_vector`, `c_scalar`, `c_vector`) need `__restrict__` removed.

@@ -1,3 +1,8 @@
+import argparse
+import os
+from pathlib import Path
+from typing import Optional
+
 from src.vectorizer.task_split_init import SplitGenTaskInit
 from src.vectorizer.task_split_iterate import SplitGenTaskIterate
 from src.vectorizer.task_split_feedback import SplitGenFeedback
@@ -35,165 +40,158 @@ ENGINE = os.getenv("ENGINE")
 if ENGINE is None:
     ENGINE = ProSiliconFlow
 
-@retry_parse_fail_prone_cmd
-def iterative_vectorize(source_code: str, max_attempts: int, outputFileName: str) -> str:
-    
-    # initialize all the required components
-    
-    # generation of the first vectorized code
-    task_init = SplitGenTaskInit(engine=ENGINE, prompt_examples="data/prompt/vectorize/init.jsonl")
-    
-    # getting feedback
-    task_feedback = SplitGenFeedback(engine=ENGINE, prompt_examples="data/prompt/vectorize/feedback.jsonl")
 
-    # iteratively improving the acronym
+@retry_parse_fail_prone_cmd
+def iterative_vectorize(source_code: str, max_attempts: int, outputFileName: str) -> Optional[str]:
+    task_init = SplitGenTaskInit(engine=ENGINE, prompt_examples="data/prompt/vectorize/init.jsonl")
+    task_feedback = SplitGenFeedback(engine=ENGINE, prompt_examples="data/prompt/vectorize/feedback.jsonl")
     task_iterate = SplitGenTaskIterate(engine=ENGINE, prompt_examples="data/prompt/vectorize/feedback.jsonl")
-    
-    
-    # Initialize the task
 
     n_attempts = 0
     print("####################### SOURCE CODE #######################")
-    print(f'''```c
+    print(f"""```c
 {source_code}
-```''')
+```""")
     print("####################### SOURCE CODE #######################")
+
     clang_feedback = CompilerTest(vectorize_code=source_code)
-    # print(clang_feedback)
     llm_feedback = ""
 
     unit_test_error = ""
-    unit_test_output ="PASS"
+    unit_test_output = "PASS"
     unit_test_feedback = ""
 
     while n_attempts < max_attempts:
         print(f"######################### ROUND {n_attempts} #########################\n")
         with open(outputFileName, "a") as of:
             of.write(f"\n# ROUND {n_attempts}\n")
-        if n_attempts == 0:
-            vectorize_code = task_init(code=source_code, compiler_feedback=clang_feedback, outputFileName=outputFileName)
-        else:
-            vectorize_code = task_iterate(code=source_code, vectorize_code=vectorize_code, llm_feedback = llm_feedback,compiler_feedback=clang_feedback,unit_test_feedback = unit_test_feedback, outputFileName=outputFileName)
 
+        if n_attempts == 0:
+            vectorize_code = task_init(
+                code=source_code,
+                compiler_feedback=clang_feedback,
+                outputFileName=outputFileName,
+            )
+        else:
+            vectorize_code = task_iterate(
+                code=source_code,
+                vectorize_code=vectorize_code,
+                llm_feedback=llm_feedback,
+                compiler_feedback=clang_feedback,
+                unit_test_feedback=unit_test_feedback,
+                outputFileName=outputFileName,
+            )
 
         clang_feedback = CompilerTest(vectorize_code=vectorize_code)
-  
-        # 如果语义不正确，replay
-        # 这里是不是应该再插入一个unit test
-        print("######################## UNIT TEST ########################")
-        unit_test_output, unit_test_error = CorrectTest("", source_code, vectorize_code,ENGINE)
-        print("###################### UNIT TEST OUT ######################")
-        print(unit_test_output)
-        # print(unit_test_error)
-        print("###################### UNIT TEST OUT ######################")
-            
-        unit_test_feedback = ("\nUnit Test analysis: \nSource code and optimized code semantics are inconsistent.\n" if unit_test_error != "" or "PASS" not in unit_test_output else "UNIT TEST PASS") # + "Performance compare:\n" + performance_test_output 
-        
 
-        llm_feedback = task_feedback(code=source_code, vectorize_code=vectorize_code, compiler_feedback=clang_feedback, outputFileName=outputFileName, unit_test_feedback = unit_test_feedback)
-        # 生成的代码的依赖与源码的依赖是否相同
+        if n_attempts == 0:
+            unit_test_output = "SKIPPED"
+            unit_test_error = ""
+            unit_test_feedback = "UNIT TEST SKIPPED: init step only returns a declaration."
+        else:
+            print("######################## UNIT TEST ########################")
+            unit_test_output, unit_test_error = CorrectTest("", source_code, vectorize_code, ENGINE)
+            print("###################### UNIT TEST OUT ######################")
+            print(unit_test_output)
+            print("###################### UNIT TEST OUT ######################")
+
+            unit_test_feedback = (
+                "\nUnit Test analysis: \nSource code and optimized code semantics are inconsistent.\n"
+                if unit_test_error != "" or "PASS" not in unit_test_output
+                else "UNIT TEST PASS"
+            )
+
+        unit_test_feedback = (
+            "\nUnit Test analysis: \nSource code and optimized code semantics are inconsistent.\n"
+            if unit_test_error != "" or "PASS" not in unit_test_output
+            else "UNIT TEST PASS"
+        )
+
+        llm_feedback = task_feedback(
+            code=source_code,
+            vectorize_code=vectorize_code,
+            compiler_feedback=clang_feedback,
+            outputFileName=outputFileName,
+            unit_test_feedback=unit_test_feedback,
+        )
 
         if "PASS" in llm_feedback and "FAIL" not in llm_feedback:
             print("######################## UNIT TEST ########################")
-            unit_test_output, unit_test_error = CorrectTest("", source_code, vectorize_code,ENGINE)
+            unit_test_output, unit_test_error = CorrectTest("", source_code, vectorize_code, ENGINE)
             print("###################### UNIT TEST OUT ######################")
             print(unit_test_output)
-            # print(unit_test_error)
             print("###################### UNIT TEST OUT ######################")
-            unit_test_feedback = ("\nUnit Test analysis: \nSource code and optimized code semantics are inconsistent.\n" if unit_test_error != "" or "PASS" not in unit_test_output else "UNIT TEST PASS") # + "Performance compare:\n" + performance_test_output 
+
+            unit_test_feedback = (
+                "\nUnit Test analysis: \nSource code and optimized code semantics are inconsistent.\n"
+                if unit_test_error != "" or "PASS" not in unit_test_output
+                else "UNIT TEST PASS"
+            )
             llm_feedback += unit_test_feedback
+
             if unit_test_error != "" or "PASS" not in unit_test_output:
                 n_attempts += 1
                 continue
+
             print("################### Formal Verification ###################")
             formalVerify = FormalVerification(source_code, vectorize_code)
             print(formalVerify)
             print("################### Formal Verification ###################")
+
             if "1 incorrect transformations" in formalVerify:
                 n_attempts += 1
                 continue
-            #print("##################### PERFORMANCE TEST ####################")
-            #performance_test_output, _ = PerformanceTest("", source_code, vectorize_code,ENGINE)
-            #print("################### PERFORMANCE TEST OUT ###################")
-            #print(performance_test_output)
-            #print("################### PERFORMANCE TEST OUT ##################")
+
             with open(outputFileName, "a") as of:
-                of.write(f"\n# FINAL CODE\n")
-                of.write(f'''
+                of.write("\n# FINAL CODE\n")
+                of.write(f"""
 ```c
 {vectorize_code}
-```''')
-            print("####################### FINAN OUTPUT ######################")
+```""")
+
+            print("####################### FINAL OUTPUT ######################")
             print(vectorize_code)
-            print("####################### FINAN OUTPUT ######################")
-            return
+            print("####################### FINAL OUTPUT ######################")
+            return vectorize_code
 
-        # print(f"{n_attempts} GEN> {vectorize_code}\n")
-
-        # print(f"{n_attempts} FEEDBACK> {llm_feedback}")
         n_attempts += 1
 
+    return None
+
+
+def run_file(source_file: str | Path, max_attempts: int = 20, log_dir: str | Path = "log") -> Optional[str]:
+    source_file = Path(source_file).resolve()
+    log_dir = Path(log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = log_dir / f"{source_file.stem}.md"
+    if output_path.exists():
+        output_path.unlink()
+
+    reset_cache()
+    source_code = source_file.read_text()
+
+    return iterative_vectorize(
+        source_code=source_code,
+        max_attempts=max_attempts,
+        outputFileName=str(output_path),
+    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("source_file", help="Path to a single benchmark .c file")
+    parser.add_argument("--max-attempts", type=int, default=20)
+    parser.add_argument("--log-dir", default="log")
+    args = parser.parse_args()
+
+    candidate = run_file(
+        source_file=args.source_file,
+        max_attempts=args.max_attempts,
+        log_dir=args.log_dir,
+    )
+    return 0 if candidate is not None else 1
+
+
 if __name__ == "__main__":
-
-    import sys
-    import os
-    # title = sys.argv[1]  # Light Amplification by Stimulated Emission of Radiation
-    
-    test_path = 'test_case'
-    for filename in os.listdir(test_path):
-        # if filename != 's256.c':
-        #     continue
-        file_path = os.path.join(test_path, filename)
-        reset_cache()
-        with open(file_path, 'r') as file:
-            codeTest = file.read()
-            # print(codeTest)
-            log_dir = "log"
-            output_file = "output.md"
-            if not os.path.exists(log_dir):
-                os.makedirs(log_dir)
-
-            output_path = os.path.join(log_dir, output_file)
-            if not os.path.exists(output_path):
-                with open(output_path, 'w') as file:
-                    file.write('')
-            else:
-                os.remove(output_path)
-            #
-            outputFileName = log_dir + "/" + output_file
-
-            max_attempts = 20
-            iterative_vectorize(
-                source_code=codeTest,
-                max_attempts=max_attempts,
-                outputFileName=outputFileName,
-            )
-        print('#####################################################################################')
-        print('#####################################################################################')
-        print('#####################################################################################')
-        print('#####################################################################################')
-        print('#####################################################################################')
-        
-    # log_dir = "log"
-    # output_file = "output.md"
-    # if not os.path.exists(log_dir):
-    #     os.makedirs(log_dir)
-
-    # output_path = os.path.join(log_dir, output_file)
-    # if not os.path.exists(output_path):
-    #     with open(output_path, 'w') as file:
-    #         file.write('')
-    # else:
-    #     os.remove(output_path)
-    # #
-    # outputFileName = log_dir + "/" + output_file
-
-    # max_attempts = 100
-    # iterative_vectorize(
-    #     source_code=codeTest4,
-    #     max_attempts=max_attempts,
-    #     outputFileName=outputFileName,
-    # )
-    
-     #print("\n ------ \n ".join(res))
-
+    raise SystemExit(main())

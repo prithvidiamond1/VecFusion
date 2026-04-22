@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s342_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s342_opt(int iterations,int LEN_1D, float* a, float *b)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // First pass: compute mask (vectorizable)\n        char mask[LEN_1D];\n        for (int i = 0; i < LEN_1D; i++) {\n            mask[i] = (a[i] > (float)0.);\n        }\n        \n        // Second pass: compute prefix sum of mask (j values)\n        int indices[LEN_1D];\n        int j = -1;\n        for (int i = 0; i < LEN_1D; i++) {\n            j += mask[i];\n            indices[i] = j;\n        }\n        \n        // Third pass: apply assignments using precomputed indices\n        // Remove conditional branch to enable vectorization\n        for (int i = 0; i < LEN_1D; i++) {\n            // Use mask as selector: if mask[i] is 1, use b[indices[i]], else keep a[i]\n            int idx = indices[i];\n            float new_val = b[idx];\n            float old_val = a[i];\n            // Branchless selection using mask\n            a[i] = mask[i] ? new_val : old_val;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s342_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s342_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s342_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s342(int iterations, int LEN_1D, float* a, float *b)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // First pass: compute mask (vectorizable)\n        char mask[LEN_1D];\n        for (int i = 0; i < LEN_1D; i++) {\n            mask[i] = (a[i] > (float)0.);\n        }\n\n        // Second pass: compute prefix sum of mask (j values)\n        // This is inherently sequential due to the prefix sum dependency\n        int indices[LEN_1D];\n        int j = -1;\n        for (int i = 0; i < LEN_1D; i++) {\n            j += mask[i];\n            indices[i] = j;\n        }\n\n        // Third pass: apply assignments using precomputed indices\n        // Vectorizable: no loop-carried dependencies\n        int i = 0;\n        // Process 8 elements at a time\n        for (; i <= LEN_1D - 8; i += 8) {\n            int idx0 = indices[i+0];\n            int idx1 = indices[i+1];\n            int idx2 = indices[i+2];\n            int idx3 = indices[i+3];\n            int idx4 = indices[i+4];\n            int idx5 = indices[i+5];\n            int idx6 = indices[i+6];\n            int idx7 = indices[i+7];\n\n            float new_val0 = b[idx0];\n            float new_val1 = b[idx1];\n            float new_val2 = b[idx2];\n            float new_val3 = b[idx3];\n            float new_val4 = b[idx4];\n            float new_val5 = b[idx5];\n            float new_val6 = b[idx6];\n            float new_val7 = b[idx7];\n\n            float old_val0 = a[i+0];\n            float old_val1 = a[i+1];\n            float old_val2 = a[i+2];\n            float old_val3 = a[i+3];\n            float old_val4 = a[i+4];\n            float old_val5 = a[i+5];\n            float old_val6 = a[i+6];\n            float old_val7 = a[i+7];\n\n            a[i+0] = mask[i+0] ? new_val0 : old_val0;\n            a[i+1] = mask[i+1] ? new_val1 : old_val1;\n            a[i+2] = mask[i+2] ? new_val2 : old_val2;\n            a[i+3] = mask[i+3] ? new_val3 : old_val3;\n            a[i+4] = mask[i+4] ? new_val4 : old_val4;\n            a[i+5] = mask[i+5] ? new_val5 : old_val5;\n            a[i+6] = mask[i+6] ? new_val6 : old_val6;\n            a[i+7] = mask[i+7] ? new_val7 : old_val7;\n        }\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            int idx = indices[i];\n            float new_val = b[idx];\n            float old_val = a[i];\n            a[i] = mask[i] ? new_val : old_val;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s342_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s342",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s342_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s342_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s342_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

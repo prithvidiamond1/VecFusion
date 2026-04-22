@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260419_214725/s312_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s312_opt(int iterations, int LEN_1D, float* a)\n{\n    float prod;\n    \n    for (int nl = 0; nl < 10*iterations; nl++) {\n        prod = (float)1.;\n        \n        // Loop distribution - separate the reduction into independent chunks\n        const int CHUNK_SIZE = 64;  // Cache-friendly chunk size\n        float chunk_prod[CHUNK_SIZE];\n        \n        // Initialize chunk products\n        for (int j = 0; j < CHUNK_SIZE; j++) {\n            chunk_prod[j] = (float)1.;\n        }\n        \n        // Process in chunks to break the long dependency chain\n        int i = 0;\n        for (; i + CHUNK_SIZE <= LEN_1D; i += CHUNK_SIZE) {\n            // Process each chunk with independent reduction\n            for (int j = 0; j < CHUNK_SIZE; j++) {\n                chunk_prod[j] *= a[i + j];\n            }\n        }\n        \n        // Combine chunk products (preserving original order)\n        for (int j = 0; j < CHUNK_SIZE; j++) {\n            prod *= chunk_prod[j];\n        }\n        \n        // Handle remaining elements sequentially\n        for (; i < LEN_1D; i++) {\n            prod *= a[i];\n        }\n    }\n    return prod;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s312_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s312_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260419_214725/s312_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "typedef float v8f32 __attribute__((__vector_size__(32), __aligned__(32)));\n\nfloat vectorized_s312(int iterations, int LEN_1D, float* a)\n{\n    float prod;\n    const int CHUNK_SIZE = 64;\n    \n    for (int nl = 0; nl < 10 * iterations; nl++) {\n        prod = 1.0f;\n        \n        // Vectorized chunk processing\n        v8f32 vec_prod[CHUNK_SIZE / 8];\n        for (int j = 0; j < CHUNK_SIZE / 8; j++) {\n            vec_prod[j] = (v8f32){1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};\n        }\n        \n        int i = 0;\n        for (; i + CHUNK_SIZE <= LEN_1D; i += CHUNK_SIZE) {\n            // Process 8 elements at a time within each chunk\n            for (int j = 0; j < CHUNK_SIZE / 8; j++) {\n                v8f32 vec_a = *(v8f32*)&a[i + j * 8];\n                vec_prod[j] *= vec_a;\n            }\n        }\n        \n        // Combine vector products\n        float chunk_prod[CHUNK_SIZE];\n        for (int j = 0; j < CHUNK_SIZE / 8; j++) {\n            float* fp = (float*)&vec_prod[j];\n            for (int k = 0; k < 8; k++) {\n                chunk_prod[j * 8 + k] = fp[k];\n            }\n        }\n        \n        // Final reduction of chunk products\n        for (int j = 0; j < CHUNK_SIZE; j++) {\n            prod *= chunk_prod[j];\n        }\n        \n        // Scalar tail\n        for (; i < LEN_1D; i++) {\n            prod *= a[i];\n        }\n    }\n    return prod;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260419_214725/s312_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s312",
+        "input_snapshot": "results/all_tests_pipeline2_20260419_214725/s312_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260419_214725/s312_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260419_214725/s312_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260419_214725/s312_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

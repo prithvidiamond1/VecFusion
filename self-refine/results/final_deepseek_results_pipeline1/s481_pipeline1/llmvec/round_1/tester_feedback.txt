@@ -1,0 +1,7 @@
+- **Fix type mismatch for `cmp`**: `d_vec < zero` produces a vector of `int` (or `int32_t`), not `float`. Declare `cmp` as `int32_t __attribute__((ext_vector_type(4)))` instead of `float32_t`.
+
+- **Fix `mask` declaration**: `mask` should be a vector type, not `int`. Change to `int32_t __attribute__((ext_vector_type(4))) mask = __builtin_convertvector(cmp, int32_t __attribute__((ext_vector_type(4))));` (or simply use `cmp` directly since it's already `int32_t`).
+
+- **Fix subscript access on `mask`**: Since `mask` is a vector, use `mask[0]` etc. is valid only if `mask` is a vector type. After fixing the declaration, the subscript access will work.
+
+- **Simplify the early-exit check**: Instead of converting and checking each element, use a vector reduction like `__builtin_reduce_or(cmp)` to test if any element is negative, then branch accordingly.

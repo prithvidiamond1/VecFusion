@@ -1,0 +1,43 @@
+Revise your candidate for `s451` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s451(int iterations, int LEN_1D, float* __restrict__ a, float* __restrict__ b, float* __restrict__ c)
+{
+    for (int nl = 0; nl < iterations/5; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = sinf(b[i]) + cosf(c[i]);
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+
+void vectorized_s451(int iterations, int LEN_1D, float* __restrict__ a, float* __restrict__ b, float* __restrict__ c)
+{
+    for (int nl = 0; nl < iterations/5; nl++) {
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+        for (; i < limit; i += 4) {
+            a[i+0] = sinf(b[i+0]) + cosf(c[i+0]);
+            a[i+1] = sinf(b[i+1]) + cosf(c[i+1]);
+            a[i+2] = sinf(b[i+2]) + cosf(c[i+2]);
+            a[i+3] = sinf(b[i+3]) + cosf(c[i+3]);
+        }
+        for (; i < LEN_1D; i++) {
+            a[i] = sinf(b[i]) + cosf(c[i]);
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The errors are all in the test harness code (line 62), not in the candidate function itself. The test harness declares stack arrays with `__restrict__`, which is invalid — `__restrict__` only applies to pointers/references, not array declarations.
+
+- In the test harness at line 62, change `float __restrict__ a_scalar[128]` → `float a_scalar[128]` (and similarly for all other array declarations: `a_vector`, `b_scalar`, `b_vector`, `c_scalar`, `c_vector`).
+- Remove `__restrict__` from all fixed-size array variable declarations in the test harness; `__restrict__` is only valid on pointer parameters or pointer variables, not on array-typed local variables.
+
+        Return a corrected candidate function named `vectorized_s451`.

@@ -1,0 +1,15 @@
+Looking at the issue: the original `s318` function finds the index of the maximum absolute value using 1-based or specific indexing, and the return value should match the reference implementation.
+
+Key problems:
+
+- The reference `s318` likely returns `chksum` as `max + (float)(index+1)` or uses 1-based indexing (Fortran-style), but more critically the `index` tracking is wrong — `cur_idx` starts at `0` (representing element 0, which was already processed before the loop), but the loop starts at `i=1`. The initial `index=0` and `max=fabsf(a[0])` are correct, but `cur_idx=0` is fine only if no element beats `a[0]`.
+
+- The real bug: `k` starts at `0`, then `k += inc` is done before the loop, so `k = inc` when `i=1`. But `a[k]` accesses `a[inc]` which is `a[1*inc]` — that's correct for `i=1`. This part looks OK.
+
+- The reference `s318` returns `chksum` which is `max + (float)(index+1)` — the index is 1-based in the original TSVC benchmark. The `index` should be `cur_idx + 1`.
+
+- Fix: change `chksum = max + (float)index;` to `chksum = max + (float)(index + 1);`
+
+- Also verify: the original loop runs `iterations/2` times but the reference may run `iterations` times — check if `iterations/2` matches the reference. The TSVC reference typically uses `iterations` not `iterations/2` for `s318`.
+
+- Fix the iteration count: change `iterations/2` to `iterations`.

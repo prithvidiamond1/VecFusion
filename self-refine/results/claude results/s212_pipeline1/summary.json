@@ -1,0 +1,40 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s212_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s212(int n, float *a, float *b, float *c, float *d) {\n    typedef float float4 __attribute__((vector_size(16)));\n\n    int limit = n - 1;\n    int i = 0;\n\n    /* Pass 1: b[i] += a[i+1] * d[i] using original a values */\n    for (i = 0; i <= limit - 4; i += 4) {\n        float4 ai1, di, bi;\n        __builtin_memcpy(&ai1, &a[i+1], sizeof(float4));\n        __builtin_memcpy(&di,  &d[i],   sizeof(float4));\n        __builtin_memcpy(&bi,  &b[i],   sizeof(float4));\n        bi = bi + ai1 * di;\n        __builtin_memcpy(&b[i], &bi, sizeof(float4));\n    }\n    for (; i < limit; i++) {\n        b[i] += a[i+1] * d[i];\n    }\n\n    /* Pass 2: a[i] *= c[i] */\n    for (i = 0; i <= limit - 4; i += 4) {\n        float4 ai, ci;\n        __builtin_memcpy(&ai, &a[i], sizeof(float4));\n        __builtin_memcpy(&ci, &c[i], sizeof(float4));\n        ai = ai * ci;\n        __builtin_memcpy(&a[i], &ai, sizeof(float4));\n    }\n    for (; i < limit; i++) {\n        a[i] *= c[i];\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile failed.\n            Command: clang results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4\n            stderr:\n            results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4.c:75:17: error: redefinition of 'n' with a different type: 'int' vs 'const int'\n   75 |             int n = n; float a_scalar[128]; float a_vector[128]; float b_scalar[128]; float b_vector[128]; float c_scalar[128]; float c_vector[128]; float d_scalar[128]; float d_vector[128];\n      |                 ^\nresults/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4.c:73:23: note: previous definition is here\n   73 |             const int n = 128;\n      |                       ^\n1 error generated.",
+      "unit_test_output": "Compile failed.\n            Command: clang results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4\n            stderr:\n            results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4.c:75:17: error: redefinition of 'n' with a different type: 'int' vs 'const int'\n   75 |             int n = n; float a_scalar[128]; float a_vector[128]; float b_scalar[128]; float b_vector[128]; float c_scalar[128]; float c_vector[128]; float d_scalar[128]; float d_vector[128];\n      |                 ^\nresults/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/candidate_round_4.c:73:23: note: previous definition is here\n   73 |             const int n = 128;\n      |                       ^\n1 error generated.",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s212",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s212_pipeline1/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s212_opt(int n, float *a, float *b, float *c, float *d) {\n    for (int i = 0; i < n - 1; i++) {\n        b[i] += a[i + 1] * d[i];\n    }\n    for (int i = 0; i < n - 1; i++) {\n        a[i] *= c[i];\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s212_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s212_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s212_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

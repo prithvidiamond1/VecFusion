@@ -1,0 +1,5 @@
+- The vector comparison `vcurrent > vmax` yields a vector of integer results (boolean mask), but the ternary operator expects a scalar condition.
+- Replace the ternary with a vector select intrinsic or manual blend: `vmax = __builtin_shufflevector(...)` or use `__builtin_ia32_maxps` for direct max.
+- Alternatively, use `vmax = (v4f)__builtin_ia32_maxps((__v4sf)vcurrent, (__v4sf)vmax);` for x86 SSE, or a portable `__builtin_elementwise_max` if available.
+- If targeting generic SIMD, implement a manual blend: `v4f mask = vcurrent > vmax; vmax = (mask & vcurrent) | (~mask & vmax);` but note `~` on float vectors may need reinterpretation.
+- Since the error is about using a vector as condition, the simplest fix is to use `__builtin_ia32_maxps` for SSE or `__builtin_elementwise_max` in Clang.

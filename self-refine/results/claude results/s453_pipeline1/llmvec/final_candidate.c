@@ -1,0 +1,30 @@
+#include <stdint.h>
+
+void vectorized_s453(int iterations, int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < iterations * 2; nl++) {
+        // s starts at 0 and increments by 2 each iteration
+        // so at index i, s = 2*(i+1) = 2*i + 2
+        // a[i] = s * b[i] = (2*(i+1)) * b[i]
+
+        int i = 0;
+
+        // Unroll by 4 for vector-friendly code
+        for (; i <= LEN_1D - 4; i += 4) {
+            float s0 = (float)(2 * (i + 1));
+            float s1 = (float)(2 * (i + 2));
+            float s2 = (float)(2 * (i + 3));
+            float s3 = (float)(2 * (i + 4));
+            a[i + 0] = s0 * b[i + 0];
+            a[i + 1] = s1 * b[i + 1];
+            a[i + 2] = s2 * b[i + 2];
+            a[i + 3] = s3 * b[i + 3];
+        }
+
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float s = (float)(2 * (i + 1));
+            a[i] = s * b[i];
+        }
+    }
+}

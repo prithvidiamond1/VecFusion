@@ -1,0 +1,9 @@
+The vectorizer has a **semantic bug** in the early-exit handling:
+
+- **Incorrect break index after vector loop**: When `scalar_mask` is true, the code sets `i = first_break` (the element index that triggered the break) and then breaks. But the scalar cleanup loop starts at that same `i` and re-executes the element that already broke, causing a double update of `a[i]` and an incorrect early exit.
+
+**Fix**: After the vector loop break, set `i = first_break + 1` so the scalar cleanup starts at the next element, or restructure to avoid re-processing the break element.
+
+- **Trip count / bound issue**: The vector loop condition `i <= LEN_1D - 4` is correct for 4-wide vectors, but the break logic doesn't properly handle the case where the break occurs at the last vector iteration — the scalar cleanup may run with `i >= LEN_1D` and still execute the loop body.
+
+**Fix**: Add a guard in the scalar cleanup: `for (; i < LEN_1D; i++)` is fine, but ensure `i` is never set to a value >= `LEN_1D` before entering it.

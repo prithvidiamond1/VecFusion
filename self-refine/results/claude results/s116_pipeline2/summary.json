@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s116_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s116_opt(int iterations, int LEN_1D, float* a)\n{\n    for (int nl = 0; nl < iterations*10; nl++) {\n        for (int i = 0; i < LEN_1D - 5; i += 5) {\n            float a0 = a[i];\n            float a1 = a[i + 1];\n            float a2 = a[i + 2];\n            float a3 = a[i + 3];\n            float a4 = a[i + 4];\n            float a5 = a[i + 5];\n            a[i]     = a1 * a0;\n            a[i + 1] = a2 * a1;\n            a[i + 2] = a3 * a2;\n            a[i + 3] = a4 * a3;\n            a[i + 4] = a5 * a4;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s116_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s116_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s116_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s116(int iterations, int LEN_1D, float* a)\n{\n    for (int nl = 0; nl < iterations * 10; nl++) {\n        // The inner loop steps by 5 and uses a[i..i+5].\n        // Each iteration: a[i+k] = a[i+k+1] * a[i+k] for k=0..4\n        // We unroll by processing 4 groups of 5 at a time (20 elements),\n        // reading the values first, then writing.\n        int i = 0;\n        int limit = LEN_1D - 5;\n\n        // Process 4 groups (stride=5) at a time = 20 elements per unrolled iteration\n        for (; i + 20 <= limit; i += 20) {\n            // Group 0: i+0..i+5\n            float g0_a0 = a[i + 0];\n            float g0_a1 = a[i + 1];\n            float g0_a2 = a[i + 2];\n            float g0_a3 = a[i + 3];\n            float g0_a4 = a[i + 4];\n            float g0_a5 = a[i + 5];\n\n            // Group 1: i+5..i+10\n            float g1_a0 = a[i + 5];\n            float g1_a1 = a[i + 6];\n            float g1_a2 = a[i + 7];\n            float g1_a3 = a[i + 8];\n            float g1_a4 = a[i + 9];\n            float g1_a5 = a[i + 10];\n\n            // Group 2: i+10..i+15\n            float g2_a0 = a[i + 10];\n            float g2_a1 = a[i + 11];\n            float g2_a2 = a[i + 12];\n            float g2_a3 = a[i + 13];\n            float g2_a4 = a[i + 14];\n            float g2_a5 = a[i + 15];\n\n            // Group 3: i+15..i+20\n            float g3_a0 = a[i + 15];\n            float g3_a1 = a[i + 16];\n            float g3_a2 = a[i + 17];\n            float g3_a3 = a[i + 18];\n            float g3_a4 = a[i + 19];\n            float g3_a5 = a[i + 20];\n\n            // Write group 0\n            a[i + 0] = g0_a1 * g0_a0;\n            a[i + 1] = g0_a2 * g0_a1;\n            a[i + 2] = g0_a3 * g0_a2;\n            a[i + 3] = g0_a4 * g0_a3;\n            a[i + 4] = g0_a5 * g0_a4;\n\n            // Write group 1\n            a[i + 5]  = g1_a1 * g1_a0;\n            a[i + 6]  = g1_a2 * g1_a1;\n            a[i + 7]  = g1_a3 * g1_a2;\n            a[i + 8]  = g1_a4 * g1_a3;\n            a[i + 9]  = g1_a5 * g1_a4;\n\n            // Write group 2\n            a[i + 10] = g2_a1 * g2_a0;\n            a[i + 11] = g2_a2 * g2_a1;\n            a[i + 12] = g2_a3 * g2_a2;\n            a[i + 13] = g2_a4 * g2_a3;\n            a[i + 14] = g2_a5 * g2_a4;\n\n            // Write group 3\n            a[i + 15] = g3_a1 * g3_a0;\n            a[i + 16] = g3_a2 * g3_a1;\n            a[i + 17] = g3_a3 * g3_a2;\n            a[i + 18] = g3_a4 * g3_a3;\n            a[i + 19] = g3_a5 * g3_a4;\n        }\n\n        // Scalar cleanup for remaining groups\n        for (; i < limit; i += 5) {\n            float a0 = a[i];\n            float a1 = a[i + 1];\n            float a2 = a[i + 2];\n            float a3 = a[i + 3];\n            float a4 = a[i + 4];\n            float a5 = a[i + 5];\n            a[i]     = a1 * a0;\n            a[i + 1] = a2 * a1;\n            a[i + 2] = a3 * a2;\n            a[i + 3] = a4 * a3;\n            a[i + 4] = a5 * a4;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s116_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s116",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s116_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s116_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s116_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+#include <stdint.h>
+#include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    float max, chksum = 0.0f;
+    for (int nl = 0; nl < iterations; nl++) {
+        int k = 0;
+        int index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            float val = fabsf(a[k]);
+            if (val > max) {
+                index = i;
+                max = val;
+            }
+            k += inc;
+        }
+        chksum = max + (float) index;
+    }
+    return chksum + 1.0f;
+}

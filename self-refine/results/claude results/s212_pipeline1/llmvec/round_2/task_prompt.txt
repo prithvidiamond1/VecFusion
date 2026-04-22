@@ -1,0 +1,78 @@
+Revise your candidate for `s212` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s212 (int n , float *a , float *b , float *c ,float * d ) {
+    for (int i = 0; i < n -1; i ++) {
+        a [ i ] *= c [ i ];
+        b [ i ] += a [ i + 1] * d [ i ];
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+void vectorized_s212(int n, float *a, float *b, float *c, float *d) {
+    // The loop has a dependency: a[i] is written, then a[i+1] is read in the next iteration.
+    // Specifically, iteration i writes a[i] and reads a[i+1].
+    // Iteration i+1 writes a[i+1] and reads a[i+2].
+    // So b[i] += a[i+1]*d[i] uses the ORIGINAL a[i+1] (before it's modified by iteration i+1).
+    // This means we can split the loop: first compute b[i] += a[i+1]*d[i] using original a values,
+    // then update a[i] *= c[i]. But we need to be careful about order.
+    //
+    // Original loop body:
+    //   a[i] *= c[i];          // write a[i]
+    //   b[i] += a[i+1]*d[i];  // read a[i+1] (not yet modified in this iteration)
+    //
+    // Since a[i+1] is read AFTER a[i] is written (different index), and a[i+1] will be
+    // written in iteration i+1, the b[i] update uses the original a[i+1].
+    // So we can vectorize by:
+    // 1. First do all b[i] += a[i+1]*d[i] using original a values
+    // 2. Then do all a[i] *= c[i]
+    // This is safe because b and a don't alias (assumed), and the b update reads a[i+1]
+    // which is the original value.
+
+    int i = 0;
+    int limit = n - 1;
+
+    typedef float float4 __attribute__((vector_size(16)));
+
+    // Vectorized pass 1: b[i] += a[i+1] * d[i]
+    for (i = 0; i <= limit - 4; i += 4) {
+        float4 ai1, di, bi;
+        __builtin_memcpy(&ai1, &a[i+1], sizeof(float4));
+        __builtin_memcpy(&di,  &d[i],   sizeof(float4));
+        __builtin_memcpy(&bi,  &b[i],   sizeof(float4));
+        bi = bi + ai1 * di;
+        __builtin_memcpy(&b[i], &bi, sizeof(float4));
+    }
+    for (; i < limit; i++) {
+        b[i] += a[i+1] * d[i];
+    }
+
+    // Vectorized pass 2: a[i] *= c[i]
+    for (i = 0; i <= limit - 4; i += 4) {
+        float4 ai, ci;
+        __builtin_memcpy(&ai, &a[i], sizeof(float4));
+        __builtin_memcpy(&ci, &c[i], sizeof(float4));
+        ai = ai * ci;
+        __builtin_memcpy(&a[i], &ai, sizeof(float4));
+    }
+    for (; i < limit; i++) {
+        a[i] *= c[i];
+    }
+}
+        ```
+
+        Tester feedback:
+        The compile error is in the test harness wrapper code, not in the candidate function itself. The issue is a `redefinition of 'n'` conflict between `const int n = 128;` and `int n = n;` in the generated test code.
+
+- The test harness declares `const int n = 128;` then later tries `int n = n;` — this is a harness generation bug where the variable `n` is being re-declared in the same scope.
+- Fix: in the test harness, remove the redundant `int n = n;` redeclaration (or rename it), since `n` is already defined as `const int n = 128;` in the enclosing scope.
+- The candidate function `vectorized_s212` itself compiles cleanly — no changes needed to the function body or signature.
+- The `typedef float float4 __attribute__((vector_size(16)));` inside the function body is valid C11 with clang, so that is not the issue.
+- Ensure the test harness uses a single declaration of `n` (e.g., keep only `const int n = 128;`) and does not attempt to shadow or redefine it within the same block scope.
+
+        Return a corrected candidate function named `vectorized_s212`.

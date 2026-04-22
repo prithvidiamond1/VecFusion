@@ -1,0 +1,58 @@
+#include <stdint.h>
+
+float vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)
+{
+    float sum;
+    for (int nl = 0; nl < iterations; nl++) {
+        float temp_sum = 0.0f;
+
+        // The prefix sum has a sequential dependency: b[i] = a[0]+a[1]+...+a[i]
+        // We can vectorize by computing partial sums in blocks, then fixup.
+        // Block size 8 for unrolling.
+        int i = 0;
+        int block = 8;
+        int limit = LEN_1D - (LEN_1D % block);
+
+        for (; i < limit; i += block) {
+            // Load 8 elements, compute prefix within block, then add carry
+            float v0 = a[i+0];
+            float v1 = a[i+1];
+            float v2 = a[i+2];
+            float v3 = a[i+3];
+            float v4 = a[i+4];
+            float v5 = a[i+5];
+            float v6 = a[i+6];
+            float v7 = a[i+7];
+
+            // Prefix sum within block
+            float p0 = temp_sum + v0;
+            float p1 = p0 + v1;
+            float p2 = p1 + v2;
+            float p3 = p2 + v3;
+            float p4 = p3 + v4;
+            float p5 = p4 + v5;
+            float p6 = p5 + v6;
+            float p7 = p6 + v7;
+
+            b[i+0] = p0;
+            b[i+1] = p1;
+            b[i+2] = p2;
+            b[i+3] = p3;
+            b[i+4] = p4;
+            b[i+5] = p5;
+            b[i+6] = p6;
+            b[i+7] = p7;
+
+            temp_sum = p7;
+        }
+
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            temp_sum += a[i];
+            b[i] = temp_sum;
+        }
+
+        sum = temp_sum;
+    }
+    return sum;
+}

@@ -1,0 +1,16 @@
+float s352(int iterations, int LEN_1D, float* a, float* b)
+{
+    float dot = 0.0f;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        float sum0 = 0.0f, sum1 = 0.0f, sum2 = 0.0f, sum3 = 0.0f, sum4 = 0.0f;
+        for (int i = 0; i < LEN_1D; i += 5) {
+            sum0 += a[i]     * b[i];
+            sum1 += a[i + 1] * b[i + 1];
+            sum2 += a[i + 2] * b[i + 2];
+            sum3 += a[i + 3] * b[i + 3];
+            sum4 += a[i + 4] * b[i + 4];
+        }
+        dot = sum0 + sum1 + sum2 + sum3 + sum4;
+    }
+    return dot;
+}

@@ -1,0 +1,31 @@
+#include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s323(int iterations, int LEN_1D, float* a, float *b, float* c, float* d, float* e) {
+    int total_iters = iterations / 2;
+    for (int nl = 0; nl < total_iters; nl++) {
+        int i = 1;
+        // Vectorized main loop (process 4 elements at a time)
+        for (; i + 3 < LEN_1D; i += 4) {
+            // Load vectors for current i (i to i+3)
+            float32_t b_prev = *(float32_t*)(b + i - 1);
+            float32_t c_vec = *(float32_t*)(c + i);
+            float32_t d_vec = *(float32_t*)(d + i);
+            float32_t e_vec = *(float32_t*)(e + i);
+            
+            // Compute a[i..i+3] = b[i-1..i+2] + c[i..i+3] * d[i..i+3]
+            float32_t a_vec = b_prev + c_vec * d_vec;
+            *(float32_t*)(a + i) = a_vec;
+            
+            // Compute b[i..i+3] = a[i..i+3] + c[i..i+3] * e[i..i+3]
+            float32_t b_vec = a_vec + c_vec * e_vec;
+            *(float32_t*)(b + i) = b_vec;
+        }
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D; i++) {
+            a[i] = b[i-1] + c[i] * d[i];
+            b[i] = a[i] + c[i] * e[i];
+        }
+    }
+}

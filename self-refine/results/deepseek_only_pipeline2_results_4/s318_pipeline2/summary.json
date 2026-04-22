@@ -1,0 +1,55 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s318_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s318_opt(int iterations,int LEN_1D, float* a, int inc)\n{\n    int k, index;\n    float max, chksum;\n    for (int nl = 0; nl < iterations/2; nl++) {\n        k = 0;\n        index = 0;\n        max = fabsf(a[0]);\n        k += inc;\n        \n        // Precompute all absolute values into a temporary array\n        // This allows vectorization of fabsf calls\n        float* abs_vals = (float*)__builtin_alloca(LEN_1D * sizeof(float));\n        int current_k = k;\n        for (int i = 1; i < LEN_1D; i++) {\n            abs_vals[i] = fabsf(a[current_k]);\n            current_k += inc;\n        }\n        \n        // Separate reduction into two independent loops\n        // First: find maximum value (simple reduction pattern)\n        float max_val = max;\n        for (int i = 1; i < LEN_1D; i++) {\n            float abs_val = abs_vals[i];\n            if (abs_val > max_val) {\n                max_val = abs_val;\n            }\n        }\n        \n        // Second: find first index where value equals maximum\n        // This avoids the complex argmax reduction pattern\n        int max_idx = 0;\n        for (int i = 1; i < LEN_1D; i++) {\n            if (abs_vals[i] == max_val) {\n                max_idx = i;\n                break;  // Only need first occurrence\n            }\n        }\n        \n        // Update original variables\n        index = max_idx;\n        max = max_val;\n        chksum = max + (float) index;\n    }\n    return max + index + 1;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s318_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s318_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s318_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <math.h>\n\nfloat vectorized_s318(int iterations, int LEN_1D, float* a, int inc) {\n    float max = 0.0f;\n    int index = 0;\n\n    for (int nl = 0; nl < iterations/2; nl++) {\n        int k = 0;\n        float current_max = fabsf(a[0]);\n        int current_index = 0;\n        k += inc;\n\n        float max_val = current_max;\n        int max_idx = 0;\n        int current_k = k;\n\n        // Process in chunks of 4\n        int i;\n        for (i = 1; i + 3 < LEN_1D; i += 4) {\n            // Load 4 values with correct stride\n            float v0 = fabsf(a[current_k]);\n            current_k += inc;\n            float v1 = fabsf(a[current_k]);\n            current_k += inc;\n            float v2 = fabsf(a[current_k]);\n            current_k += inc;\n            float v3 = fabsf(a[current_k]);\n            current_k += inc;\n\n            // Update maximum and index\n            if (v0 > max_val) { max_val = v0; max_idx = i; }\n            if (v1 > max_val) { max_val = v1; max_idx = i + 1; }\n            if (v2 > max_val) { max_val = v2; max_idx = i + 2; }\n            if (v3 > max_val) { max_val = v3; max_idx = i + 3; }\n        }\n\n        // Scalar tail\n        for (; i < LEN_1D; i++) {\n            float abs_val = fabsf(a[current_k]);\n            if (abs_val > max_val) {\n                max_val = abs_val;\n                max_idx = i;\n            }\n            current_k += inc;\n        }\n\n        // Update global max and index\n        if (nl == 0 || max_val > max) {\n            max = max_val;\n            index = max_idx;\n        }\n    }\n\n    return max + index + 1;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s318_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s318",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s318_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s318_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "float s318(int iterations,int LEN_1D, float* a, int inc)\n{\n    int k, index;\n    float max, chksum;\n    for (int nl = 0; nl < iterations/2; nl++) {\n        k = 0;\n        index = 0;\n        max = fabsf(a[0]);\n        k += inc;\n        for (int i = 1; i < LEN_1D; i++) {\n            if (fabsf(a[k]) <= max) {\n                goto L5;\n            }\n            index = i;\n            max = fabsf(a[k]);\nL5:\n            k += inc;\n        }\n        chksum = max + (float) index;\n    }\n    return max + index + 1;\n}",
+      "summary": "Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s318_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

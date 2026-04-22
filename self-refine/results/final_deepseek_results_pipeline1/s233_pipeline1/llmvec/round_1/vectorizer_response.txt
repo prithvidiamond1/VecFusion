@@ -1,0 +1,36 @@
+```c
+#include <stddef.h>
+
+typedef float float32 __attribute__((ext_vector_type(4)));
+
+void vectorized_s233(int iterations, float aa[256][256], float bb[256][256], float cc[256][256]) {
+    int total_iterations = 100 * (iterations / 256);
+    for (int nl = 0; nl < total_iterations; nl++) {
+        for (int i = 1; i < 256; i++) {
+            // Vectorize the first inner loop (aa)
+            for (int j = 1; j < 256; j += 4) {
+                float32 aa_prev = *(float32*)&aa[j-1][i];
+                float32 cc_vec = *(float32*)&cc[j][i];
+                float32 aa_result = aa_prev + cc_vec;
+                *(float32*)&aa[j][i] = aa_result;
+            }
+            // Handle remainder for aa loop
+            for (int j = ((255) / 4) * 4 + 1; j < 256; j++) {
+                aa[j][i] = aa[j-1][i] + cc[j][i];
+            }
+
+            // Vectorize the second inner loop (bb)
+            for (int j = 1; j < 256; j += 4) {
+                float32 bb_prev = *(float32*)&bb[j][i-1];
+                float32 cc_vec = *(float32*)&cc[j][i];
+                float32 bb_result = bb_prev + cc_vec;
+                *(float32*)&bb[j][i] = bb_result;
+            }
+            // Handle remainder for bb loop
+            for (int j = ((255) / 4) * 4 + 1; j < 256; j++) {
+                bb[j][i] = bb[j][i-1] + cc[j][i];
+            }
+        }
+    }
+}
+```

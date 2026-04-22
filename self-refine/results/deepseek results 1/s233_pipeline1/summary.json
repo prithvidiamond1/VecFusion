@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s233_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s233(int iterations, float aa[256][256], float bb[256][256], float cc[256][256])\n{\n    for (int nl = 0; nl < 100*(iterations/256); nl++) {\n        for (int i = 1; i < 256; i++) {\n            // First loop: aa[j][i] = aa[j-1][i] + cc[j][i]\n            // This is a sequential dependency on j, so we process scalar\n            // but unroll manually\n            int j = 1;\n            for (; j + 3 < 256; j += 4) {\n                aa[j][i]   = aa[j-1][i]   + cc[j][i];\n                aa[j+1][i] = aa[j][i]     + cc[j+1][i];\n                aa[j+2][i] = aa[j+1][i]   + cc[j+2][i];\n                aa[j+3][i] = aa[j+2][i]   + cc[j+3][i];\n            }\n            for (; j < 256; j++) {\n                aa[j][i] = aa[j-1][i] + cc[j][i];\n            }\n\n            // Second loop: bb[j][i] = bb[j][i-1] + cc[j][i]\n            // No dependency on j, so we can vectorize over j\n            j = 1;\n#if defined(__clang__) || defined(__GNUC__)\n            typedef float float4 __attribute__((vector_size(16)));\n            // Process 16 floats at a time (4 vectors of 4)\n            for (; j + 15 < 256; j += 16) {\n                float4 cc0, cc1, cc2, cc3;\n                float4 bb0, bb1, bb2, bb3;\n\n                // Load cc[j..j+15][i]\n                cc0 = (float4){cc[j][i],   cc[j+1][i],  cc[j+2][i],  cc[j+3][i]};\n                cc1 = (float4){cc[j+4][i], cc[j+5][i],  cc[j+6][i],  cc[j+7][i]};\n                cc2 = (float4){cc[j+8][i], cc[j+9][i],  cc[j+10][i], cc[j+11][i]};\n                cc3 = (float4){cc[j+12][i],cc[j+13][i], cc[j+14][i], cc[j+15][i]};\n\n                // Load bb[j..j+15][i-1]\n                bb0 = (float4){bb[j][i-1],   bb[j+1][i-1],  bb[j+2][i-1],  bb[j+3][i-1]};\n                bb1 = (float4){bb[j+4][i-1], bb[j+5][i-1],  bb[j+6][i-1],  bb[j+7][i-1]};\n                bb2 = (float4){bb[j+8][i-1], bb[j+9][i-1],  bb[j+10][i-1], bb[j+11][i-1]};\n                bb3 = (float4){bb[j+12][i-1],bb[j+13][i-1], bb[j+14][i-1], bb[j+15][i-1]};\n\n                bb0 = bb0 + cc0;\n                bb1 = bb1 + cc1;\n                bb2 = bb2 + cc2;\n                bb3 = bb3 + cc3;\n\n                bb[j][i]    = bb0[0]; bb[j+1][i]  = bb0[1]; bb[j+2][i]  = bb0[2]; bb[j+3][i]  = bb0[3];\n                bb[j+4][i]  = bb1[0]; bb[j+5][i]  = bb1[1]; bb[j+6][i]  = bb1[2]; bb[j+7][i]  = bb1[3];\n                bb[j+8][i]  = bb2[0]; bb[j+9][i]  = bb2[1]; bb[j+10][i] = bb2[2]; bb[j+11][i] = bb2[3];\n                bb[j+12][i] = bb3[0]; bb[j+13][i] = bb3[1]; bb[j+14][i] = bb3[2]; bb[j+15][i] = bb3[3];\n            }\n#endif\n            for (; j < 256; j++) {\n                bb[j][i] = bb[j][i-1] + cc[j][i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s233_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s233",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s233_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s233_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s233_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

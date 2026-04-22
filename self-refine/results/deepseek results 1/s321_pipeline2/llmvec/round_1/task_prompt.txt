@@ -1,0 +1,24 @@
+Vectorize the scalar C function `s321` below.
+
+        Scalar source:
+        ```c
+        void s321(int iterations, int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        // Preserve the original value of a[0] since it's used in first iteration
+        float prev = a[0];
+
+        // Process the recurrence sequentially but with reordered operations
+        for (int i = 1; i < LEN_1D; i++) {
+            // Calculate the product using the previous value
+            float product = prev * b[i];
+            // Update current element
+            a[i] += product;
+            // Store current value for next iteration
+            prev = a[i];
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s321`.

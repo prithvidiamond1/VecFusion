@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s1161_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s1161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        int i = 0;\n        int len = LEN_1D - 1;\n\n#if defined(__clang__) || defined(__GNUC__)\n        typedef float float4 __attribute__((vector_size(16)));\n\n        int vec_len = len - (len % 4);\n        for (; i < vec_len; i += 4) {\n            float4 ci, di, ei, ai, bi;\n\n            ci[0] = c[i+0]; ci[1] = c[i+1]; ci[2] = c[i+2]; ci[3] = c[i+3];\n            di[0] = d[i+0]; di[1] = d[i+1]; di[2] = d[i+2]; di[3] = d[i+3];\n            ei[0] = e[i+0]; ei[1] = e[i+1]; ei[2] = e[i+2]; ei[3] = e[i+3];\n            ai[0] = a[i+0]; ai[1] = a[i+1]; ai[2] = a[i+2]; ai[3] = a[i+3];\n\n            /* branch: if c[i] < 0: b[i] = a[i] + d[i]*d[i], else a[i] = c[i] + d[i]*e[i] */\n            float4 branch_a = ci + di * ei;       /* c[i] >= 0 path */\n            float4 branch_b = ai + di * di;       /* c[i] <  0 path */\n\n            /* mask: 1 where c[i] < 0 */\n            for (int j = 0; j < 4; j++) {\n                if (ci[j] < 0.0f) {\n                    b[i+j] = branch_b[j];\n                } else {\n                    a[i+j] = branch_a[j];\n                }\n            }\n        }\n#endif\n\n        /* scalar tail */\n        for (; i < len; i++) {\n            if (c[i] < (float)0.) {\n                b[i] = a[i] + d[i] * d[i];\n            } else {\n                a[i] = c[i] + d[i] * e[i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s1161_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s1161",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s1161_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s1161_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s1161_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

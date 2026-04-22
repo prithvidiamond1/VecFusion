@@ -1,0 +1,45 @@
+#include <stddef.h>
+
+void vectorized_s292(int iterations, int LEN_1D, float* a, float* b) {
+    if (LEN_1D <= 0) return;
+    
+    for (int nl = 0; nl < iterations; nl++) {
+        // Handle first two elements separately
+        a[0] = (b[0] + b[LEN_1D-1] + b[LEN_1D-2]) * (float).333;
+        if (LEN_1D > 1) {
+            a[1] = (b[1] + b[0] + b[LEN_1D-1]) * (float).333;
+        }
+        
+        // Main vectorizable loop starting from i = 2
+        int i = 2;
+        // Vectorized section
+        for (; i + 3 < LEN_1D; i += 4) {
+            // Load b[i], b[i-1], b[i-2] for 4 consecutive positions
+            float b_i0 = b[i];
+            float b_i1 = b[i+1];
+            float b_i2 = b[i+2];
+            float b_i3 = b[i+3];
+            
+            float b_im1_0 = b[i-1];
+            float b_im1_1 = b[i];
+            float b_im1_2 = b[i+1];
+            float b_im1_3 = b[i+2];
+            
+            float b_im2_0 = b[i-2];
+            float b_im2_1 = b[i-1];
+            float b_im2_2 = b[i];
+            float b_im2_3 = b[i+1];
+            
+            // Compute sums and multiply by 0.333
+            a[i]   = (b_i0 + b_im1_0 + b_im2_0) * (float).333;
+            a[i+1] = (b_i1 + b_im1_1 + b_im2_1) * (float).333;
+            a[i+2] = (b_i2 + b_im1_2 + b_im2_2) * (float).333;
+            a[i+3] = (b_i3 + b_im1_3 + b_im2_3) * (float).333;
+        }
+        
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D; i++) {
+            a[i] = (b[i] + b[i-1] + b[i-2]) * (float).333;
+        }
+    }
+}

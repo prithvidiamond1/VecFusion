@@ -1,0 +1,11 @@
+The candidate compiles but produces incorrect results (exit code 2 indicates a runtime mismatch).
+
+**Issues to fix:**
+
+- The outer loop runs `8 * iterations` times, but the original scalar code likely ran `iterations` times. The trip count multiplier is wrong — it should be `iterations`, not `8 * iterations`.
+
+- The vector reduction `dot_vec[0] + dot_vec[1] + dot_vec[2] + dot_vec[3]` is computed inside the outer loop but `dot` is reset each iteration. The final `dot` should accumulate across outer iterations, not be overwritten.
+
+- The inner vector loop bounds `i < LEN_1D - 3` are correct for aligned 4-element loads, but the tail loop must handle the remaining elements correctly — verify that `LEN_1D` is the actual array length and that the tail loop covers exactly the leftover elements.
+
+- The variable `dot` is declared outside the outer loop but reassigned each iteration; it should be accumulated (e.g., `dot += ...`) to match the original semantics.

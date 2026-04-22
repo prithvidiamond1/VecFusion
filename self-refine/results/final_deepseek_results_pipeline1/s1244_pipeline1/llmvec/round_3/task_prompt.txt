@@ -1,0 +1,63 @@
+
+Revise your candidate for `s1244` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s1244(int iterations, int LEN_1D, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < LEN_1D-1; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i]*b[i] + c[i];
+            d[i] = a[i] + a[i+1];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    int n = LEN_1D - 1;
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        for (; i <= n - 4; i += 4) {
+            float32_t vb = *(float32_t*)(b + i);
+            float32_t vc = *(float32_t*)(c + i);
+            float32_t vc_sq = vc * vc;
+            float32_t vb_sq = vb * vb;
+            float32_t va = vb + vc_sq + vb_sq + vc;
+            *(float32_t*)(a + i) = va;
+
+            float32_t va_next = *(float32_t*)(a + i + 1);
+            float32_t vd = va + va_next;
+            *(float32_t*)(d + i) = vd;
+        }
+        for (; i < n - 1; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];
+            d[i] = a[i] + a[i + 1];
+        }
+        if (i == n - 1) {
+            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorized code has a correctness bug. The vector loop processes 4 elements per iteration, but the scalar remainder loop and final single-element handling are inconsistent with the original loop bounds.
+
+**Fixes needed:**
+
+1. **Fix vector loop upper bound**: Change `i <= n - 4` to `i < n - 3` to ensure the vector loop only processes full 4-element chunks without overshooting.
+
+2. **Fix remainder loop bounds**: Change `i < n - 1` to `i < n` in the scalar remainder loop to handle all remaining elements, not just up to `n-2`.
+
+3. **Remove the final `if (i == n - 1)` block**: The remainder loop should cover all remaining iterations, making this special case unnecessary and incorrect.
+
+4. **Verify `d[i]` computation in vector loop**: The vectorized code reads `a[i+1]` which may be uninitialized for the last vector iteration if the original loop didn't compute it yet—ensure the vector loop doesn't read ahead of computed values.
+
+        Return a corrected candidate function named `vectorized_s1244`.

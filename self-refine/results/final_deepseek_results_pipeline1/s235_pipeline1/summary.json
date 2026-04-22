@@ -1,0 +1,28 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s235_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\ntypedef float float_vec __attribute__((ext_vector_type(4)));\n\nvoid vectorized_s235(int iterations, float* a, float* b, float* c, float aa[256][256], float bb[256][256]) {\n    int total_iters = 200 * (iterations / 256);\n    for (int nl = 0; nl < total_iters; nl++) {\n        for (int i = 0; i < 256; i++) {\n            float ai = a[i] + b[i] * c[i];\n            a[i] = ai;\n            \n            // Vectorized inner loop over j\n            int j = 1;\n            for (; j + 3 < 256; j += 4) {\n                float_vec bb_vec = *(float_vec*)&bb[j][i];\n                float_vec aa_prev = *(float_vec*)&aa[j-1][i];\n                float_vec aa_curr = aa_prev + bb_vec * ai;\n                *(float_vec*)&aa[j][i] = aa_curr;\n            }\n            // Scalar cleanup for remaining j\n            for (; j < 256; j++) {\n                aa[j][i] = aa[j-1][i] + bb[j][i] * ai;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s235_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s235",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s235_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s235_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_pipeline1_20260422_044515/s235_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline1_20260422_044515/s235_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

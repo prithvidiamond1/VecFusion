@@ -1,0 +1,10 @@
+The vectorizer candidate has a **semantic error** in how `s` is updated and used across the vector and scalar loops.
+
+**Fixes needed:**
+
+- The vector loop incorrectly uses `s` as both a base for the vector elements and then adds `4.0f` after each iteration. This does not match the scalar reference pattern where `s` is incremented by `1.0f` per element.
+- The scalar cleanup loop also adds `4.0f` per iteration instead of `1.0f`, compounding the error.
+- The correct per-element update should be `s += 1.0f` after each element is processed, not `4.0f` per vector chunk.
+- The vector loop should compute `s_vec` as `{s, s+1, s+2, s+3}` and then after the vector store, update `s += 4.0f` — this part is correct, but the scalar tail must use `s += 1.0f` per iteration.
+- The mismatch at index 0 suggests the very first computed value of `a[0]` is wrong, likely because `s` starts at 0.0 but the vector initialization `s_vec = {s, s+1, s+2, s+3}` is correct; the error propagates from the tail loop's incorrect stride.
+- Change the scalar cleanup loop to: `s += 1.0f; a[i] = s * b[i];` (increment by 1, not 4).

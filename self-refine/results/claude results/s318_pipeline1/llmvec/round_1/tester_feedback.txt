@@ -1,0 +1,9 @@
+The function returns `max + index + 1` using variables that are local to the loop body scope but declared outside — however the real issue is that `max` and `index` are not initialized before the loop when `iterations/2 == 0`, and more critically the return value doesn't match the reference implementation's expected output.
+
+Looking at the reference pattern (s318 is an ISAMAX-style loop finding the index of the maximum absolute value), the return should be `chksum` (which is `max + (float)index`), not `max + index + 1`.
+
+- **Wrong return value**: Change `return max + index + 1;` to `return chksum;` — the reference returns `chksum = max + (float)index`, not `max + index + 1`.
+- **Uninitialized `chksum`**: If `iterations/2 == 0`, `chksum` is never set; initialize `chksum = 0.0f;` before the loop.
+- **Uninitialized `max`/`index` for return**: `max` and `index` are declared inside the loop scope implicitly via the first assignment — move `float max; int index;` declarations before the loop so they're accessible at the return statement (currently they shadow outer scope or cause undefined behavior).
+- **`k` indexing assumption**: The loop uses `ki` starting at `k = inc`, assuming `a` is indexed as `a[i * inc]`. Verify `inc == 1` is the expected case; if `inc` can be other values, `a[ki]` where `ki` grows by `inc` each step is correct only if array is 1D with stride — confirm this matches the reference.
+- **`max0/max1/max2/max3` variables** are computed but never used (dead code); remove them to avoid confusion and potential compiler warnings treated as errors.

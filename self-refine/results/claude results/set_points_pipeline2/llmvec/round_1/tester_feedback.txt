@@ -1,0 +1,15 @@
+The test is failing because `src` is being written to (it's used as a working buffer), but the caller apparently passes a read-only or size-constrained array. Looking more carefully: the function writes `src[divCount + 1]`, meaning `src` must have at least `divCount + 2` elements. But the real bug reported is a **mismatch in parameter `src` at index 0** — the function is modifying `src[0]` through `src[divCount+1]`, but the caller likely expects `src` to be unchanged (it's an input parameter, not a scratch buffer).
+
+Key fixes needed:
+
+- **Use a local scratch buffer for `src` instead of writing to the passed-in `src` parameter.** Allocate `int* srcBuf = (int*)alloca((divCount + 2) * sizeof(int));` and use `srcBuf` everywhere internally, leaving the caller's `src` array untouched.
+
+- **The `srcDelta` last element is missing:** the loop computes `srcDelta[0..divCount-1]` but needs `srcDelta[divCount]` = `src[divCount+1] - src[divCount]`. Add `srcDelta[divCount] = srcBuf[divCount+1] - srcBuf[divCount];` after the loop.
+
+- **The `dstDelta` last element is missing:** similarly compute `dstDelta[divCount]` for the final segment (between last div and `srcEnd`). The scalar cleanup loop only goes to `i < divCount`, missing index `divCount`. Extend both `srcDelta` and `dstDelta` loops to `<= divCount` (i.e., `divCount + 1` elements total).
+
+- **The unrolled `srcDelta` loop condition `i + 3 < divCount` should be `i + 3 <= divCount`** (i.e., `i + 4 <= divCount + 1`) to correctly unroll over all `divCount + 1` deltas.
+
+- **The `dstDelta` unrolled loop has the same off-by-one**: it should iterate over `divCount + 1` elements, not `divCount`.
+
+- **The `dst` accumulation loop** should run `for (int i = 0; i < divCount + 1; i++)` to fill all `divCount + 2` output points (currently stops one short, missing `dst[divCount]` via delta, then overwrites with `dstEnd`—this may be acceptable but verify the last delta is included).

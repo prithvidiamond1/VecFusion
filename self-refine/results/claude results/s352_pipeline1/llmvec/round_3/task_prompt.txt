@@ -1,0 +1,82 @@
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b)
+{
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = (float)0.;
+        for (int i = 0; i < LEN_1D; i += 5) {
+            dot = dot + a[i] * b[i] + a[i + 1] * b[i + 1] + a[i + 2]
+                * b[i + 2] + a[i + 3] * b[i + 3] + a[i + 4] * b[i + 4];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float* b)
+{
+    float dot;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        dot = 0.0f;
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 20);
+
+        float acc0 = 0.0f, acc1 = 0.0f, acc2 = 0.0f, acc3 = 0.0f;
+
+        for (; i < limit; i += 20) {
+            acc0 += a[i + 0] * b[i + 0]
+                  + a[i + 1] * b[i + 1]
+                  + a[i + 2] * b[i + 2]
+                  + a[i + 3] * b[i + 3]
+                  + a[i + 4] * b[i + 4];
+            acc1 += a[i + 5] * b[i + 5]
+                  + a[i + 6] * b[i + 6]
+                  + a[i + 7] * b[i + 7]
+                  + a[i + 8] * b[i + 8]
+                  + a[i + 9] * b[i + 9];
+            acc2 += a[i + 10] * b[i + 10]
+                  + a[i + 11] * b[i + 11]
+                  + a[i + 12] * b[i + 12]
+                  + a[i + 13] * b[i + 13]
+                  + a[i + 14] * b[i + 14];
+            acc3 += a[i + 15] * b[i + 15]
+                  + a[i + 16] * b[i + 16]
+                  + a[i + 17] * b[i + 17]
+                  + a[i + 18] * b[i + 18]
+                  + a[i + 19] * b[i + 19];
+        }
+
+        dot = acc0 + acc1 + acc2 + acc3;
+
+        /* Safe scalar cleanup: step by 1 to handle any remainder */
+        for (; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The `dot` variable is declared outside the outer loop but reset to `0.0f` inside it. After the loop body, `dot` holds the correct value, but the **accumulator reduction** (`dot = acc0 + acc1 + acc2 + acc3`) happens **before** the scalar cleanup loop, which then correctly adds to `dot`. This part looks fine.
+- The real bug: the **scalar cleanup loop** does `dot += a[i] * b[i]`, but `dot` was just set to `acc0 + acc1 + acc2 + acc3` (not including the cleanup). This is actually correct logic — re-examine the issue.
+- The actual problem is **floating-point reassociation**: the reference implementation computes a simple sequential dot product `dot += a[i]*b[i]` for all `i`. The unrolled/multi-accumulator version produces a **different floating-point result** due to reordering of additions, causing the return value mismatch.
+- Fix: revert to a **single accumulator** sequential loop that matches the reference's exact floating-point order:
+  ```c
+  dot = 0.0f;
+  for (int i = 0; i < LEN_1D; i++)
+      dot += a[i] * b[i];
+  ```
+- Remove the multi-accumulator unrolling (`acc0`–`acc3`) and the `limit`/chunked loop entirely, since they alter the floating-point result relative to the reference.
+- Keep the outer `nl` loop and the `dot = 0.0f` reset at the start of each iteration.
+- Return `dot` after the outer loop as before.
+
+        Return a corrected candidate function named `vectorized_s352`.

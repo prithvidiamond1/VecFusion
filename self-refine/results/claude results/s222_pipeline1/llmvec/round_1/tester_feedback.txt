@@ -1,0 +1,5 @@
+- The `a[]` update (`+= bc; -= bc;`) is mathematically a no-op but **not** in floating point when intermediate rounding occurs — however the real issue is that the **original loop starts at index 0** (`for (i = 0; i < LEN_1D; i++)`), but the candidate starts at `i = 1`, skipping `a[0]`.
+- Fix: change the initial value of `i` from `1` to `0` in both the vectorized loop and the scalar tail for `a[]`, so `a[0]` gets its `+= b[0]*c[0]; -= b[0]*c[0];` update too.
+- The `e[]` recurrence correctly starts at `i = 1` (uses `e[i-1]`), so that loop is fine.
+- The `vec_end` variable is computed but never used — remove it to avoid dead-code confusion (minor, not the cause of failure).
+- Ensure the unrolled loop condition `i + 7 < LEN_1D` with `i` starting at `0` is correct (it is, once `i` starts at 0).

@@ -1,0 +1,60 @@
+
+Revise your candidate for `s314` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s314(int iterations,int LEN_1D, float* a)
+{
+    float x;
+    for (int nl = 0; nl < iterations*5; nl++) {
+        x = a[0];
+        for (int i = 0; i < LEN_1D; i++) {
+            if (a[i] > x) {
+                x = a[i];
+            }
+        }
+    }
+    return x;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+typedef float v4f __attribute__((ext_vector_type(4)));
+
+float vectorized_s314(int iterations, int LEN_1D, float* a) {
+    float x;
+    int total_outer = iterations * 5;
+    for (int nl = 0; nl < total_outer; nl++) {
+        x = a[0];
+        int i = 0;
+        v4f vmax = (v4f){x, x, x, x};
+        for (; i + 4 <= LEN_1D; i += 4) {
+            v4f va = __builtin_ia32_loadups(a + i);
+            vmax = (va > vmax) ? va : vmax;
+        }
+        float hmax = vmax[0];
+        if (vmax[1] > hmax) hmax = vmax[1];
+        if (vmax[2] > hmax) hmax = vmax[2];
+        if (vmax[3] > hmax) hmax = vmax[3];
+        for (; i < LEN_1D; i++) {
+            if (a[i] > hmax) {
+                hmax = a[i];
+            }
+        }
+        x = hmax;
+    }
+    return x;
+}
+        ```
+
+        Tester feedback:
+        - Replace `__builtin_ia32_loadups` with a portable vector load, e.g., `*(v4f*)(a + i)` or `__builtin_convertvector` if alignment is guaranteed; the builtin is x86-specific and not available in generic C.
+- Ensure the vector load is aligned or use an unaligned load intrinsic if alignment cannot be assumed; the current code uses `a + i` which may not be 16-byte aligned.
+- Verify that the loop bound `i + 4 <= LEN_1D` is correct for the vectorized loop; it should be `i + 4 <= LEN_1D` to avoid out-of-bounds access, which is fine.
+- The scalar remainder loop `for (; i < LEN_1D; i++)` correctly handles leftover elements after vectorization.
+- The outer loop `for (int nl = 0; nl < total_outer; nl++)` with `total_outer = iterations * 5` is sound as a trip count multiplier.
+- The reduction logic across vector lanes (`vmax[0]`, `vmax[1]`, etc.) is correct for finding the maximum.
+
+        Return a corrected candidate function named `vectorized_s314`.

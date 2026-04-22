@@ -1,0 +1,8 @@
+- The vectorized loop incorrectly loads `a[i..i+3]` for the j-side computation **after** overwriting `a[i..i+3]` with new values, causing a data dependency violation.
+- For the j-side computation, the original `a[i]` values (before update) must be used, but the current code loads them after they have been overwritten.
+- Store the original `a[i..i+3]` values into temporary variables **before** updating `a[i..i+3]` in the i-side store.
+- Use these saved original `a[i..i+3]` values when computing `x_j0..x_j3` for the j-side.
+- Ensure the temporary variables for original `a[i..i+3]` are declared and loaded at the start of the vector iteration.
+- The fix maintains the same computation pattern as the scalar remainder loop, which loads `a[i]` before updating it.
+- No changes are needed for the remainder loops or odd-element handling.
+- This correction resolves the mismatch by preserving the original `a[i]` values for the symmetric j-side update.

@@ -1,0 +1,16 @@
+```c
+void vectorized_s1161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < LEN_1D - 1; i++) {
+            float ci = c[i];
+            float di = d[i];
+            if (ci < 0.0f) {
+                b[i] = a[i] + di * di;
+            } else {
+                a[i] = ci + di * e[i];
+            }
+        }
+    }
+}
+```

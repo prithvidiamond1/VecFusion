@@ -1,0 +1,10 @@
+- The file starts with a duplicate ` ```c ` fence inside the outer ` ```c ` block (line 37 area), causing a syntax error. Remove the inner ` ```c ` marker entirely.
+- The code is also truncated — the last unrolled loop body is cut off mid-line (`aa[j][i+6] = aa[j][i+`). Complete all 8 lanes for `aa[j][i+6]` and `aa[j][i+7]`, close the inner loop, add the scalar remainder loop, close the outer `j` loop, close the `nl` loop, and close the function.
+- Specifically, after `aa[j][i+5]` add:
+  ```c
+  aa[j][i+6] = aa[j][i+6] * (1.0f - m6) + p6 * m6;
+  aa[j][i+7] = aa[j][i+7] * (1.0f - m7) + p7 * m7;
+  ```
+- Then close the unrolled `i` loop with `}`, add a scalar remainder `for (; i < 256; i++) { ... }` that mirrors the same logic for single elements.
+- Close the `j` loop with `}`, then close the `nl` loop with `}`, then close the function with `}`.
+- Ensure there is only one ` ```c ` fence at the very top and one ` ``` ` at the very bottom — no embedded fence markers inside the C source.

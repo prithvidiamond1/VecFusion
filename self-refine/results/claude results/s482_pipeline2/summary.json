@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s482_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s482_opt(int iterations, int LEN_1D, float* a, float* b, float* c)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Find the break point first\n        int break_point = LEN_1D;\n        for (int i = 0; i < LEN_1D; i++) {\n            if (c[i] > b[i]) {\n                break_point = i + 1;\n                break;\n            }\n        }\n        // Now vectorize the update loop with known bounds\n        for (int i = 0; i < break_point; i++) {\n            a[i] += b[i] * c[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s482_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s482_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s482_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s482(int iterations, int LEN_1D, float* a, float* b, float* c)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Find the break point first (scalar, data-dependent)\n        int break_point = LEN_1D;\n        for (int i = 0; i < LEN_1D; i++) {\n            if (c[i] > b[i]) {\n                break_point = i + 1;\n                break;\n            }\n        }\n\n        // Vectorized update loop using compiler vector types\n        typedef float float4 __attribute__((vector_size(16)));\n\n        int i = 0;\n        int vec_len = break_point & ~3; // round down to multiple of 4\n\n        for (; i < vec_len; i += 4) {\n            float4 va, vb, vc;\n            // Load 4 floats manually\n            va[0] = a[i];   va[1] = a[i+1];   va[2] = a[i+2];   va[3] = a[i+3];\n            vb[0] = b[i];   vb[1] = b[i+1];   vb[2] = b[i+2];   vb[3] = b[i+3];\n            vc[0] = c[i];   vc[1] = c[i+1];   vc[2] = c[i+2];   vc[3] = c[i+3];\n\n            va = va + vb * vc;\n\n            a[i]   = va[0];\n            a[i+1] = va[1];\n            a[i+2] = va[2];\n            a[i+3] = va[3];\n        }\n\n        // Scalar tail\n        for (; i < break_point; i++) {\n            a[i] += b[i] * c[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s482_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s482",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s482_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s482_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s482_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s1244_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nvoid vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    typedef float float4 __attribute__((vector_size(16)));\n\n    for (int nl = 0; nl < iterations; nl++) {\n        // First pass: compute a[i] for i in [0, LEN_1D-1]\n        int start = 0;\n        int end_a = LEN_1D - 1; // inclusive\n        int count_a = end_a - start + 1; // = LEN_1D\n        int vec_count_a = count_a / 4;\n\n        int i = start;\n        for (int v = 0; v < vec_count_a; v++, i += 4) {\n            float4 bi, ci, ai;\n            __builtin_memcpy(&bi, b + i, sizeof(float4));\n            __builtin_memcpy(&ci, c + i, sizeof(float4));\n            ai = bi + ci * ci + bi * bi + ci;\n            __builtin_memcpy(a + i, &ai, sizeof(float4));\n        }\n        for (; i <= end_a; i++) {\n            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];\n        }\n\n        // Second pass: compute d[i] = a[i] + a[i+1] for i in [0, LEN_1D-2]\n        int end_d = LEN_1D - 2; // inclusive\n        int count_d = end_d - start + 1; // = LEN_1D - 1\n        int vec_count_d = count_d / 4;\n\n        i = start;\n        for (int v = 0; v < vec_count_d; v++, i += 4) {\n            float4 ai, ai1, di;\n            __builtin_memcpy(&ai, a + i, sizeof(float4));\n            __builtin_memcpy(&ai1, a + i + 1, sizeof(float4));\n            di = ai + ai1;\n            __builtin_memcpy(d + i, &di, sizeof(float4));\n        }\n        for (; i <= end_d; i++) {\n            d[i] = a[i] + a[i + 1];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 127",
+      "unit_test_output": "Compile succeeded for round 4.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 127",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 4,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s1244_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s1244",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s1244_pipeline1/llmvec/llm_vectorizer_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s1244_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Store original a[i+1] values before overwriting them\n        float a_next = a[0];\n        for (int i = 0; i < LEN_1D-1; i++) {\n            float bi = b[i];\n            float ci = c[i];\n            float a_current = bi + ci * ci + bi * bi + ci;\n            \n            // Use stored original a[i+1] for d[i]\n            d[i] = a_current + a_next;\n            \n            // Update a[i] and prepare a_next for next iteration\n            a[i] = a_current;\n            a_next = a[i+1];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s1244_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s1244_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s1244_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s231(int iterations, float aa[256][256], float bb[256][256]) {
+    int outer_iters = 100 * (iterations / 256);
+    
+    for (int nl = 0; nl < outer_iters; nl++) {
+        for (int j = 1; j < 256; j++) {
+            int i = 0;
+            // Vectorized main loop
+            for (; i + 3 < 256; i += 4) {
+                float4 prev_row = *(float4*)&aa[j-1][i];
+                float4 curr_bb = *(float4*)&bb[j][i];
+                float4 result = prev_row + curr_bb;
+                *(float4*)&aa[j][i] = result;
+            }
+            // Scalar cleanup tail
+            for (; i < 256; i++) {
+                aa[j][i] = aa[j-1][i] + bb[j][i];
+            }
+        }
+    }
+}

@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# Local env / secrets
+.env
+.env.*
+set_env.sh
+
+# Logs / outputs
+log/
+output.txt
+*.log
+*.out
+
+# Temp files from compilerTest / verification
+temp_code.cpp
+test_code.c
+test_program
+source_code.c
+target_code.c
+source_code.ll
+target_code.ll
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Local tool installs
+ALIVE2/
+llvm-project/
+z3/
+re2c/
+
+# Editors
+.vscode/
+.idea/

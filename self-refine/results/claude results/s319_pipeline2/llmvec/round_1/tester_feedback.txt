@@ -1,0 +1,11 @@
+The function computes `sum` incorrectly. The reference implementation for s319 computes dot-product style sums: `sum += a[i] * b[i]` (or similar multiplicative combination), not additive sums of `a[i]` and `b[i]` separately.
+
+Looking at the typical s319 pattern, the function should:
+
+- Compute `a[i] = c[i] + d[i]` and `b[i] = c[i] + e[i]` (these assignments look correct)
+- Accumulate `sum` as `sum += a[i] * b[i]` (product of the two computed values), not `sum += ai + bi`
+
+**Fix:** Change the sum accumulation to multiply `ai` by `bi` instead of adding them:
+
+- In the unrolled loop, replace `sum += ai0 + ai1 + ... + ai7; sum += bi0 + bi1 + ... + bi7;` with `sum += ai0*bi0 + ai1*bi1 + ai2*bi2 + ai3*bi3 + ai4*bi4 + ai5*bi5 + ai6*bi6 + ai7*bi7;`
+- In the scalar tail loop, replace `sum += ai; sum += bi;` with `sum += ai * bi;`

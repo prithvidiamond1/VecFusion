@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s442_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s442_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e, int* indx)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        for (int i = 0; i < LEN_1D; i++) {\n            int idx = indx[i];\n            int use_c = (idx == 2);\n            int use_d = (idx == 3);\n            int use_e = (idx == 4);\n            int use_b = !use_c & !use_d & !use_e;\n            float val = (float)use_b * (b[i] * b[i])\n                      + (float)use_c * (c[i] * c[i])\n                      + (float)use_d * (d[i] * d[i])\n                      + (float)use_e * (e[i] * e[i]);\n            a[i] += val;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s442_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s442_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s442_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s442(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e, int* indx)\n{\n    typedef int v4si __attribute__((vector_size(16)));\n    typedef float v4sf __attribute__((vector_size(16)));\n\n    int limit = iterations / 2;\n\n    for (int nl = 0; nl < limit; nl++) {\n        int i = 0;\n        int vec_len = LEN_1D - (LEN_1D % 4);\n\n        for (; i < vec_len; i += 4) {\n            // Load indices\n            v4si idx = {indx[i], indx[i+1], indx[i+2], indx[i+3]};\n\n            // Compute masks\n            v4si two  = {2, 2, 2, 2};\n            v4si three = {3, 3, 3, 3};\n            v4si four  = {4, 4, 4, 4};\n\n            v4si use_c_mask = (idx == two);\n            v4si use_d_mask = (idx == three);\n            v4si use_e_mask = (idx == four);\n            v4si use_b_mask = ~use_c_mask & ~use_d_mask & ~use_e_mask;\n\n            // Convert masks to float (mask is -1 for true, 0 for false in GCC vector ext)\n            // We need 1.0f for true, 0.0f for false\n            // use_b_mask & 1 gives 1 for true (since -1 in two's complement has all bits set)\n            v4si one_i = {1, 1, 1, 1};\n            v4si ub = use_b_mask & one_i;\n            v4si uc = use_c_mask & one_i;\n            v4si ud = use_d_mask & one_i;\n            v4si ue = use_e_mask & one_i;\n\n            v4sf fub = __builtin_convertvector(ub, v4sf);\n            v4sf fuc = __builtin_convertvector(uc, v4sf);\n            v4sf fud = __builtin_convertvector(ud, v4sf);\n            v4sf fue = __builtin_convertvector(ue, v4sf);\n\n            v4sf bv = {b[i], b[i+1], b[i+2], b[i+3]};\n            v4sf cv = {c[i], c[i+1], c[i+2], c[i+3]};\n            v4sf dv = {d[i], d[i+1], d[i+2], d[i+3]};\n            v4sf ev = {e[i], e[i+1], e[i+2], e[i+3]};\n            v4sf av = {a[i], a[i+1], a[i+2], a[i+3]};\n\n            v4sf val = fub * (bv * bv)\n                     + fuc * (cv * cv)\n                     + fud * (dv * dv)\n                     + fue * (ev * ev);\n\n            av = av + val;\n\n            a[i]   = av[0];\n            a[i+1] = av[1];\n            a[i+2] = av[2];\n            a[i+3] = av[3];\n        }\n\n        // Scalar tail\n        for (; i < LEN_1D; i++) {\n            int idx = indx[i];\n            int use_c = (idx == 2);\n            int use_d = (idx == 3);\n            int use_e = (idx == 4);\n            int use_b = !use_c & !use_d & !use_e;\n            float val = (float)use_b * (b[i] * b[i])\n                      + (float)use_c * (c[i] * c[i])\n                      + (float)use_d * (d[i] * d[i])\n                      + (float)use_e * (e[i] * e[i]);\n            a[i] += val;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s442_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s442",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s442_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s442_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s442_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

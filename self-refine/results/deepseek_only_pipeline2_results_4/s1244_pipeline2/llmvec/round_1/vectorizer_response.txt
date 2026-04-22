@@ -1,0 +1,42 @@
+```c
+#include <stddef.h>
+
+void vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    typedef float v4f __attribute__((vector_size(16)));
+    const int VF = 4;
+    
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        int limit = LEN_1D - 1;
+        
+        // Vectorized computation of a[i]
+        for (; i + VF <= limit; i += VF) {
+            v4f b_vec = *(v4f*)&b[i];
+            v4f c_vec = *(v4f*)&c[i];
+            
+            v4f result = b_vec + c_vec * c_vec + b_vec * b_vec + c_vec;
+            *(v4f*)&a[i] = result;
+        }
+        
+        // Scalar tail for a[i]
+        for (; i < limit; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];
+        }
+        
+        // Vectorized computation of d[i] = a[i] + a[i+1]
+        i = 0;
+        for (; i + VF <= limit; i += VF) {
+            v4f a_vec = *(v4f*)&a[i];
+            v4f a_next_vec = *(v4f*)&a[i + 1];
+            
+            v4f result = a_vec + a_next_vec;
+            *(v4f*)&d[i] = result;
+        }
+        
+        // Scalar tail for d[i]
+        for (; i < limit; i++) {
+            d[i] = a[i] + a[i + 1];
+        }
+    }
+}
+```

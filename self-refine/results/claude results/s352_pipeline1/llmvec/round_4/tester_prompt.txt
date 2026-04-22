@@ -1,0 +1,22 @@
+Candidate code:
+```c
+#include <stdint.h>
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float* b)
+{
+    float dot = 0.0f;
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        dot = 0.0f;
+        for (int i = 0; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+    }
+    return dot;
+}
+```
+
+External compile/test report:
+Compile succeeded for round 4.
+Exit code: 2
+stderr:
+Return mismatch on trial 0

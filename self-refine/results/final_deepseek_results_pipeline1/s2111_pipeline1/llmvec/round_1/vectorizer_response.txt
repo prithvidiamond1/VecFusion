@@ -1,0 +1,38 @@
+```c
+#include <stddef.h>
+
+typedef float float_array_256[256];
+
+void vectorized_s2111(int iterations, float aa[256][256]) {
+    int total_iters = 100 * (iterations / 256);
+    if (total_iters <= 0) return;
+    
+    for (int nl = 0; nl < total_iters; nl++) {
+        // Process first row (j=1) separately since it only depends on previous column
+        for (int i = 1; i < 256; i++) {
+            aa[1][i] = (aa[1][i-1] + aa[0][i]) / 1.9f;
+        }
+        
+        // Process remaining rows with vectorization-friendly approach
+        for (int j = 2; j < 256; j++) {
+            // Vectorizable portion: each element depends on same row previous column
+            // and previous row same column - no loop-carried dependency across i
+            int i = 1;
+            // Process 4 elements at a time
+            for (; i <= 252; i += 4) {
+                float t0 = (aa[j][i-1] + aa[j-1][i]) / 1.9f;
+                float t1 = (aa[j][i] + aa[j-1][i+1]) / 1.9f;
+                float t2 = (aa[j][i+1] + aa[j-1][i+2]) / 1.9f;
+                float t3 = (aa[j][i+2] + aa[j-1][i+3]) / 1.9f;
+                aa[j][i] = t0;
+                aa[j][i+1] = t1;
+                aa[j][i+2] = t2;
+                aa[j][i+3] = t3;
+            }
+            // Cleanup for remaining elements
+            for (; i < 256; i++) {
+                aa[j][i] = (aa[j][i-1] + aa[j-1][i]) / 1.9f;
+            }
+        }
+    }
+}

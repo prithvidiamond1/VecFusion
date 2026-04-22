@@ -1,0 +1,14 @@
+void s112_opt(float *a, float *b, int iterations, int LEN_1D) {
+    for (int nl = 0; nl < 3 * iterations; nl++) {
+        // Store original a[0] value for the last iteration
+        float temp = a[0];
+        
+        // Process all elements except the first in backward order
+        for (int i = LEN_1D - 2; i >= 0; i--) {
+            a[i + 1] = a[i] + b[i];
+        }
+        
+        // Handle the first element using stored value
+        a[0] = temp;
+    }
+}

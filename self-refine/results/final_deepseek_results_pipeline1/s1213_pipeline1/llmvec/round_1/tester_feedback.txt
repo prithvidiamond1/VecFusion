@@ -1,0 +1,9 @@
+- The vectorized loop starts at `i = 1` but the scalar cleanup loop starts at `i = LEN_1D - 1` after the vector loop; however, the vector loop increments `i` by 4, so when `LEN_1D - 3` is not a multiple of 4 offset from 1, the cleanup loop may skip or double-process elements. Fix: adjust the vector loop bound to `i <= LEN_1D - 4` (or use `i < LEN_1D - 3`) and ensure the cleanup loop covers all remaining indices from `i` to `LEN_1D - 2`.
+
+- The mismatch at index 0 suggests element `a[0]` is never computed because the loop starts at `i = 1`. The original scalar loop likely started at `i = 1` but the test expects `a[0]` to be set. Verify the original loop bounds: if the original loop was `for (i = 1; i < LEN_1D - 1; i++)`, then `a[0]` is never written, so the mismatch may be a test issue. If the original loop started at `i = 0`, then the vectorizer must handle `i = 0` as well.
+
+- The vector load `*(float32_t*)(b + i - 1)` reads `b[i-1]` through `b[i+2]`, but `b[i]` is later written in the same iteration, creating a potential read-after-write hazard. Ensure the load of `b_orig` happens before the store to `b[i]` (it does in this code), but verify that the compiler does not reorder these operations.
+
+- The vector load `*(float32_t*)(a + i + 1)` reads `a[i+1]` through `a[i+4]`, but `a[i]` was just written in the same iteration. This is safe because `a[i+1]` is not overwritten, but ensure alignment and that `a[i+4]` does not exceed array bounds when `i = LEN_1D - 3`.
+
+- The scalar cleanup loop condition `i < LEN_1D - 1` matches the original loop bound, but the vector loop may leave `i` at a value greater than `LEN_1D - 2` if the vector loop exits early. Fix: after the vector loop, set `i` to the next unprocessed index (e.g., `i = (i > LEN_1D - 2) ? LEN_1D - 2 : i`).

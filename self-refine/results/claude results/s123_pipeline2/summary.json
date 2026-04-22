@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s123_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s123_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    int half = LEN_1D / 2;\n    float tmp_b[LEN_1D];\n    float tmp_c[LEN_1D];\n    float tmp_de[LEN_1D];\n    int   tmp_valid[LEN_1D];\n\n    for (int nl = 0; nl < iterations; nl++) {\n\n        // Loop 1: compute de, tmp_b, tmp_c, tmp_valid (vectorizable)\n        for (int i = 0; i < half; i++) {\n            tmp_de[i]    = d[i] * e[i];\n            tmp_b[i]     = b[i] + tmp_de[i];\n            tmp_c[i]     = c[i] + tmp_de[i];\n            tmp_valid[i] = (c[i] > 0.0f) ? 1 : 0;\n        }\n\n        // Loop 2: scatter results into a[] sequentially\n        int j = 0;\n        for (int i = 0; i < half; i++) {\n            a[j] = tmp_b[i];\n            j++;\n            if (tmp_valid[i]) {\n                a[j] = tmp_c[i];\n                j++;\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s123_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s123_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s123_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nvoid vectorized_s123(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    int half = LEN_1D / 2;\n    float tmp_b[LEN_1D];\n    float tmp_c[LEN_1D];\n    float tmp_de[LEN_1D];\n    int   tmp_valid[LEN_1D];\n\n    for (int nl = 0; nl < iterations; nl++) {\n\n        // Loop 1: vectorized using compiler vector extensions\n        // Process in chunks of 4 floats\n        int i = 0;\n        int limit4 = half - (half % 4);\n\n        for (; i < limit4; i += 4) {\n            // Load 4 elements\n            float d0 = d[i+0], d1 = d[i+1], d2 = d[i+2], d3 = d[i+3];\n            float e0 = e[i+0], e1 = e[i+1], e2 = e[i+2], e3 = e[i+3];\n            float b0 = b[i+0], b1 = b[i+1], b2 = b[i+2], b3 = b[i+3];\n            float c0 = c[i+0], c1 = c[i+1], c2 = c[i+2], c3 = c[i+3];\n\n            float de0 = d0 * e0;\n            float de1 = d1 * e1;\n            float de2 = d2 * e2;\n            float de3 = d3 * e3;\n\n            tmp_de[i+0] = de0;\n            tmp_de[i+1] = de1;\n            tmp_de[i+2] = de2;\n            tmp_de[i+3] = de3;\n\n            tmp_b[i+0] = b0 + de0;\n            tmp_b[i+1] = b1 + de1;\n            tmp_b[i+2] = b2 + de2;\n            tmp_b[i+3] = b3 + de3;\n\n            tmp_c[i+0] = c0 + de0;\n            tmp_c[i+1] = c1 + de1;\n            tmp_c[i+2] = c2 + de2;\n            tmp_c[i+3] = c3 + de3;\n\n            tmp_valid[i+0] = (c0 > 0.0f) ? 1 : 0;\n            tmp_valid[i+1] = (c1 > 0.0f) ? 1 : 0;\n            tmp_valid[i+2] = (c2 > 0.0f) ? 1 : 0;\n            tmp_valid[i+3] = (c3 > 0.0f) ? 1 : 0;\n        }\n\n        // Scalar tail for loop 1\n        for (; i < half; i++) {\n            tmp_de[i]    = d[i] * e[i];\n            tmp_b[i]     = b[i] + tmp_de[i];\n            tmp_c[i]     = c[i] + tmp_de[i];\n            tmp_valid[i] = (c[i] > 0.0f) ? 1 : 0;\n        }\n\n        // Loop 2: scatter results into a[] sequentially (inherently serial due to dependency)\n        int j = 0;\n        for (int i = 0; i < half; i++) {\n            a[j] = tmp_b[i];\n            j++;\n            if (tmp_valid[i]) {\n                a[j] = tmp_c[i];\n                j++;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s123_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s123",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s123_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s123_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s123_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

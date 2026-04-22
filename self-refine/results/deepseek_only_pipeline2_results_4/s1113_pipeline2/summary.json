@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s1113_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s1113_opt(int iterations, int LEN_1D, float* a, float* b)\n{\n    int mid = LEN_1D / 2;\n    \n    for (int nl = 0; nl < 2 * iterations; nl++) {\n        // Split the loop into three parts to handle the dependency on a[mid]\n        // Part 1: i < mid (uses original a[mid] value)\n        float mid_val = a[mid];\n        for (int i = 0; i < mid; i++) {\n            a[i] = mid_val + b[i];\n        }\n        \n        // Part 2: i == mid (update a[mid] using its original value)\n        a[mid] = mid_val + b[mid];\n        \n        // Part 3: i > mid (uses the updated a[mid] value)\n        float updated_mid_val = a[mid];\n        for (int i = mid + 1; i < LEN_1D; i++) {\n            a[i] = updated_mid_val + b[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s1113_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s1113_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s1113_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s1113(int iterations, int LEN_1D, float* a, float* b) {\n    int mid = LEN_1D / 2;\n    \n    for (int nl = 0; nl < 2 * iterations; nl++) {\n        float mid_val = a[mid];\n        \n        // Vectorize first part: i < mid\n        int i = 0;\n        for (; i + 3 < mid; i += 4) {\n            a[i] = mid_val + b[i];\n            a[i + 1] = mid_val + b[i + 1];\n            a[i + 2] = mid_val + b[i + 2];\n            a[i + 3] = mid_val + b[i + 3];\n        }\n        // Scalar tail for first part\n        for (; i < mid; i++) {\n            a[i] = mid_val + b[i];\n        }\n        \n        // Middle element\n        a[mid] = mid_val + b[mid];\n        \n        // Vectorize second part: i > mid\n        float updated_mid_val = a[mid];\n        i = mid + 1;\n        for (; i + 3 < LEN_1D; i += 4) {\n            a[i] = updated_mid_val + b[i];\n            a[i + 1] = updated_mid_val + b[i + 1];\n            a[i + 2] = updated_mid_val + b[i + 2];\n            a[i + 3] = updated_mid_val + b[i + 3];\n        }\n        // Scalar tail for second part\n        for (; i < LEN_1D; i++) {\n            a[i] = updated_mid_val + b[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s1113_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s1113",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s1113_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s1113_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s1113_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s1113_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

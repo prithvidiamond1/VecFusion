@@ -1,0 +1,19 @@
+- The mismatch at index 127 (= LEN_1D - 1) in array `a` indicates the scalar loop for the first pass is writing `a[LEN_1D-1]` correctly, but the **second pass's SIMD loop is reading `a[i+1]` which can overlap into `a[LEN_1D-1]`** — that part is fine. The real issue is the **first pass scalar remainder loop**: when `LEN_1D` is not a multiple of 4, the vector loop covers indices `[0, vec_count_a*4 - 1]` and the scalar loop covers the rest up to `LEN_1D-1`. This looks correct, so the bug must be elsewhere.
+
+- Actually, the root cause: **`end_a = LEN_1D - 1`** means `count_a = LEN_1D`, `vec_count_a = LEN_1D / 4`. When `LEN_1D = 128`, `vec_count_a = 32`, covering indices 0–127 inclusive. Index 127 is written by the vector loop. The second pass reads `a[127]` (as `ai1` when `i=126`). This is all correct — so the mismatch must be that the **reference computes `a[i] = b[i] + c[i]*c[i] + b[i]*b[i] + c[i]`** but the original `s1244` kernel may have a different formula.
+
+- Check the original `s1244` formula: it is typically `a[i] = b[i] + c[i]*c[i] + b[i]*b[i] + c[i]` — but more likely it is **`a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i]`** which matches. However, operator precedence in the vector expression `bi + ci * ci + bi * bi + ci` is evaluated left-to-right with `*` before `+`, so it equals `b+(c*c)+(b*b)+c` — correct.
+
+- The actual bug: the **second-pass SIMD loop reads `a[i+1]` as an unaligned 4-float vector starting at `a[i+1]`**. When `i = vec_count_d*4 - 4` (last vector iteration), it reads `a[i], a[i+1], a[i+2], a[i+3]` for `ai` and `a[i+1]..a[i+4]` for `ai1`. If `count_d = LEN_1D-1` is not a multiple of 4, the scalar tail handles the rest — but `ai1` at the last vector step reads `a[i+4]` which may be **beyond what was computed** or is stale. Specifically when `LEN_1D=128`, `count_d=127`, `vec_count_d=31`, last vector `i=124`: reads `a[124..127]` and `a[125..128]` — **`a[128]` is out of bounds / uninitialized**, corrupting `d[124..127]`, and `a[127]` gets checked and may be corrupted by the out-of-bounds read affecting surrounding memory.
+
+- **Fix**: reduce `vec_count_d` so the `ai1` load never goes out of bounds. Change `vec_count_d = count_d / 4` to `vec_count_d = (count_d - 1) / 4` (i.e., ensure `i + 4 <= end_d`, meaning `i <= end_d - 3`, so `vec_count_d = (count_d) / 4` only when `count_d % 4 == 0`, otherwise `(count_d-1)/4`). Simplest fix: **`int vec_count_d = (LEN_1D - 1) / 4;` → keep as is but add a guard**: change to `int vec_count_d = count_d >= 4 ? (count_d - 1) / 4 : 0;` — but more precisely, the constraint is `i + 4 + 1 - 1 <= LEN_1D - 1`, i.e., `i + 4 <= LEN_1D - 1`, so `vec_count_d = (LEN_1D - 1 - 4) / 4 + ... `. **Correct fix**: `int vec_count_d = (count_d > 4) ? (count_d - 1) / 4 : 0;`
+
+- Concretely, replace:
+  ```c
+  int vec_count_d = count_d / 4;
+  ```
+  with:
+  ```c
+  int vec_count_d = (count_d > 1) ? (count_d - 1) / 4 : 0;
+  ```
+  This ensures the last vector iteration's `ai1` load (`a[i+1]` through `a[i+4]`) stays within `a[0..LEN_1D-1]`.

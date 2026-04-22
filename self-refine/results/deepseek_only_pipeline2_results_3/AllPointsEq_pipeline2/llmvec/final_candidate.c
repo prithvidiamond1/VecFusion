@@ -1,0 +1,37 @@
+#include <stdbool.h>
+#include <stddef.h>
+
+typedef int v4si __attribute__((vector_size(16)));
+
+bool vectorized_AllPointsEq(const int pts[], int count) {
+    if (count <= 1) return true;
+    
+    int first = pts[0];
+    int all_eq = 1;
+    
+    // Vectorized comparison
+    const v4si first_vec = (v4si){first, first, first, first};
+    int i = 1;
+    
+    // Process in chunks of 4 using vector operations
+    for (; i + 3 < count; i += 4) {
+        v4si chunk = *(const v4si*)(&pts[i]);
+        v4si cmp_result = (chunk == first_vec);
+        
+        // Check if all 4 comparisons are true
+        int mask = (cmp_result[0] & cmp_result[1] & 
+                   cmp_result[2] & cmp_result[3]);
+        all_eq &= mask;
+        
+        if (!all_eq) return false;
+    }
+    
+    // Scalar tail handling
+    for (; i < count; ++i) {
+        if (first != pts[i]) {
+            return false;
+        }
+    }
+    
+    return true;
+}

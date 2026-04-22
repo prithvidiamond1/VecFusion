@@ -1,0 +1,34 @@
+Looking at this function, I can see it has a loop-carried dependency through `prev` — each iteration depends on the previous result. This makes true SIMD vectorization of the inner loop impossible without changing semantics.
+
+The best approach here is to keep the scalar inner loop but optimize the outer loop structure, and unroll the inner loop manually to help the compiler generate better code while preserving exact semantics.
+
+```c
+void vectorized_s321(int iterations, int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        float prev = a[0];
+        int i = 1;
+
+        // Unrolled loop - still scalar due to loop-carried dependency on prev
+        // but unrolling helps instruction-level parallelism and compiler optimization
+        for (; i <= LEN_1D - 4; i += 4) {
+            float c0 = a[i+0] + prev  * b[i+0];
+            float c1 = a[i+1] + c0   * b[i+1];
+            float c2 = a[i+2] + c1   * b[i+2];
+            float c3 = a[i+3] + c2   * b[i+3];
+            a[i+0] = c0;
+            a[i+1] = c1;
+            a[i+2] = c2;
+            a[i+3] = c3;
+            prev = c3;
+        }
+
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            float curr = a[i] + prev * b[i];
+            prev = curr;
+            a[i] = curr;
+        }
+    }
+}
+```

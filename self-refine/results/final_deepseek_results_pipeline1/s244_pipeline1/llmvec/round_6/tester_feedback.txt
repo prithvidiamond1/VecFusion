@@ -1,0 +1,7 @@
+The vectorizer candidate has a correctness bug in the vectorized loop body.
+
+- **Incorrect vectorization of `a[i+1]` update**: The scalar recurrence `a[i+1] = b[i] + a[i+1] * d[i]` uses the *old* `a[i+1]` before it is overwritten. In the vectorized loop, `*(float_vec*)(a + i + 1)` loads 4 consecutive elements starting at `a[i+1]`, but the scalar code only updates `a[i+1]` (one element). This loads three extra elements (`a[i+2], a[i+3], a[i+4]`) that should not be part of the computation, corrupting the result at index 1 (and others).
+
+- **Fix**: The vectorized loop must not load a full vector for `a[i+1]`. Instead, load only the single element `a[i+1]` (e.g., via `__builtin_shufflevector` or a scalar load), compute the scalar update, then store it back. Alternatively, restructure the loop to avoid the cross-iteration dependency by peeling the first two elements and vectorizing only the independent part.
+
+- **Trip count issue**: The vector loop bound `i <= n - 4` is correct for 4-wide vectors, but the cleanup loop `for (; i < n; i++)` should also handle the case where `n` is small (e.g., `n=2`). Currently, if `n=2`, the scalar cleanup loop runs for `i=2` but `i < n` is false, so the second element (index 1) is never processed after the peeled first element. Ensure the cleanup loop covers all remaining indices up to `n-1`.

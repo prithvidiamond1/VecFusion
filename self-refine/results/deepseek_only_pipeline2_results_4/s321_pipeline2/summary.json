@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260418_234731/s321_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s321_opt(int iterations, int LEN_1D, float* a, float* b) {\n    for (int nl = 0; nl < iterations; nl++) {\n        // Store original values to break dependency\n        float* temp = (float*)malloc(LEN_1D * sizeof(float));\n        memcpy(temp, a, LEN_1D * sizeof(float));\n        \n        float prev = a[0];\n        for (int i = 1; i < LEN_1D; i++) {\n            a[i] = temp[i] + prev * b[i];\n            prev = a[i];\n        }\n        \n        free(temp);\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s321_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s321_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260418_234731/s321_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n#include <string.h>\n#include <stdlib.h>\n\ntypedef float v8f __attribute__((ext_vector_type(8)));\ntypedef int v8i __attribute__((ext_vector_type(8)));\n\nvoid vectorized_s321(int iterations, int LEN_1D, float* a, float* b) {\n    for (int nl = 0; nl < iterations; nl++) {\n        float* temp = (float*)malloc(LEN_1D * sizeof(float));\n        memcpy(temp, a, LEN_1D * sizeof(float));\n        \n        float prev = a[0];\n        int i = 1;\n        \n        // Vectorized main loop\n        for (; i + 8 <= LEN_1D; i += 8) {\n            // Load 8 elements from temp and b\n            v8f temp_vec = *(v8f*)&temp[i];\n            v8f b_vec = *(v8f*)&b[i];\n            \n            // Create prev vector: [prev, a[i], a[i+1], ..., a[i+6]]\n            v8f prev_vec;\n            prev_vec[0] = prev;\n            for (int k = 1; k < 8; k++) {\n                // Compute a[i+k-1] using the recurrence\n                float prev_k = (k == 1) ? prev : prev_vec[k-1];\n                prev_vec[k] = temp[i + k - 1] + prev_k * b[i + k - 1];\n            }\n            \n            // Compute current 8 a values\n            v8f a_vec = temp_vec + prev_vec * b_vec;\n            \n            // Store results\n            *(v8f*)&a[i] = a_vec;\n            \n            // Update prev for next iteration\n            prev = a_vec[7];\n        }\n        \n        // Scalar cleanup\n        for (; i < LEN_1D; i++) {\n            a[i] = temp[i] + prev * b[i];\n            prev = a[i];\n        }\n        \n        free(temp);\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260418_234731/s321_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s321",
+        "input_snapshot": "results/all_tests_pipeline2_20260418_234731/s321_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260418_234731/s321_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260418_234731/s321_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260418_234731/s321_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s3113_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s3113_opt(int iterations, int LEN_1D, float* a)\n{\n    float max = fabsf(a[0]);\n    for (int i = 1; i < LEN_1D; i++) {\n        float abs_val = fabsf(a[i]);\n        max = abs_val > max ? abs_val : max;\n    }\n    return max;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s3113_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s3113_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s3113_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <math.h>\n\nfloat vectorized_s3113(int iterations, int LEN_1D, float* a)\n{\n    typedef float float4 __attribute__((vector_size(16)));\n\n    float max = fabsf(a[0]);\n\n    int i = 1;\n    int vec_len = 4;\n\n    // Process chunks of 4 using vector types\n    // First, build up a vector of 4 max values\n    float4 vmax = {fabsf(a[0]), fabsf(a[0]), fabsf(a[0]), fabsf(a[0])};\n\n    // Reset i to 0 for vector processing from start\n    i = 0;\n    int limit = LEN_1D - (LEN_1D % vec_len);\n\n    for (i = 0; i < limit; i += vec_len) {\n        float4 va;\n        va[0] = fabsf(a[i + 0]);\n        va[1] = fabsf(a[i + 1]);\n        va[2] = fabsf(a[i + 2]);\n        va[3] = fabsf(a[i + 3]);\n\n        // Element-wise max\n        vmax[0] = va[0] > vmax[0] ? va[0] : vmax[0];\n        vmax[1] = va[1] > vmax[1] ? va[1] : vmax[1];\n        vmax[2] = va[2] > vmax[2] ? va[2] : vmax[2];\n        vmax[3] = va[3] > vmax[3] ? va[3] : vmax[3];\n    }\n\n    // Reduce vector max to scalar\n    max = vmax[0];\n    if (vmax[1] > max) max = vmax[1];\n    if (vmax[2] > max) max = vmax[2];\n    if (vmax[3] > max) max = vmax[3];\n\n    // Scalar tail\n    for (; i < LEN_1D; i++) {\n        float abs_val = fabsf(a[i]);\n        if (abs_val > max) max = abs_val;\n    }\n\n    return max;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s3113_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s3113",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s3113_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s3113_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s3113_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

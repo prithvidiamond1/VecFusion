@@ -1,0 +1,55 @@
+
+Revise your candidate for `s322` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s322(int iterations,int LEN_1D, float* a, float *b, float* c)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        for (int i = 2; i < LEN_1D; i++) {
+            a[i] = a[i] + a[i - 1] * b[i] + a[i - 2] * c[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+#include <stdint.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s322(int iterations, int LEN_1D, float* a, float *b, float *c) {
+    int total_iters = iterations / 2;
+    if (total_iters <= 0 || LEN_1D <= 2) return;
+
+    for (int nl = 0; nl < total_iters; nl++) {
+        int i = 2;
+        // Vectorize with 4-wide SIMD
+        for (; i + 3 < LEN_1D; i += 4) {
+            float32_t a_vec = *(float32_t*)(a + i);
+            float32_t a_prev1 = *(float32_t*)(a + i - 1);
+            float32_t a_prev2 = *(float32_t*)(a + i - 2);
+            float32_t b_vec = *(float32_t*)(b + i);
+            float32_t c_vec = *(float32_t*)(c + i);
+
+            float32_t result = a_vec + a_prev1 * b_vec + a_prev2 * c_vec;
+            *(float32_t*)(a + i) = result;
+        }
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D; i++) {
+            a[i] = a[i] + a[i - 1] * b[i] + a[i - 2] * c[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The vectorizer incorrectly assumes that `a[i-1]` and `a[i-2]` are independent across vector lanes, but the loop has a **recurrence** (each iteration writes `a[i]`, which is read as `a[i-1]` or `a[i-2]` in later iterations). The vectorized code reads stale values for `a_prev1` and `a_prev2` because it loads all four lanes before any writes, breaking the sequential dependency.
+
+- **Fix**: Do not vectorize this loop as-is. The recurrence makes it unsafe for SIMD without loop skewing or partial unrolling with dependency handling. Either revert to scalar, or restructure to use a shift register approach that updates `a[i]` lane-by-lane.
+
+- The mismatch at index 3 confirms the dependency violation: the vector load of `a[i-1]` and `a[i-2]` used values that should have been updated by earlier iterations in the same vector chunk.
+
+        Return a corrected candidate function named `vectorized_s322`.

@@ -1,0 +1,40 @@
+#include <stdint.h>
+
+void vectorized_s235(int iterations, float* a, float* b, float* c, float aa[256][256], float bb[256][256])
+{
+    int loop_count = 200 * (iterations / 256);
+    
+    for (int nl = 0; nl < loop_count; nl++) {
+        // Vectorize a[i] += b[i] * c[i] with 8-wide SIMD
+        typedef float v8f __attribute__((ext_vector_type(8)));
+        int i = 0;
+        for (; i + 7 < 256; i += 8) {
+            v8f b_vec = *(v8f*)&b[i];
+            v8f c_vec = *(v8f*)&c[i];
+            v8f a_vec = *(v8f*)&a[i];
+            a_vec += b_vec * c_vec;
+            *(v8f*)&a[i] = a_vec;
+        }
+        // Scalar tail
+        for (; i < 256; i++) {
+            a[i] += b[i] * c[i];
+        }
+        
+        // Process aa[j][i] = aa[j-1][i] + bb[j][i] * a[i]
+        // Vectorize inner i-loop with 8-wide SIMD
+        for (int j = 1; j < 256; j++) {
+            i = 0;
+            for (; i + 7 < 256; i += 8) {
+                v8f aa_prev = *(v8f*)&aa[j-1][i];
+                v8f bb_vec = *(v8f*)&bb[j][i];
+                v8f a_vec = *(v8f*)&a[i];
+                v8f aa_new = aa_prev + bb_vec * a_vec;
+                *(v8f*)&aa[j][i] = aa_new;
+            }
+            // Scalar tail
+            for (; i < 256; i++) {
+                aa[j][i] = aa[j-1][i] + bb[j][i] * a[i];
+            }
+        }
+    }
+}

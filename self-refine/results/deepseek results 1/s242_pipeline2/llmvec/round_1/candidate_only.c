@@ -1,0 +1,11 @@
+#include <stddef.h>
+
+void vectorized_s242(int n, float *a, float *b, float *c, float *d, float s1, float s2) {
+    float s = s1 + s2;
+    // This loop has a loop-carried dependency: a[i] depends on a[i-1]
+    // so it cannot be truly vectorized. We implement it as a scalar loop
+    // with the dependency preserved, but written in a vectorization-friendly style.
+    for (int i = 1; i <= n; i++) {
+        a[i] = a[i - 1] + s + b[i] + c[i] + d[i];
+    }
+}

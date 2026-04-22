@@ -1,0 +1,6 @@
+The test expects `sum` to accumulate only `a[i]` values (i.e., `c[i] + d[i]`), not both `a[i]` and `b[i]`. The original scalar loop in s319 typically only sums `a[i]`, not `b[i]`.
+
+- **Root cause**: In the vectorized loop, `sum` is being incremented by both `va` (a[i]) and `vb` (b[i]) elements, but the reference only sums `a[i] = c[i] + d[i]`.
+- **Fix**: Remove `sum += vb[0] + vb[1] + vb[2] + vb[3];` from the SIMD loop body.
+- **Fix**: Remove `sum += b[i];` from the scalar tail loop.
+- Keep only `sum += va[0] + va[1] + va[2] + va[3];` in the SIMD loop and `sum += a[i];` in the scalar tail.

@@ -1,0 +1,11 @@
+- The test reports a mismatch in array `a` at index 1, indicating the vectorized loop produces incorrect results for the first iteration of the inner loop (i=1).
+
+- The inner loop has a loop-carried dependency on `e_prev` (read at i, written at i-1), which the vectorizer must preserve. The current code does not handle this recurrence correctly.
+
+- Fix: Restructure the inner loop to explicitly handle the scalar recurrence. For example, keep `e_prev` as a scalar that is updated sequentially, and only vectorize the independent operations (`b[i]*c[i]`, `a[i] += bc`, `a[i] -= bc`).
+
+- The loop bounds (`i=1` to `LEN_1D-1`) and trip count (`LEN_1D-1`) are correct; the issue is in how the recurrence is scheduled, not the bounds.
+
+- Ensure that the vectorized version does not reorder the update of `e_prev` relative to the reads of `e[i]` and `e_prev`. The scalar `e_prev` must be updated in the original sequential order.
+
+- Consider peeling the first iteration (i=1) to initialize `e_prev` correctly, then vectorize the remaining iterations with a scalar recurrence for `e_prev`.

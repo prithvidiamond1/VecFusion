@@ -1,0 +1,10 @@
+The vectorizer candidate has a **correctness bug** in the vectorized loop body:
+
+- **Incorrect vector load offset for `c[i-1]`**: The vector load `*(float32_t*)(c + i - 1)` loads 4 elements starting at index `i-1`, but the scalar loop uses `c[i-1]` as a single scalar. For the first vector iteration (`i=1`), this loads `c[0],c[1],c[2],c[3]`, but the scalar code only reads `c[0]` for `i=1`. This causes a mismatch at index 2 (as reported).
+
+- **Fix**: The vectorized loop must handle the `c[i-1]` dependency by either:
+  - Starting the vector loop at `i=4` (so `c[i-1]` is `c[3]`, the last element of the previous vector), or
+  - Using a vector shift/insert to bring in the previous element from `c[i-1]` for each lane, or
+  - Keeping the first 3 iterations scalar and vectorizing from `i=4` onward.
+
+- **Trip count issue**: The vector loop bound `i + 3 < LEN_1D` is correct for 4-wide vectors, but the starting index `i=1` combined with the `c[i-1]` load creates the off-by-one error described above.

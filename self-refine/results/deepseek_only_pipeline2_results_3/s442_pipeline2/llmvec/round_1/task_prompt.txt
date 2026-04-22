@@ -1,0 +1,38 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+If control flow blocks vectorization, first simplify or split the control flow into guarded,
+semantically equivalent loops before attempting SIMD-style rewrites.
+
+Vectorize the scalar C function `s442` below.
+
+        Scalar source:
+        ```c
+        void s442(int iterations,int LEN_1D, float* a, float *b,float* c, float *d, float* e, int* indx)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        // Process each index sequentially as in original, but group by condition
+        for (int i = 0; i < LEN_1D; i++) {
+            int idx = indx[i];
+            if (idx == 1) {
+                a[i] += b[i] * b[i];
+            } else if (idx == 2) {
+                a[i] += c[i] * c[i];
+            } else if (idx == 3) {
+                a[i] += d[i] * d[i];
+            } else if (idx == 4) {
+                a[i] += e[i] * e[i];
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s442`.

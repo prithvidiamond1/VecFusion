@@ -1,0 +1,32 @@
+```c
+float vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)
+{
+    float sum;
+    for (int nl = 0; nl < iterations; nl++) {
+        sum = 0.0f;
+        // This is a prefix sum (scan) loop - inherently sequential due to dependency.
+        // We can unroll to help the compiler, but the dependency chain limits vectorization.
+        // Use partial unrolling with 4 accumulators where possible, but since b[i] = sum
+        // after adding a[i], we must maintain the running sum sequentially.
+        
+        int i = 0;
+        // Unroll by 4 for better pipelining
+        for (; i <= LEN_1D - 4; i += 4) {
+            sum += a[i];
+            b[i] = sum;
+            sum += a[i+1];
+            b[i+1] = sum;
+            sum += a[i+2];
+            b[i+2] = sum;
+            sum += a[i+3];
+            b[i+3] = sum;
+        }
+        // Scalar cleanup
+        for (; i < LEN_1D; i++) {
+            sum += a[i];
+            b[i] = sum;
+        }
+    }
+    return sum;
+}
+```

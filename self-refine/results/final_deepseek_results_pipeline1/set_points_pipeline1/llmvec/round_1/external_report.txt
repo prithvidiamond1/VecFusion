@@ -1,0 +1,7 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/set_points_pipeline1/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/set_points_pipeline1/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/set_points_pipeline1/llmvec/candidate_round_1.c:120:24: error: use of undeclared identifier 's3'
+  120 |         isScalable = !(s3);
+      |                        ^
+1 error generated.

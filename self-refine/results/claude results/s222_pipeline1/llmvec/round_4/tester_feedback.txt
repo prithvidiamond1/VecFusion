@@ -1,0 +1,4 @@
+- The candidate incorrectly assumes the net effect on `a[]` is zero and omits the update. The original s222 loop does `a[i] += b[i]*c[i]` in one pass and `a[i] -= b[i]*c[i]` in a *separate* outer iteration, not within the same iteration — so `a[]` does get modified each outer iteration.
+- Fix: restore the `a[i] += b[i]*c[i]` loop inside the `nl` loop (it runs every iteration, not cancelled within the same pass).
+- The outer loop runs `iterations/2` times; each time it should do both: `for (i=0; i<LEN_1D; i++) a[i] += b[i]*c[i];` and then `for (i=1; i<LEN_1D; i++) e[i] = e[i-1]*e[i-1];`.
+- Do not skip or cancel the `a[]` update — the reference expects `a[i]` to accumulate `b[i]*c[i]` each outer iteration.

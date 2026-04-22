@@ -1,0 +1,15 @@
+The loop has a recurrence: `a[i]` depends on `b[i-1]`, and `b[i]` depends on `a[i]`. The unrolled version correctly chains `b_prev` through iterations, but the starting index is wrong — the original loop starts at `i=0`, not `i=1`.
+
+- **Root cause**: The candidate initializes `b_prev = b[0]` and starts at `i=1`, skipping the computation for `i=0`. The reference loop computes `a[0]` and `b[0]` as part of the loop body (using `b[-1]`... actually the original s323 starts at `i=1` using `b[i-1]`, so `i=0` is never written). Let me re-examine: the original is `a[i]=b[i-1]+c[i]*d[i]; b[i]=a[i]+c[i]*e[i]` for `i=1..LEN_1D-1`. So `i=0` is never written, which matches. The issue is the `limit = LEN_1D - 3` — this causes the scalar cleanup to handle indices `LEN_1D-3` through `LEN_1D-1` (3 elements), but the unrolled loop processes groups of 4 starting at `i=1`, so the last full group ends at `i = 1 + 4*k - 1`. With `limit = LEN_1D - 3`, the unrolled loop may stop too early or access out-of-bounds.
+
+**Specific fixes:**
+
+- Change `limit = LEN_1D - 3` to `limit = LEN_1D - 3` is actually correct for safety (ensures `i+3 < LEN_1D`), but verify: if `LEN_1D=128`, limit=125, last unrolled group starts at `i=124` (indices 124,125,126,127) — that's fine. The bug must be elsewhere.
+
+- The real issue: `b_prev = b[0]` reads the **current** (possibly already modified) `b[0]` on iteration `nl > 0`. Since `b[0]` is never written by the loop (loop starts at `i=1`), this is actually fine across iterations.
+
+- **Actual bug**: The unrolled loop writes `b[i+0]` through `b[i+3]`, but on the next outer `nl` iteration, `b[0]` is read as `b_prev`. Since `b[0]` is never overwritten, this is consistent. The mismatch at index 6 suggests the 4-wide unroll chain is wrong: `a[i] = b[i-1] + c[i]*d[i]`, so `a[i+1]` should use `b[i]` (not `a[i]+c[i]*e[i]` as `b_prev`). But `b[i] = a[i] + c[i]*e[i]`, so `b0 = a0 + ce0` is correct as the new `b_prev` for the next step. This looks correct.
+
+- **Fix**: Change `limit = LEN_1D - 3` to `limit = LEN_1D - 3` and ensure the unrolled block uses `i <= limit - 1` i.e. `i + 3 <= LEN_1D - 1`. Use `int limit = LEN_1D - 3;` with condition `i <= limit` (i.e. `i + 3 < LEN_1D`). Currently `i < limit` means `i <= LEN_1D-4`, so last group is `i=LEN_1D-4`, accessing indices up to `LEN_1D-1`. That's correct.
+
+- **Most likely real bug**: `iterations/2` — the reference likely runs `iterations` times. Change `iterations/2` back to `iterations`.

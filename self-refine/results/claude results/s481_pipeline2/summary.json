@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s481_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s481_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    // Pre-scan d once to check if early exit would ever trigger\n    // Since d is never modified, we only need to scan once\n    for (int i = 0; i < LEN_1D; i++) {\n        if (d[i] < (float)0.) {\n            // Find where the early exit happens\n            // Original: process nl=0 up to i, then return\n            for (int j = 0; j < i; j++) {\n                a[j] += b[j] * c[j];\n            }\n            return;\n        }\n    }\n\n    // All d[i] >= 0, no early exit will occur in any iteration\n    // Now the inner loop is fully vectorizable\n    for (int nl = 0; nl < iterations; nl++) {\n        for (int i = 0; i < LEN_1D; i++) {\n            a[i] += b[i] * c[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s481_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s481_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s481_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s481(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    // Pre-scan d once to check if early exit would ever trigger\n    for (int i = 0; i < LEN_1D; i++) {\n        if (d[i] < (float)0.) {\n            // Process j = 0..i-1 with vectorization\n            int j = 0;\n            int limit = i - (i % 8);\n            for (; j < limit; j += 8) {\n                a[j+0] += b[j+0] * c[j+0];\n                a[j+1] += b[j+1] * c[j+1];\n                a[j+2] += b[j+2] * c[j+2];\n                a[j+3] += b[j+3] * c[j+3];\n                a[j+4] += b[j+4] * c[j+4];\n                a[j+5] += b[j+5] * c[j+5];\n                a[j+6] += b[j+6] * c[j+6];\n                a[j+7] += b[j+7] * c[j+7];\n            }\n            for (; j < i; j++) {\n                a[j] += b[j] * c[j];\n            }\n            return;\n        }\n    }\n\n    // All d[i] >= 0, no early exit will occur in any iteration\n    // Now the inner loop is fully vectorizable\n    for (int nl = 0; nl < iterations; nl++) {\n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 8);\n        for (; i < limit; i += 8) {\n            a[i+0] += b[i+0] * c[i+0];\n            a[i+1] += b[i+1] * c[i+1];\n            a[i+2] += b[i+2] * c[i+2];\n            a[i+3] += b[i+3] * c[i+3];\n            a[i+4] += b[i+4] * c[i+4];\n            a[i+5] += b[i+5] * c[i+5];\n            a[i+6] += b[i+6] * c[i+6];\n            a[i+7] += b[i+7] * c[i+7];\n        }\n        for (; i < LEN_1D; i++) {\n            a[i] += b[i] * c[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s481_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s481",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s481_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s481_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s481_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

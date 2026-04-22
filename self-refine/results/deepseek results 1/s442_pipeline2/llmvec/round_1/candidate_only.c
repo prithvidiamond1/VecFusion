@@ -1,0 +1,80 @@
+#include <stdint.h>
+
+void vectorized_s442(int nl_iterations, int LEN_1D,
+                     float * restrict a, float * restrict b,
+                     float * restrict c, float * restrict d,
+                     float * restrict e, int * restrict indx)
+{
+    for (int nl = 0; nl < nl_iterations; nl++) {
+        /* Unroll by 4 for better instruction-level parallelism */
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 4);
+        for (; i < limit; i += 4) {
+            /* Element i+0 */
+            {
+                float t1 = b[i] * b[i];
+                float t2 = c[i] * c[i];
+                float t3 = d[i] * d[i];
+                float t4 = e[i] * e[i];
+                int idx = indx[i];
+                float add = (idx == 1) ? t1 :
+                            (idx == 2) ? t2 :
+                            (idx == 3) ? t3 :
+                            (idx == 4) ? t4 : 0.0f;
+                a[i] += add;
+            }
+            /* Element i+1 */
+            {
+                float t1 = b[i+1] * b[i+1];
+                float t2 = c[i+1] * c[i+1];
+                float t3 = d[i+1] * d[i+1];
+                float t4 = e[i+1] * e[i+1];
+                int idx = indx[i+1];
+                float add = (idx == 1) ? t1 :
+                            (idx == 2) ? t2 :
+                            (idx == 3) ? t3 :
+                            (idx == 4) ? t4 : 0.0f;
+                a[i+1] += add;
+            }
+            /* Element i+2 */
+            {
+                float t1 = b[i+2] * b[i+2];
+                float t2 = c[i+2] * c[i+2];
+                float t3 = d[i+2] * d[i+2];
+                float t4 = e[i+2] * e[i+2];
+                int idx = indx[i+2];
+                float add = (idx == 1) ? t1 :
+                            (idx == 2) ? t2 :
+                            (idx == 3) ? t3 :
+                            (idx == 4) ? t4 : 0.0f;
+                a[i+2] += add;
+            }
+            /* Element i+3 */
+            {
+                float t1 = b[i+3] * b[i+3];
+                float t2 = c[i+3] * c[i+3];
+                float t3 = d[i+3] * d[i+3];
+                float t4 = e[i+3] * e[i+3];
+                int idx = indx[i+3];
+                float add = (idx == 1) ? t1 :
+                            (idx == 2) ? t2 :
+                            (idx == 3) ? t3 :
+                            (idx == 4) ? t4 : 0.0f;
+                a[i+3] += add;
+            }
+        }
+        /* Scalar tail */
+        for (; i < LEN_1D; i++) {
+            float t1 = b[i] * b[i];
+            float t2 = c[i] * c[i];
+            float t3 = d[i] * d[i];
+            float t4 = e[i] * e[i];
+            int idx = indx[i];
+            float add = (idx == 1) ? t1 :
+                        (idx == 2) ? t2 :
+                        (idx == 3) ? t3 :
+                        (idx == 4) ? t4 : 0.0f;
+            a[i] += add;
+        }
+    }
+}

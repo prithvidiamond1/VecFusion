@@ -1,0 +1,15 @@
+The issue is that `scalar_val` is read from `a[LEN_1D/2]` before the loop, but the loop overwrites `a[LEN_1D/2]` during iteration (when `i` reaches `LEN_1D/2`). On subsequent outer loop iterations (`nl > 0`), `scalar_val` gets the already-modified value instead of the original.
+
+- The original scalar s1113 reads `a[LEN_1D/2]` once per outer iteration **before** any writes, but the problem is that index `LEN_1D/2` (e.g., index 64 for LEN_1D=128) is written in the inner loop, changing `a[LEN_1D/2]` for the next `nl` iteration.
+- The reference implementation likely uses a fixed scalar loaded once before all iterations, or the test expects `a[LEN_1D/2]` to remain stable (i.e., the scalar is the **initial** value of `a[LEN_1D/2]`).
+- Fix: capture `scalar_val` **outside** the outer `nl` loop (before any writes occur), so it uses the original value throughout all iterations:
+
+```c
+float scalar_val = a[LEN_1D/2];
+for (int nl = 0; nl < 2*iterations; nl++) {
+    // use scalar_val (unchanged)
+    ...
+}
+```
+
+- This matches the semantics of the original s1113 kernel where the scalar is invariant across all loop iterations.

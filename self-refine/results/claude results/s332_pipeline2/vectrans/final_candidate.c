@@ -1,0 +1,31 @@
+float s332_opt(int iterations, int LEN_1D, int t, float* a)
+{
+    int index;
+    float value;
+    float chksum;
+    
+    // Temporary mask array for phase 1 (vectorizable comparison)
+    int mask[LEN_1D];
+    
+    for (int nl = 0; nl < iterations; nl++) {
+        index = -2;
+        value = -1.f;
+        
+        // Phase 1: Vectorizable comparison pass
+        for (int i = 0; i < LEN_1D; i++) {
+            mask[i] = (a[i] > t) ? 1 : 0;
+        }
+        
+        // Phase 2: Scalar scan to find first match
+        for (int i = 0; i < LEN_1D; i++) {
+            if (mask[i]) {
+                index = i;
+                value = a[i];
+                break;
+            }
+        }
+        
+        chksum = value + (float)index;
+    }
+    return value;
+}

@@ -1,0 +1,35 @@
+```c
+void vectorized_s232(int iterations, float aa[256][256], float bb[256][256])
+{
+    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {
+        for (int j = 1; j < 256; j++) {
+            // The inner loop has a loop-carried dependency:
+            // aa[j][i] = aa[j][i-1]*aa[j][i-1] + bb[j][i]
+            // Each iteration depends on the previous, so true vectorization
+            // is not possible. We unroll manually to help the compiler.
+            int i = 1;
+            // Unroll by 4, but note: due to the dependency chain,
+            // each iteration truly depends on the previous result.
+            // We unroll to reduce loop overhead while preserving semantics.
+            for (; i + 3 <= j; i += 4) {
+                float v0 = aa[j][i-1];
+                float r0 = v0 * v0 + bb[j][i];
+                aa[j][i] = r0;
+
+                float r1 = r0 * r0 + bb[j][i+1];
+                aa[j][i+1] = r1;
+
+                float r2 = r1 * r1 + bb[j][i+2];
+                aa[j][i+2] = r2;
+
+                float r3 = r2 * r2 + bb[j][i+3];
+                aa[j][i+3] = r3;
+            }
+            // Scalar cleanup
+            for (; i <= j; i++) {
+                aa[j][i] = aa[j][i-1] * aa[j][i-1] + bb[j][i];
+            }
+        }
+    }
+}
+```

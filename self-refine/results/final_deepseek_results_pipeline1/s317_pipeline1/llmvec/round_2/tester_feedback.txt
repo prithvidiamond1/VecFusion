@@ -1,0 +1,7 @@
+The vectorizer candidate compiles but produces incorrect results (exit code 2 indicates a runtime mismatch). The issue is in the **trip count derivation** for the outer loop.
+
+**Fixes needed:**
+
+- The outer loop multiplies `q` by `scalar_q` for `total_outer = 5 * iterations` times, but the original scalar code likely applied the factor per inner iteration across all outer iterations — the vectorized version incorrectly pre-computes `scalar_q` once and reuses it, changing the exponent from `inner_len * total_outer` to just `inner_len + total_outer`
+- The vectorized inner loop applies `vfactor` only `floor(inner_len/4)` times, then the cleanup applies it for the remainder — this is correct for a single pass, but the outer loop should re-apply the full inner loop each time, not reuse a pre-reduced scalar
+- Move the inner loop (vector + cleanup) inside the outer loop so that `q` is multiplied by the full inner product for each outer iteration, not by a pre-computed constant

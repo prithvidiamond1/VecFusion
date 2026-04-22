@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s323_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s323_opt(int iterations,int LEN_1D, float* a, float *b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        // Precompute c*d and c*e into temporary arrays\n        float cd[LEN_1D];\n        float ce[LEN_1D];\n        for (int i = 1; i < LEN_1D; i++) {\n            cd[i] = c[i] * d[i];\n            ce[i] = c[i] * e[i];\n        }\n        \n        // Compute b[i] = b[i-1] + (cd[i] + ce[i]) using parallel prefix sum\n        float b_temp[LEN_1D];\n        b_temp[0] = b[0];\n        for (int i = 1; i < LEN_1D; i++) {\n            b_temp[i] = cd[i] + ce[i];\n        }\n        \n        // Serial prefix sum for recurrence (vectorizable with compiler support for reductions)\n        for (int i = 1; i < LEN_1D; i++) {\n            b_temp[i] = b_temp[i-1] + b_temp[i];\n        }\n        \n        // Compute a[i] = b[i-1] + cd[i] (now vectorizable)\n        for (int i = 1; i < LEN_1D; i++) {\n            a[i] = b_temp[i-1] + cd[i];\n        }\n        \n        // Copy b_temp back to b (vectorizable)\n        for (int i = 1; i < LEN_1D; i++) {\n            b[i] = b_temp[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s323_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s323_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s323_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s323(int iterations, int LEN_1D, float* a, float *b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        float cd[LEN_1D];\n        float ce[LEN_1D];\n\n        // Vectorizable: compute cd and ce\n        int i;\n        for (i = 1; i + 3 < LEN_1D; i += 4) {\n            cd[i]   = c[i]   * d[i];\n            cd[i+1] = c[i+1] * d[i+1];\n            cd[i+2] = c[i+2] * d[i+2];\n            cd[i+3] = c[i+3] * d[i+3];\n            ce[i]   = c[i]   * e[i];\n            ce[i+1] = c[i+1] * e[i+1];\n            ce[i+2] = c[i+2] * e[i+2];\n            ce[i+3] = c[i+3] * e[i+3];\n        }\n        for (; i < LEN_1D; i++) {\n            cd[i] = c[i] * d[i];\n            ce[i] = c[i] * e[i];\n        }\n\n        // Build b_temp with increments\n        float b_temp[LEN_1D];\n        b_temp[0] = b[0];\n\n        // Vectorizable: compute increments\n        for (i = 1; i + 3 < LEN_1D; i += 4) {\n            b_temp[i]   = cd[i]   + ce[i];\n            b_temp[i+1] = cd[i+1] + ce[i+1];\n            b_temp[i+2] = cd[i+2] + ce[i+2];\n            b_temp[i+3] = cd[i+3] + ce[i+3];\n        }\n        for (; i < LEN_1D; i++) {\n            b_temp[i] = cd[i] + ce[i];\n        }\n\n        // Serial prefix sum (recurrence, not vectorizable in general)\n        for (i = 1; i < LEN_1D; i++) {\n            b_temp[i] = b_temp[i-1] + b_temp[i];\n        }\n\n        // Vectorizable: compute a[i] = b_temp[i-1] + cd[i]\n        for (i = 1; i + 3 < LEN_1D; i += 4) {\n            a[i]   = b_temp[i-1] + cd[i];\n            a[i+1] = b_temp[i]   + cd[i+1];\n            a[i+2] = b_temp[i+1] + cd[i+2];\n            a[i+3] = b_temp[i+2] + cd[i+3];\n        }\n        for (; i < LEN_1D; i++) {\n            a[i] = b_temp[i-1] + cd[i];\n        }\n\n        // Vectorizable: copy b_temp back to b\n        for (i = 1; i + 3 < LEN_1D; i += 4) {\n            b[i]   = b_temp[i];\n            b[i+1] = b_temp[i+1];\n            b[i+2] = b_temp[i+2];\n            b[i+3] = b_temp[i+3];\n        }\n        for (; i < LEN_1D; i++) {\n            b[i] = b_temp[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s323_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s323",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s323_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s323_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s323_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

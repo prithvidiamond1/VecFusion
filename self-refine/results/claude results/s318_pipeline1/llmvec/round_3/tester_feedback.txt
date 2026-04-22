@@ -1,0 +1,2 @@
+- The function returns `max + (float)index + 1` but should return `chksum` (the accumulated value from the loop). The `+1` offset and ignoring `chksum` causes a return value mismatch.
+- Replace the final `return max + (float)index + 1;` with `return chksum;`.

@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s13110_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s13110_opt(int iterations, float aa[256][256]) {\n    int xindex, yindex;\n    float max, chksum;\n    int outer_loop_count = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_loop_count; nl++) {\n        // First pass: find row-wise max values (vectorizable)\n        float row_max_vals[256];\n        for (int i = 0; i < 256; i++) {\n            float row_max = aa[i][0];\n            for (int j = 1; j < 256; j++) {\n                float current = aa[i][j];\n                if (current > row_max) {\n                    row_max = current;\n                }\n            }\n            row_max_vals[i] = row_max;\n        }\n        \n        // Second pass: find global max value across rows (vectorizable)\n        max = row_max_vals[0];\n        for (int i = 1; i < 256; i++) {\n            if (row_max_vals[i] > max) {\n                max = row_max_vals[i];\n            }\n        }\n        \n        // Third pass: find first occurrence of global max (row-major order)\n        xindex = 0;\n        yindex = 0;\n        int found = 0;\n        for (int i = 0; i < 256 && !found; i++) {\n            if (row_max_vals[i] == max) {\n                for (int j = 0; j < 256 && !found; j++) {\n                    if (aa[i][j] == max) {\n                        xindex = i;\n                        yindex = j;\n                        found = 1;\n                        break;\n                    }\n                }\n            }\n        }\n        \n        chksum = max + (float)xindex + (float)yindex;\n    }\n    \n    return max + (float)(xindex + 1) + (float)(yindex + 1);\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s13110_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s13110_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s13110_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nfloat vectorized_s13110(int iterations, float aa[256][256]) {\n    int xindex, yindex;\n    float max, chksum;\n    int outer_loop_count = 100 * (iterations / 256);\n\n    for (int nl = 0; nl < outer_loop_count; nl++) {\n        // First pass: find row-wise max values (vectorizable)\n        float row_max_vals[256];\n        for (int i = 0; i < 256; i++) {\n            float row_max = aa[i][0];\n            // Vector-friendly loop with explicit bounds\n            int j = 1;\n            // Process in chunks of 4 for better vectorization\n            for (; j <= 252; j += 4) {\n                float current0 = aa[i][j];\n                float current1 = aa[i][j+1];\n                float current2 = aa[i][j+2];\n                float current3 = aa[i][j+3];\n                \n                if (current0 > row_max) row_max = current0;\n                if (current1 > row_max) row_max = current1;\n                if (current2 > row_max) row_max = current2;\n                if (current3 > row_max) row_max = current3;\n            }\n            // Scalar cleanup for remaining elements\n            for (; j < 256; j++) {\n                float current = aa[i][j];\n                if (current > row_max) {\n                    row_max = current;\n                }\n            }\n            row_max_vals[i] = row_max;\n        }\n\n        // Second pass: find global max value across rows (vectorizable)\n        max = row_max_vals[0];\n        // Process in chunks of 4\n        int i = 1;\n        for (; i <= 252; i += 4) {\n            float val0 = row_max_vals[i];\n            float val1 = row_max_vals[i+1];\n            float val2 = row_max_vals[i+2];\n            float val3 = row_max_vals[i+3];\n            \n            if (val0 > max) max = val0;\n            if (val1 > max) max = val1;\n            if (val2 > max) max = val2;\n            if (val3 > max) max = val3;\n        }\n        // Scalar cleanup for remaining elements\n        for (; i < 256; i++) {\n            if (row_max_vals[i] > max) {\n                max = row_max_vals[i];\n            }\n        }\n\n        // Third pass: find first occurrence of global max (row-major order)\n        // Convert to canonical counted loop with explicit bounds\n        xindex = 0;\n        yindex = 0;\n        int found = 0;\n        // Outer loop with explicit bounds\n        for (int i = 0; i < 256; i++) {\n            if (found) break;\n            if (row_max_vals[i] == max) {\n                // Inner loop with explicit bounds\n                for (int j = 0; j < 256; j++) {\n                    if (aa[i][j] == max) {\n                        xindex = i;\n                        yindex = j;\n                        found = 1;\n                        break;\n                    }\n                }\n            }\n        }\n\n        chksum = max + (float)xindex + (float)yindex;\n    }\n\n    return max + (float)(xindex + 1) + (float)(yindex + 1);\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s13110_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s13110",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s13110_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s13110_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s13110_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s13110_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+- The alias detection loop incorrectly compares addresses of `b[i]` and `e[i]` with `aa[0][i]`; `aa` is a 2D array, so `&aa[0][i]` is not the same as `&aa[i][0]`—this could cause false aliasing detection and fallback to scalar code incorrectly.
+- The scalar fallback code modifies `b` and `e`, but the alias detection only checks `b` and `e` against inputs; if `b` and `e` alias each other, the vectorized path may be incorrectly taken, causing a mismatch.
+- The first loop’s vectorized path processes chunks but maintains sequential dependency within each chunk; however, the scalar `s` variable carries dependency across chunks incorrectly—it should be updated across the whole loop sequentially, not reset per chunk.
+- The test failure indicates a mismatch in parameter `a` at index 0; `a` is read-only, so the mismatch likely comes from using wrong values in `s_vals` due to incorrect cross-chunk dependency handling in the first loop.
+- Fix the first loop’s vectorized path: compute `s` sequentially across all elements, not per chunk, by processing the entire loop sequentially or by carrying `s` between chunks explicitly.
+- Remove the alias detection or fix it to check proper 2D array access for `aa`; alternatively, rely on `restrict` or assume no aliasing for simplicity in this test.
+- Ensure the scalar fallback code matches the original semantics exactly; currently it uses `s_vals` array which matches the vectorized version, but verify the original loop did not have such array.
+- The remainder handling in the first loop uses the same `s` variable from the last chunk, which is correct if `s` is updated globally across chunks.

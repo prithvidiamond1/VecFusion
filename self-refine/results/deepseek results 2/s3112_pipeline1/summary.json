@@ -1,0 +1,27 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s3112_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "float vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)\n{\n    float sum;\n    for (int nl = 0; nl < iterations; nl++) {\n        sum = 0.0f;\n        // This is a prefix sum (scan) - inherently sequential due to dependency\n        // We can unroll slightly but must preserve the sequential prefix sum semantics\n        int i = 0;\n        float s0, s1, s2, s3;\n        \n        // Process 4 elements at a time with manual unrolling\n        // Each iteration depends on previous, so we carry the running sum\n        for (; i <= LEN_1D - 4; i += 4) {\n            s0 = sum + a[i];\n            s1 = s0 + a[i+1];\n            s2 = s1 + a[i+2];\n            s3 = s2 + a[i+3];\n            b[i]   = s0;\n            b[i+1] = s1;\n            b[i+2] = s2;\n            b[i+3] = s3;\n            sum = s3;\n        }\n        \n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            sum += a[i];\n            b[i] = sum;\n        }\n    }\n    return sum;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s3112_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s3112",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s3112_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s3112_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s3112_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

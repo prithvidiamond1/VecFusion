@@ -1,0 +1,112 @@
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        index = 0;
+        max = fabsf(a[0]);
+
+        // First pass: find max value (vectorizable max-reduction)
+        for (int i = 1; i < LEN_1D; i++) {
+            float val = fabsf(a[i * inc]);
+            if (val > max) max = val;
+        }
+
+        // Second pass: find first index where value equals max
+        // Use a flag array approach to avoid loop-carried dependency on index
+        int found = 0;
+        for (int i = 1; i < LEN_1D; i++) {
+            float val = fabsf(a[i * inc]);
+            int is_max = (val == max);
+            int update = is_max & (found == 0);
+            index = update ? i : index;
+            found = found | update;
+        }
+
+        // Fix index: if max is a[0], index should remain 0
+        index = (fabsf(a[0]) == max) ? 0 : index;
+
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+#include <stdint.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        index = 0;
+        max = fabsf(a[0]);
+
+        // First pass: find max value using unrolled loop
+        // Process 4 elements at a time
+        int i = 1;
+        float max0 = max, max1 = max, max2 = max, max3 = max;
+        for (; i <= LEN_1D - 4; i += 4) {
+            float v0 = fabsf(a[i * inc]);
+            float v1 = fabsf(a[(i+1) * inc]);
+            float v2 = fabsf(a[(i+2) * inc]);
+            float v3 = fabsf(a[(i+3) * inc]);
+            if (v0 > max0) max0 = v0;
+            if (v1 > max1) max1 = v1;
+            if (v2 > max2) max2 = v2;
+            if (v3 > max3) max3 = v3;
+        }
+        // Reduce the 4 partial maxima
+        if (max1 > max0) max0 = max1;
+        if (max3 > max2) max2 = max3;
+        if (max2 > max0) max0 = max2;
+        max = max0;
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float val = fabsf(a[i * inc]);
+            if (val > max) max = val;
+        }
+
+        // Second pass: find first index where value equals max
+        int found = 0;
+        for (i = 1; i < LEN_1D; i++) {
+            float val = fabsf(a[i * inc]);
+            int is_max = (val == max);
+            int update = is_max & (found == 0);
+            index = update ? i : index;
+            found = found | update;
+        }
+
+        // Fix index: if max is a[0], index should remain 0
+        index = (fabsf(a[0]) == max) ? 0 : index;
+
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Tester feedback:
+        - The function returns `max + index + 1` but `max` and `index` are local variables that may be uninitialized if `iterations/2 == 0`. More critically, the return value uses the raw local `max` and `index` instead of `chksum`. The reference implementation returns `chksum`, so change the return statement to `return chksum;`.
+
+- The `index` search in the second pass starts at `i = 1` but skips checking `a[0]`. The fix at the end (`index = (fabsf(a[0]) == max) ? 0 : index`) is applied after the loop, but if `a[0]` equals `max` AND some later element also equals `max`, the fix correctly sets index to 0 — however the original s318 finds the **first** occurrence starting from index 1 (1-based isamax style). Verify the reference: the original loop runs `for (i=1; i<LEN_1D; i++)` and sets `index=i` when `fabsf(a[i*inc]) > max`, updating both `max` and `index` together. The two-pass approach breaks this because the first element achieving the max in the original is the one that first **exceeds** the running max, not just equals the final max. Rewrite as a single pass that updates `index` whenever a strictly greater value is found (matching the original isamax logic).
+
+- Specifically, replace both passes with a single loop:
+  ```c
+  for (i = 1; i < LEN_1D; i++) {
+      float val = fabsf(a[i * inc]);
+      if (val > max) { max = val; index = i; }
+  }
+  ```
+  This matches the reference behavior exactly.
+
+- After fixing the loop, set `chksum = max + (float)index;` and return `chksum`.
+
+        Return a corrected candidate function named `vectorized_s318`.

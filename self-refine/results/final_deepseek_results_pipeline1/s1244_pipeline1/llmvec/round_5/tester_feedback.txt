@@ -1,0 +1,9 @@
+The vectorizer candidate has a **trip count / bounds mismatch** in the vector loop.
+
+**Specific failures and fixes:**
+
+- **Vector loop upper bound is wrong:** `i < n - 3` should be `i <= n - 4` (or equivalently `i < n - 3` is correct for `i += 4`, but the scalar remainder loop starts at `i = n - 3` which is wrong).
+- **Scalar remainder loop starts too early:** The scalar loop starts at `i = n - 3` instead of `i = n - (n % 4)`. This causes the vector loop to stop 3 iterations early, and the scalar loop to process indices that were already partially covered.
+- **Fix:** Change the vector loop bound to `i <= n - 4` and the scalar loop start to `i = n - (n % 4)` (or `i = (n / 4) * 4`).
+- **The `a[i+4]` access in the vector loop is out of bounds** when `i = n-4` because `i+4 = n`, which is one past the last valid index (0..n-1). This causes the mismatch at index 5 (which is `a[5]` when `n` is small).
+- **Fix:** The vector loop must stop at `i <= n - 5` (i.e., `i < n - 4`) to safely read `a[i+4]`, or restructure to avoid reading `a[i+4]` in the vector loop.

@@ -1,0 +1,62 @@
+#include <stdint.h>
+
+void vectorized_s256(int iterations, float* a, float* d, float aa[256][256], float bb[256][256])
+{
+    for (int nl = 0; nl < 10*(iterations/256); nl++) {
+        for (int i = 0; i < 256; i++) {
+            // j=1: a[1] = 1.0f - a[0]
+            // j=2: a[2] = 1.0f - a[1]
+            // Each iteration depends on previous a[j-1], so this is a recurrence.
+            // We cannot vectorize across j due to the dependency a[j] = 1.0f - a[j-1].
+            // However, we can observe the pattern:
+            // a[j] = 1.0f - a[j-1]
+            // a[j+1] = 1.0f - a[j] = 1.0f - (1.0f - a[j-1]) = a[j-1]
+            // So the sequence alternates: a[j] and a[j-1] alternate between two values.
+            // Let v0 = a[0], then:
+            //   a[1] = 1.0f - v0
+            //   a[2] = v0
+            //   a[3] = 1.0f - v0
+            //   a[4] = v0
+            // For even j: a[j] = v0 (j >= 2)
+            // For odd j:  a[j] = 1.0f - v0
+            // We can precompute a[j] for all j, then vectorize the aa computation.
+
+            float v0 = a[0];
+            float v1 = 1.0f - v0;
+
+            // Fill a[j] for j=1..255
+            // odd j: v1, even j: v0
+            for (int j = 1; j < 256; j++) {
+                a[j] = (j & 1) ? v1 : v0;
+            }
+
+            // Now vectorize the aa computation in chunks of 8
+            int j = 1;
+            for (; j <= 252; j += 4) {
+                float aj0 = a[j+0];
+                float aj1 = a[j+1];
+                float aj2 = a[j+2];
+                float aj3 = a[j+3];
+
+                float dj0 = d[j+0];
+                float dj1 = d[j+1];
+                float dj2 = d[j+2];
+                float dj3 = d[j+3];
+
+                float bbj0 = bb[j+0][i];
+                float bbj1 = bb[j+1][i];
+                float bbj2 = bb[j+2][i];
+                float bbj3 = bb[j+3][i];
+
+                aa[j+0][i] = aj0 + bbj0 * dj0;
+                aa[j+1][i] = aj1 + bbj1 * dj1;
+                aa[j+2][i] = aj2 + bbj2 * dj2;
+                aa[j+3][i] = aj3 + bbj3 * dj3;
+            }
+            // scalar tail
+            for (; j < 256; j++) {
+                aa[j][i] = a[j] + bb[j][i] * d[j];
+            }
+        }
+    }
+}

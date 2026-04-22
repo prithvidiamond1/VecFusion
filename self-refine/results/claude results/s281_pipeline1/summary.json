@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s281_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s281(int iterations, int LEN_1D, float* a, float* b, float* c)\n{\n    // Note: this loop has a loop-carried dependency through a[] (a[LEN_1D-i-1] reads\n    // from positions that overlap with a[i] writes), so we must be careful.\n    // For the general case, we preserve scalar semantics exactly.\n    // However, we can unroll the inner loop manually for better instruction-level parallelism\n    // when there is no aliasing overlap (i.e., when i and LEN_1D-i-1 don't overlap).\n    // We split into: safe vectorizable region and the overlap region.\n\n    for (int nl = 0; nl < iterations; nl++) {\n        // The read index is LEN_1D-i-1, write index is i.\n        // They overlap when i == LEN_1D-i-1, i.e., i == (LEN_1D-1)/2\n        // For i < (LEN_1D-1)/2: read index > write index, safe to vectorize forward\n        // For i > (LEN_1D-1)/2: read index < write index, already written, must be scalar\n        // For i == (LEN_1D-1)/2: single element, scalar\n\n        int safe_end = (LEN_1D - 1) / 2; // exclusive upper bound for safe region\n\n        // Vectorized safe region using 4-wide unroll\n        int i = 0;\n        for (; i + 3 < safe_end; i += 4) {\n            float x0 = a[LEN_1D - i - 1] + b[i] * c[i];\n            float x1 = a[LEN_1D - (i+1) - 1] + b[i+1] * c[i+1];\n            float x2 = a[LEN_1D - (i+2) - 1] + b[i+2] * c[i+2];\n            float x3 = a[LEN_1D - (i+3) - 1] + b[i+3] * c[i+3];\n            a[i]   = x0 - 1.0f;\n            a[i+1] = x1 - 1.0f;\n            a[i+2] = x2 - 1.0f;\n            a[i+3] = x3 - 1.0f;\n            b[i]   = x0;\n            b[i+1] = x1;\n            b[i+2] = x2;\n            b[i+3] = x3;\n        }\n        // Scalar cleanup for safe region tail\n        for (; i < safe_end; i++) {\n            float x = a[LEN_1D - i - 1] + b[i] * c[i];\n            a[i] = x - 1.0f;\n            b[i] = x;\n        }\n\n        // Scalar region for overlap and beyond (reads from already-written a[])\n        for (; i < LEN_1D; i++) {\n            float x = a[LEN_1D - i - 1] + b[i] * c[i];\n            a[i] = x - 1.0f;\n            b[i] = x;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s281_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s281",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s281_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s281_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s281_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+Revise your candidate for `set_points` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed, int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd, bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    // Precompute scale factors for scalable and non-scalable patches
+    float scaleWhenScalable    = normalCase ? scale : 0.0f;
+    float scaleWhenNonScalable = normalCase ? 1.0f  : scale;
+
+    // Fill src array (no dependency, can be vectorized)
+    src[0] = srcStart;
+    for (int i = 0; i < divCount; i++) {
+        src[i + 1] = divs[i];
+    }
+    src[divCount + 1] = srcEnd;
+
+    // Precompute srcDelta array
+    int* srcDelta = (int*)__builtin_alloca((divCount + 1) * sizeof(int));
+    for (int i = 0; i < divCount; i++) {
+        srcDelta[i] = src[i + 1] - src[i];
+    }
+
+    // Precompute dstDelta array using alternating isScalable (no dependency, vectorizable)
+    float* dstDelta = (float*)__builtin_alloca((divCount + 1) * sizeof(float));
+    int curScalable = (int)isScalable;
+    for (int i = 0; i < divCount; i++) {
+        float s = curScalable ? scaleWhenScalable : scaleWhenNonScalable;
+        dstDelta[i] = s * (float)srcDelta[i];
+        curScalable = !curScalable;
+    }
+
+    // Accumulate dst (sequential due to dependency)
+    dst[0] = dstStart;
+    for (int i = 0; i < divCount; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+    dst[divCount + 1] = dstEnd;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdbool.h>
+#include <alloca.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed, int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd, bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    float scaleWhenScalable    = normalCase ? scale : 0.0f;
+    float scaleWhenNonScalable = normalCase ? 1.0f  : scale;
+
+    // Fill src array - vectorize the divs copy
+    src[0] = srcStart;
+    {
+        int i = 0;
+        // Unrolled loop for copying divs into src[1..divCount]
+        for (; i + 3 < divCount; i += 4) {
+            src[i + 1] = divs[i];
+            src[i + 2] = divs[i + 1];
+            src[i + 3] = divs[i + 2];
+            src[i + 4] = divs[i + 3];
+        }
+        for (; i < divCount; i++) {
+            src[i + 1] = divs[i];
+        }
+    }
+    src[divCount + 1] = srcEnd;
+
+    // Precompute srcDelta array (unrolled)
+    int* srcDelta = (int*)alloca((divCount + 1) * sizeof(int));
+    {
+        int i = 0;
+        for (; i + 3 < divCount; i += 4) {
+            srcDelta[i]     = src[i + 1] - src[i];
+            srcDelta[i + 1] = src[i + 2] - src[i + 1];
+            srcDelta[i + 2] = src[i + 3] - src[i + 2];
+            srcDelta[i + 3] = src[i + 4] - src[i + 3];
+        }
+        for (; i < divCount; i++) {
+            srcDelta[i] = src[i + 1] - src[i];
+        }
+    }
+
+    // Precompute dstDelta array using alternating isScalable
+    // We can vectorize by precomputing two scale arrays and selecting based on parity
+    float* dstDelta = (float*)alloca((divCount + 1) * sizeof(float));
+    {
+        // Precompute scale for even indices (starting scalable = isScalable)
+        // and odd indices (starting scalable = !isScalable)
+        float scaleEven = (int)isScalable ? scaleWhenScalable : scaleWhenNonScalable;
+        float scaleOdd  = (int)isScalable ? scaleWhenNonScalable : scaleWhenScalable;
+
+        int i = 0;
+        // Unroll by 4 (2 pairs of even/odd)
+        for (; i + 3 < divCount; i += 4) {
+            dstDelta[i]     = scaleEven * (float)srcDelta[i];
+            dstDelta[i + 1] = scaleOdd  * (float)srcDelta[i + 1];
+            dstDelta[i + 2] = scaleEven * (float)srcDelta[i + 2];
+            dstDelta[i + 3] = scaleOdd  * (float)srcDelta[i + 3];
+        }
+        // Scalar cleanup
+        int curScalable = (int)isScalable;
+        for (; i < divCount; i++) {
+            float s = curScalable ? scaleWhenScalable : scaleWhenNonScalable;
+            dstDelta[i] = s * (float)srcDelta[i];
+            curScalable = !curScalable;
+        }
+    }
+
+    // Accumulate dst (sequential due to dependency)
+    dst[0] = dstStart;
+    for (int i = 0; i < divCount; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+    dst[divCount + 1] = dstEnd;
+}
+        ```
+
+        Tester feedback:
+        The test is failing because `src` is being written to (it's used as a working buffer), but the caller apparently passes a read-only or size-constrained array. Looking more carefully: the function writes `src[divCount + 1]`, meaning `src` must have at least `divCount + 2` elements. But the real bug reported is a **mismatch in parameter `src` at index 0** — the function is modifying `src[0]` through `src[divCount+1]`, but the caller likely expects `src` to be unchanged (it's an input parameter, not a scratch buffer).
+
+Key fixes needed:
+
+- **Use a local scratch buffer for `src` instead of writing to the passed-in `src` parameter.** Allocate `int* srcBuf = (int*)alloca((divCount + 2) * sizeof(int));` and use `srcBuf` everywhere internally, leaving the caller's `src` array untouched.
+
+- **The `srcDelta` last element is missing:** the loop computes `srcDelta[0..divCount-1]` but needs `srcDelta[divCount]` = `src[divCount+1] - src[divCount]`. Add `srcDelta[divCount] = srcBuf[divCount+1] - srcBuf[divCount];` after the loop.
+
+- **The `dstDelta` last element is missing:** similarly compute `dstDelta[divCount]` for the final segment (between last div and `srcEnd`). The scalar cleanup loop only goes to `i < divCount`, missing index `divCount`. Extend both `srcDelta` and `dstDelta` loops to `<= divCount` (i.e., `divCount + 1` elements total).
+
+- **The unrolled `srcDelta` loop condition `i + 3 < divCount` should be `i + 3 <= divCount`** (i.e., `i + 4 <= divCount + 1`) to correctly unroll over all `divCount + 1` deltas.
+
+- **The `dstDelta` unrolled loop has the same off-by-one**: it should iterate over `divCount + 1` elements, not `divCount`.
+
+- **The `dst` accumulation loop** should run `for (int i = 0; i < divCount + 1; i++)` to fill all `divCount + 2` output points (currently stops one short, missing `dst[divCount]` via delta, then overwrites with `dstEnd`—this may be acceptable but verify the last delta is included).
+
+        Return a corrected candidate function named `vectorized_set_points`.

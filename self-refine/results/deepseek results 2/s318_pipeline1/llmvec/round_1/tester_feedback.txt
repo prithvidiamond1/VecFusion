@@ -1,0 +1,3 @@
+The function returns `max + index + 1` using the local variables from the last iteration, but `max` and `index` are declared inside the loop scope conceptually — more importantly, the reference implementation returns `chksum` (which is `max + (float)index`), not `max + index + 1`. The `+1` is wrong and causes the return value mismatch.
+
+- **Fix**: Change the return statement from `return max + index + 1;` to `return chksum;` (or equivalently `return max + (float)index;`), removing the erroneous `+ 1`.

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s1213_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stddef.h>\n\ntypedef float float32x4_t __attribute__((__vector_size__(16)));\n\nvoid vectorized_s1213(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {\n    if (LEN_1D < 3) return;\n\n    for (int nl = 0; nl < iterations; nl++) {\n        int i = 1;\n        int last = LEN_1D - 1;\n\n        // Handle first element separately to break the dependence\n        if (i < last) {\n            a[i] = b[i-1] + c[i];\n            b[i] = a[i+1] * d[i];\n            i++;\n        }\n\n        // Now vectorize: for i >= 2, a[i+1] is not yet written by this iteration\n        for (; i <= last - 4; i += 4) {\n            float32x4_t b_orig = *(float32x4_t*)(b + i - 1);\n            float32x4_t c_vec = *(float32x4_t*)(c + i);\n            float32x4_t a_next = *(float32x4_t*)(a + i + 1);\n            float32x4_t d_vec = *(float32x4_t*)(d + i);\n\n            float32x4_t a_new = b_orig + c_vec;\n            *(float32x4_t*)(a + i) = a_new;\n\n            float32x4_t b_new = a_next * d_vec;\n            *(float32x4_t*)(b + i) = b_new;\n        }\n\n        // Scalar cleanup\n        for (int k = i; k < last; k++) {\n            a[k] = b[k-1] + c[k];\n            b[k] = a[k+1] * d[k];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 3",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 3",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s1213_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s1213",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s1213_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s1213_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s1213_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // First loop: compute all b[i] values using original a[i+1]\n        for (int i = 1; i < LEN_1D-1; i++) {\n            b[i] = a[i+1] * d[i];\n        }\n        \n        // Second loop: compute all a[i] values using updated b[i-1]\n        for (int i = 1; i < LEN_1D-1; i++) {\n            a[i] = b[i-1] + c[i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s1213_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s1213_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline1_20260422_044515/s1213_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

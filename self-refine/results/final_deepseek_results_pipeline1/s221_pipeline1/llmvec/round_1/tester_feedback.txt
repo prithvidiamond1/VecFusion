@@ -1,0 +1,5 @@
+- **Fix markdown fence**: Remove the stray `` ```c `` on line 18 that causes a syntax error. The file should contain only valid C code, not markdown fences.
+- **Correct loop bound**: The outer loop `for (int nl = 0; nl < total_iters; nl++)` uses `total_iters = iterations / 2`, but the original scalar loop likely iterated `iterations` times. Either remove the outer loop entirely (if it was an artifact) or adjust the bound to match the intended trip count.
+- **Fix vectorized prefix sum**: The sequential computation of `b[i..i+3]` inside the vector loop is correct for the recurrence, but ensure that `vb_prev[3]` is the last element of the previous vector (i.e., `b[i-1]`). This is sound as written.
+- **Add alignment guards**: The vector loads/stores via `*(float_vec *)&a[i]` assume 16-byte alignment. Insert a runtime check or use `__builtin_assume_aligned` to avoid undefined behavior on unaligned pointers.
+- **Clarify scalar cleanup bound**: The cleanup loop `for (; i < LEN_1D; i++)` correctly handles remaining elements after the vector loop, but ensure `i` is properly initialized before the vector loop (currently `i = 2` after the first element). This is fine.

@@ -1,0 +1,32 @@
+float vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)
+{
+    float sum;
+    for (int nl = 0; nl < iterations; nl++) {
+        sum = 0.0f;
+        // This is a prefix sum (scan) - inherently sequential due to dependency chain
+        // We can unroll to help the compiler, but the dependency prevents true SIMD
+        // Unroll by 4 with explicit dependency tracking
+        int i = 0;
+        float s0 = sum;
+        
+        // Process in chunks of 4 with manual unrolling
+        // Each iteration depends on previous, so we compute partial sums
+        for (; i <= LEN_1D - 4; i += 4) {
+            s0 += a[i];
+            b[i] = s0;
+            s0 += a[i+1];
+            b[i+1] = s0;
+            s0 += a[i+2];
+            b[i+2] = s0;
+            s0 += a[i+3];
+            b[i+3] = s0;
+        }
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            s0 += a[i];
+            b[i] = s0;
+        }
+        sum = s0;
+    }
+    return sum;
+}

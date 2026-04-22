@@ -1,0 +1,47 @@
+```c
+#include <stdint.h>
+
+void vectorized_s141(double flat_2d_array[], double bb[][256], int i) {
+    int k_start = (i + 1) * i / 2 + i;
+    int k = k_start;
+
+    // Precompute k values for each j
+    // k(j) = k_start + sum_{m=i}^{j-1} (m+1) = k_start + sum_{m=i+1}^{j} m
+    // = k_start + (j*(j+1)/2 - i*(i+1)/2)
+    // But we can also just unroll with vector-friendly stride
+
+    int j = i;
+    int n = 256 - i;
+
+    // We'll precompute indices and do unrolled accumulation
+    // Since indices are non-uniform, we unroll by 4 for ILP
+
+    // Precompute k array
+    int ks[256];
+    {
+        int kk = k_start;
+        for (int jj = i; jj < 256; jj++) {
+            ks[jj - i] = kk;
+            kk += jj + 1;
+        }
+    }
+
+    int idx = 0;
+    // Unroll by 4
+    for (; idx + 3 < n; idx += 4) {
+        int j0 = i + idx;
+        int j1 = j0 + 1;
+        int j2 = j0 + 2;
+        int j3 = j0 + 3;
+        flat_2d_array[ks[idx + 0]] += bb[j0][i];
+        flat_2d_array[ks[idx + 1]] += bb[j1][i];
+        flat_2d_array[ks[idx + 2]] += bb[j2][i];
+        flat_2d_array[ks[idx + 3]] += bb[j3][i];
+    }
+    // Scalar tail
+    for (; idx < n; idx++) {
+        int jj = i + idx;
+        flat_2d_array[ks[idx]] += bb[jj][i];
+    }
+}
+```

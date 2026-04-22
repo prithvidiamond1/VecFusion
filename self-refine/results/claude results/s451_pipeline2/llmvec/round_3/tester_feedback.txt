@@ -1,0 +1,6 @@
+The errors are in the test harness code (line 62), not in the candidate function itself. The harness declares stack arrays with `__restrict__`, which is invalid — `__restrict__` only applies to pointers/references, not array declarations.
+
+- In the test harness at line 62, change `float __restrict__ a_scalar[128]` → `float a_scalar[128]` (and similarly for all other array declarations: `a_vector`, `b_scalar`, `b_vector`, `c_scalar`, `c_vector`).
+- Remove `__restrict__` from all fixed-size array declarations in the harness; `__restrict__` is only valid on pointer types (e.g., `float * __restrict__ ptr`).
+- The candidate function signature itself is correct (`float* __restrict__ a` etc.) — no changes needed there.
+- If the harness needs restrict semantics for the arrays, declare them as pointers instead: e.g., `float a_scalar_buf[128]; float * __restrict__ a_scalar = a_scalar_buf;`

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s332_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s332_opt(int iterations,int LEN_1D,int t, float* a)\n{\n    int index;\n    float value;\n    float chksum;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        index = -2;\n        value = -1.0f;\n        \n        // Split: search loop without goto\n        int found_index = -2;\n        float found_value = -1.0f;\n        \n        for (int i = 0; i < LEN_1D; i++) {\n            if (a[i] > t) {\n                found_index = i;\n                found_value = a[i];\n                break;\n            }\n        }\n        \n        // Assignment after search completes\n        index = found_index;\n        value = found_value;\n        \n        chksum = value + (float)index;\n    }\n    return value;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s332_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s332_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s332_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nfloat vectorized_s332(int iterations, int LEN_1D, int t, float* a)\n{\n    int index;\n    float value;\n    float chksum;\n\n    for (int nl = 0; nl < iterations; nl++) {\n        index = -2;\n        value = -1.0f;\n\n        int found_index = -2;\n        float found_value = -1.0f;\n\n        float ft = (float)t;\n\n        // Process 8 elements at a time to find first index where a[i] > t\n        int i = 0;\n        int vec_width = 8;\n        int limit = LEN_1D - (LEN_1D % vec_width);\n\n        // We need to find the FIRST occurrence, so we process chunks\n        // but must check each chunk carefully\n        int done = 0;\n        for (i = 0; i < limit && !done; i += vec_width) {\n            // Check if any element in this chunk satisfies condition\n            int any = (a[i+0] > ft) | (a[i+1] > ft) | (a[i+2] > ft) | (a[i+3] > ft) |\n                      (a[i+4] > ft) | (a[i+5] > ft) | (a[i+6] > ft) | (a[i+7] > ft);\n            if (any) {\n                // Find the first one in this chunk\n                for (int j = i; j < i + vec_width; j++) {\n                    if (a[j] > ft) {\n                        found_index = j;\n                        found_value = a[j];\n                        done = 1;\n                        break;\n                    }\n                }\n            }\n        }\n\n        // Scalar cleanup tail\n        if (!done) {\n            for (i = limit; i < LEN_1D; i++) {\n                if (a[i] > ft) {\n                    found_index = i;\n                    found_value = a[i];\n                    break;\n                }\n            }\n        }\n\n        index = found_index;\n        value = found_value;\n\n        chksum = value + (float)index;\n    }\n    return value;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s332_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s332",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s332_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s332_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s332_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

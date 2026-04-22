@@ -1,0 +1,4 @@
+- The test report indicates a return value mismatch, meaning the vectorized sum calculation differs from the reference scalar version.
+- The issue is that `sum` is overwritten each outer loop iteration instead of accumulating across all iterations.
+- Change `sum = sum_inner;` to `sum += sum_inner;` to accumulate across outer loops.
+- Ensure the initial `sum = 0.0f;` remains outside the outer loop for correct accumulation.

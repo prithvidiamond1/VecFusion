@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/s112/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid s112_opt(float *a, float *b, int iterations, int LEN_1D) {\n    for (int nl = 0; nl < 3 * iterations; nl++) {\n        // Create temporary array to break loop-carried dependency\n        float temp[LEN_1D];\n        \n        // First element handled separately\n        temp[0] = a[0];\n        \n        // Main computation in forward direction (vectorizable)\n        for (int i = 0; i < LEN_1D - 1; i++) {\n            temp[i + 1] = a[i] + b[i];\n        }\n        \n        // Copy results back (vectorizable)\n        for (int i = 1; i < LEN_1D; i++) {\n            a[i] = temp[i];\n        }\n    }\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

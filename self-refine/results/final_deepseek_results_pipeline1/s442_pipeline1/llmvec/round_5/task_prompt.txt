@@ -1,0 +1,95 @@
+
+Revise your candidate for `s442` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s442(int iterations,int LEN_1D, float* a, float *b,float* c, float *d, float* e, int* indx)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            switch (indx[i]) {
+                case 1:  goto L15;
+                case 2:  goto L20;
+                case 3:  goto L30;
+                case 4:  goto L40;
+            }
+L15:
+            a[i] += b[i] * b[i];
+            goto L50;
+L20:
+            a[i] += c[i] * c[i];
+            goto L50;
+L30:
+            a[i] += d[i] * d[i];
+            goto L50;
+L40:
+            a[i] += e[i] * e[i];
+L50:
+            ;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+void vectorized_s442(int iterations, int LEN_1D, float* a, float *b, float* c, float *d, float* e, int* indx) {
+    if (LEN_1D <= 0) return;
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        for (; i <= LEN_1D - 4; i += 4) {
+            int idx0 = indx[i];
+            int idx1 = indx[i+1];
+            int idx2 = indx[i+2];
+            int idx3 = indx[i+3];
+
+            float add0, add1, add2, add3;
+
+            if (idx0 == 1) add0 = b[i] * b[i];
+            else if (idx0 == 2) add0 = c[i] * c[i];
+            else if (idx0 == 3) add0 = d[i] * d[i];
+            else add0 = e[i] * e[i];
+
+            if (idx1 == 1) add1 = b[i+1] * b[i+1];
+            else if (idx1 == 2) add1 = c[i+1] * c[i+1];
+            else if (idx1 == 3) add1 = d[i+1] * d[i+1];
+            else add1 = e[i+1] * e[i+1];
+
+            if (idx2 == 1) add2 = b[i+2] * b[i+2];
+            else if (idx2 == 2) add2 = c[i+2] * c[i+2];
+            else if (idx2 == 3) add2 = d[i+2] * d[i+2];
+            else add2 = e[i+2] * e[i+2];
+
+            if (idx3 == 1) add3 = b[i+3] * b[i+3];
+            else if (idx3 == 2) add3 = c[i+3] * c[i+3];
+            else if (idx3 == 3) add3 = d[i+3] * d[i+3];
+            else add3 = e[i+3] * e[i+3];
+
+            a[i] += add0;
+            a[i+1] += add1;
+            a[i+2] += add2;
+            a[i+3] += add3;
+        }
+        for (; i < LEN_1D; i++) {
+            int idx = indx[i];
+            if (idx == 1) a[i] += b[i] * b[i];
+            else if (idx == 2) a[i] += c[i] * c[i];
+            else if (idx == 3) a[i] += d[i] * d[i];
+            else a[i] += e[i] * e[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - **Fix incorrect loop bound for vectorized main loop**: The vectorized loop uses `i <= LEN_1D - 4` which is a non-canonical bound. Change to `i < LEN_1D - 3` to match standard loop exit condition and avoid off-by-one errors when `LEN_1D` is not a multiple of 4.
+
+- **Correct trip count derivation**: The current bound `i <= LEN_1D - 4` implies an extra iteration when `LEN_1D - 4` is exactly divisible by 4. Use `i < LEN_1D - 3` to ensure the vectorized loop processes exactly `(LEN_1D / 4) * 4` iterations, leaving the remainder for the scalar tail loop.
+
+- **Ensure scalar tail loop handles remaining elements correctly**: The scalar loop `for (; i < LEN_1D; i++)` is correct, but verify that `i` starts at the correct value after the vectorized loop exits (should be `LEN_1D - (LEN_1D % 4)`). The current bound fix ensures this.
+
+- **Check for potential out-of-bounds access in vectorized loop**: With `i <= LEN_1D - 4`, when `LEN_1D = 4`, the loop runs with `i = 0` (correct), but when `LEN_1D = 5`, it runs with `i = 0` and `i = 1` (since `1 <= 1`), accessing `indx[4]` which is valid, but the scalar loop then starts at `i = 2`, skipping index 1. Fixing the bound to `i < LEN_1D - 3` prevents this.
+
+        Return a corrected candidate function named `vectorized_s442`.

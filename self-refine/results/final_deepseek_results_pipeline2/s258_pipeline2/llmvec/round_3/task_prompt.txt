@@ -1,0 +1,116 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+
+        // First loop: compute s values and store them in a temporary array
+        float s_vals[256];
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > 0.) {
+                s = d[i] * d[i];
+            }
+            s_vals[i] = s;
+        }
+
+        // Second loop: compute b[i] using precomputed s_vals
+        for (int i = 0; i < 256; ++i) {
+            b[i] = s_vals[i] * c[i] + d[i];
+        }
+
+        // Third loop: compute e[i] using precomputed s_vals
+        for (int i = 0; i < 256; ++i) {
+            e[i] = (s_vals[i] + 1.0f) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float float4 __attribute__((ext_vector_type(4)));
+typedef int int4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {
+    const int N = 256;
+    const int VEC_SIZE = 4;
+    const int VEC_ITERS = N / VEC_SIZE;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = 0.0f;
+        float s_vals[N];
+
+        // First loop: compute s values with preserved sequential dependency
+        for (int i = 0; i < VEC_ITERS; i++) {
+            int base = i * VEC_SIZE;
+            float4 a_vec = *(float4*)&a[base];
+            float4 d_vec = *(float4*)&d[base];
+
+            // Vector comparison: a[i] > 0
+            int4 mask = a_vec > (float4){0.0f, 0.0f, 0.0f, 0.0f};
+
+            // Process elements sequentially within vector chunk
+            for (int j = 0; j < VEC_SIZE; j++) {
+                if (mask[j]) {
+                    s = d[base + j] * d[base + j];
+                }
+                s_vals[base + j] = s;
+            }
+        }
+
+        // Second loop: vectorized computation b[i] = s_vals[i] * c[i] + d[i]
+        for (int i = 0; i < VEC_ITERS; i++) {
+            int base = i * VEC_SIZE;
+            float4 s_vec = *(float4*)&s_vals[base];
+            float4 c_vec = *(float4*)&c[base];
+            float4 d_vec = *(float4*)&d[base];
+
+            float4 b_vec = s_vec * c_vec + d_vec;
+            *(float4*)&b[base] = b_vec;
+        }
+
+        // Third loop: vectorized computation e[i] = (s_vals[i] + 1.0f) * aa[0][i]
+        for (int i = 0; i < VEC_ITERS; i++) {
+            int base = i * VEC_SIZE;
+            float4 s_vec = *(float4*)&s_vals[base];
+            float4 aa_vec = *(float4*)&aa[0][base];
+
+            float4 e_vec = (s_vec + (float4){1.0f, 1.0f, 1.0f, 1.0f}) * aa_vec;
+            *(float4*)&e[base] = e_vec;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The test failure indicates a mismatch in array `a` after the function runs, but the candidate code only reads from `a` and does not modify it. This suggests the original scalar loop may modify `a`, which the vectorized version does not replicate.
+
+- The first loop in the candidate computes `s_vals` using `a` only for a conditional, but the scalar original likely updates `a[i]` inside the loop. The candidate must preserve all writes to `a`.
+
+- The candidate assumes `N = 256` and `VEC_ITERS = N / VEC_SIZE` with `VEC_SIZE = 4`, but the original loop may have a trip count not divisible by 4. The candidate must handle the remainder iterations.
+
+- The candidate’s first loop has an inner sequential loop over `VEC_SIZE` to maintain dependency for `s`, but it may incorrectly compute `s_vals` because the scalar dependency might cross vector chunk boundaries. The dependency must be preserved across the entire loop, not just within each chunk.
+
+- The candidate’s second and third loops vectorize using `VEC_ITERS`, but if `N` is not a multiple of 4, they will miss the last few elements. A tail loop must be added.
+
+- The candidate does not show the original scalar code, but the mismatch in `a` implies the vectorizer incorrectly assumed `a` is read-only. Check if the original loop writes to `a` (e.g., `a[i] = ...`) and add those writes.
+
+- The candidate uses `float4` loads with pointer casting which may cause alignment issues. Ensure the data is aligned or use unaligned loads if necessary.
+
+- The candidate’s first loop uses `s = d[base + j] * d[base + j]` when `a[i] > 0`, but the scalar original might use a different expression or update `s` differently. Verify the exact computation.
+
+        Return a corrected candidate function named `vectorized_s258`.

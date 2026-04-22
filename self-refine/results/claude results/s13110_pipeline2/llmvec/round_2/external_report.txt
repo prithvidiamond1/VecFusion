@@ -1,0 +1,10 @@
+Compile failed.
+            Command: clang results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_2
+            stderr:
+            results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_2.c:11:16: warning: variable 'chksum' set but not used [-Wunused-but-set-variable]
+   11 |     float max, chksum;
+      |                ^
+results/all_tests_rerun_20260415_215652/s13110_pipeline2/llmvec/candidate_round_2.c:64:9: error: expected identifier or '('
+   64 |         ```c
+      |         ^
+1 warning and 1 error generated.

@@ -1,0 +1,4 @@
+- **Fix type mismatch for `mask`**: `vb > zero` produces a vector of `int` (or `int32_t`), not `float32_t`. Change `float32_t mask` to `int32_t mask` (or `int __attribute__((ext_vector_type(4)))`).
+- **Fix `__builtin_convertvector` call**: The second argument must be a vector type, not a scalar. Replace `int32_t` with `int32_t __attribute__((ext_vector_type(4)))` (or use `__builtin_convertvector(mask, int32_t4)` after defining the appropriate vector type).
+- **Alternative simplification**: Instead of `__builtin_convertvector`, directly use `mask` as a vector of ints and extract bits via `__builtin_popcount` or a loop over elements with `mask[k]` to avoid the conversion entirely.
+- **Ensure `j` is correctly scoped**: `j` is initialized to `-1` inside the outer loop but not reset per iteration; verify this matches the original scalar semantics (likely intended to be reset each `nl` iteration).

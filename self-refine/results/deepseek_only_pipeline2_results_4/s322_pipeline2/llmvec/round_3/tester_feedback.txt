@@ -1,0 +1,18 @@
+- The scalar cleanup loop uses `a[i-2]` and `a[i-1]`, which may have been updated by the vectorized loop, but the vectorized loop's dependency loads for `a_im2_*` and `a_im1_*` are incorrect: they load from the updated `a` array for indices that have already been overwritten in the current vector iteration.
+
+- In the vectorized loop, for each vector chunk starting at `i`, `a_im2_0` should be `a[i-2]` (still original from before vectorization), but `a_im2_1` is `a[i-1]`, which is being computed in the same vector iteration as `a[i]` (since `a[i]` is updated in this chunk). This creates a cross-lane dependency that breaks correctness.
+
+- The loop carries a dependency: `a[i]` depends on `a[i-1]` and `a[i-2]`. The vectorized loop must ensure that for each vector lane, the dependencies come from previously computed (original) values, not from lanes being computed concurrently.
+
+- To fix, compute dependencies from the `orig_a` copy for all but the first two elements. For lane `j` in the vector (i.e., `i+j`), `a[i+j-2]` and `a[i+j-1]` should be taken from `orig_a` if those indices haven't been updated yet in this vector iteration.
+
+- Specifically, for a vector width of 4 starting at `i`, dependencies for lanes 0 and 1 (`a[i-2]`, `a[i-1]`) are from original (since not updated in this chunk), but for lanes 2 and 3 (`a[i]`, `a[i+1]`), those indices are being overwritten in this same vector iteration, so their "previous" values must come from `orig_a`.
+
+- Rewrite the vectorized loop to load all dependency values from `orig_a` instead of the updating `a` array. This ensures each lane uses the original `a` values from before the loop iteration, matching the scalar semantics.
+
+- After the vectorized loop, the scalar cleanup must also use `orig_a` for dependencies, not the updated `a` array, to maintain consistency.
+
+- Adjust the vectorized loop to compute:
+  - `a_im2_0 = orig_a[i-2]`, `a_im2_1 = orig_a[i-1]`, `a_im2_2 = orig_a[i]`, `a_im2_3 = orig_a[i+1]`
+  - `a_im1_0 = orig_a[i-1]`, `a_im1_1 = orig_a[i]`, `a_im1_2 = orig_a[i+1]`, `a_im1_3 = orig_a[i+2]`
+  This ensures no intra-vector dependency violation.

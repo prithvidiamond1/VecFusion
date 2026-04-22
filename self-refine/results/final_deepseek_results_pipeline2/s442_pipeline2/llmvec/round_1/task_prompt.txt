@@ -1,0 +1,45 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Vectorize the scalar C function `s442` below.
+
+        Scalar source:
+        ```c
+        void s442(int iterations,int LEN_1D, float* a, float *b,float* c, float *d, float* e, int* indx)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        // Loop splitting: separate the switch-based accumulation into four independent loops
+        // Each loop handles one specific case, removing the switch and enabling vectorization
+        for (int i = 0; i < LEN_1D; i++) {
+            if (indx[i] == 1) {
+                a[i] += b[i] * b[i];
+            }
+        }
+        for (int i = 0; i < LEN_1D; i++) {
+            if (indx[i] == 2) {
+                a[i] += c[i] * c[i];
+            }
+        }
+        for (int i = 0; i < LEN_1D; i++) {
+            if (indx[i] == 3) {
+                a[i] += d[i] * d[i];
+            }
+        }
+        for (int i = 0; i < LEN_1D; i++) {
+            if (indx[i] == 4) {
+                a[i] += e[i] * e[i];
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s442`.

@@ -1,0 +1,67 @@
+
+Revise your candidate for `s1213` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s1213(int iterations, int LEN_1D, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 1; i < LEN_1D-1; i++) {
+            a[i] = b[i-1]+c[i];
+            b[i] = a[i+1]*d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32x4_t __attribute__((__vector_size__(16)));
+
+void vectorized_s1213(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    if (LEN_1D < 3) return;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        int last = LEN_1D - 1;
+
+        // Vectorize main loop: process 4 elements at a time
+        for (; i <= last - 4; i += 4) {
+            // First pass: compute a values using original b values
+            float32x4_t b_orig = *(float32x4_t*)(b + i - 1);
+            float32x4_t c_vec = *(float32x4_t*)(c + i);
+            float32x4_t a_new = b_orig + c_vec;
+            *(float32x4_t*)(a + i) = a_new;
+
+            // Second pass: compute b values using updated a values
+            float32x4_t a_next = *(float32x4_t*)(a + i + 1);
+            float32x4_t d_vec = *(float32x4_t*)(d + i);
+            float32x4_t b_new = a_next * d_vec;
+            *(float32x4_t*)(b + i) = b_new;
+        }
+
+        // Scalar cleanup for remaining elements
+        for (int k = i; k < last; k++) {
+            a[k] = b[k-1] + c[k];
+            b[k] = a[k+1] * d[k];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a correctness bug in the vectorized loop body.
+
+- **Incorrect vectorized data dependency**: The first pass writes `a[i..i+3]` using `b[i-1..i+2]`, then the second pass reads `a[i+1..i+4]` to compute `b[i..i+3]`. This creates a cross-iteration dependency: `a[i+1]` was just written by the first pass of the *same* vector iteration, but the scalar loop uses the *original* `a[i+1]` from before the current iteration's update. The vectorized version incorrectly uses the newly computed `a` values within the same iteration.
+
+- **Fix**: The vectorized loop must preserve the original sequential semantics. Either:
+  1. Read all `a` values needed for the second pass *before* writing any `a` values in the first pass (e.g., load `a[i+1..i+4]` into a temporary vector before the first store), or
+  2. Restructure to process the two passes as separate loops (first update all `a`, then update all `b`), which would require a different vectorization strategy.
+
+- **Trip count and bounds** are correct: `i` starts at 1, `last = LEN_1D-1`, main loop runs while `i <= last-4`, cleanup handles remaining elements. No issue there.
+
+- **Alignment assumption**: The code uses unaligned vector loads/stores (no alignment attribute), which is fine for x86 but may be slow; not a correctness issue.
+
+        Return a corrected candidate function named `vectorized_s1213`.

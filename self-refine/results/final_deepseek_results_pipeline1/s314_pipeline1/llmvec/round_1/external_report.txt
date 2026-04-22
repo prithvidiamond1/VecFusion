@@ -1,0 +1,22 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_1.c:35:17: error: initializing 'v4f' (vector of 4 'float' values) with an expression of incompatible type 'int __attribute__((ext_vector_type(4)))' (vector of 4 'int' values)
+   35 |             v4f mask = va > vmax;
+      |                 ^      ~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_1.c:38:57: error: unknown type name 'v4f_signed'
+   38 |             vmax = (v4f)((__builtin_convertvector(mask, v4f_signed) & (int32_t)va) | (~__builtin_convertvector(mask, v4f_signed) & (int32_t)vmax));
+      |                                                         ^
+results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_1.c:38:71: error: invalid conversion between vector type 'v4f' (vector of 4 'float' values) and integer type 'int32_t' (aka 'int') of different size
+   38 |             vmax = (v4f)((__builtin_convertvector(mask, v4f_signed) & (int32_t)va) | (~__builtin_convertvector(mask, v4f_signed) & (int32_t)vmax));
+      |                                                                       ^~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_1.c:38:118: error: unknown type name 'v4f_signed'
+   38 |             vmax = (v4f)((__builtin_convertvector(mask, v4f_signed) & (int32_t)va) | (~__builtin_convertvector(mask, v4f_signed) & (int32_t)vmax));
+      |                                                                                                                      ^
+results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_1.c:38:132: error: invalid conversion between vector type 'v4f' (vector of 4 'float' values) and integer type 'int32_t' (aka 'int') of different size
+   38 |             vmax = (v4f)((__builtin_convertvector(mask, v4f_signed) & (int32_t)va) | (~__builtin_convertvector(mask, v4f_signed) & (int32_t)vmax));
+      |                                                                                                                                    ^~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_1.c:38:146: error: expected expression
+   38 |             vmax = (v4f)((__builtin_convertvector(mask, v4f_signed) & (int32_t)va) | (~__builtin_convertvector(mask, v4f_signed) & (int32_t)vmax));
+      |                                                                                                                                                  ^
+6 errors generated.

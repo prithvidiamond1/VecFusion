@@ -1,0 +1,18 @@
+float s316(int iterations, int LEN_1D, float* a)
+{
+    float x;
+    for (int nl = 0; nl < iterations*5; nl++) {
+        float min_val = a[0];
+        
+        // Main vectorizable reduction loop
+        for (int i = 1; i < LEN_1D; ++i) {
+            float temp = a[i];
+            if (temp < min_val) {
+                min_val = temp;
+            }
+        }
+        
+        x = min_val;
+    }
+    return x;
+}

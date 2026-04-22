@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s315_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s315_opt(int iterations, int LEN_1D, float* a) {\n    // First loop: fill array (already vectorizable)\n    for (int i = 0; i < LEN_1D; i++) {\n        a[i] = (i * 7) % LEN_1D;\n    }\n\n    float x, chksum;\n    int index;\n    \n    // Main iterations loop\n    for (int nl = 0; nl < iterations; nl++) {\n        x = a[0];\n        index = 0;\n        \n        // Loop distribution: separate max-value and first-index finding\n        // First find max value (vectorizable reduction)\n        float max_val = a[0];\n        for (int i = 1; i < LEN_1D; ++i) {\n            if (a[i] > max_val) {\n                max_val = a[i];\n            }\n        }\n        \n        // Then find first index with max value (vectorizable comparison)\n        // Use conditional assignment without branching for first occurrence\n        int first_index = 0;\n        for (int i = 0; i < LEN_1D; ++i) {\n            // Update index only when value equals max_val AND first_index hasn't been set yet\n            // This maintains \"first occurrence\" semantics\n            first_index = (a[i] == max_val && first_index == 0) ? i : first_index;\n        }\n        \n        x = max_val;\n        index = first_index;\n        chksum = x + (float)index;\n    }\n    \n    return index + x + 1;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s315_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s315_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s315_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <float.h>\n\nfloat vectorized_s315(int iterations, int LEN_1D, float* a) {\n    // First loop: fill array\n    for (int i = 0; i < LEN_1D; i++) {\n        a[i] = (i * 7) % LEN_1D;\n    }\n\n    float x, chksum;\n    int index;\n\n    for (int nl = 0; nl < iterations; nl++) {\n        x = a[0];\n        index = 0;\n\n        // Find max value using unrolled reduction\n        float max_val = a[0];\n\n        // Process 8 elements at a time\n        float mv0 = a[0], mv1 = -FLT_MAX, mv2 = -FLT_MAX, mv3 = -FLT_MAX;\n        float mv4 = -FLT_MAX, mv5 = -FLT_MAX, mv6 = -FLT_MAX, mv7 = -FLT_MAX;\n\n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 8);\n        for (; i < limit; i += 8) {\n            float v0 = a[i+0], v1 = a[i+1], v2 = a[i+2], v3 = a[i+3];\n            float v4 = a[i+4], v5 = a[i+5], v6 = a[i+6], v7 = a[i+7];\n            mv0 = v0 > mv0 ? v0 : mv0;\n            mv1 = v1 > mv1 ? v1 : mv1;\n            mv2 = v2 > mv2 ? v2 : mv2;\n            mv3 = v3 > mv3 ? v3 : mv3;\n            mv4 = v4 > mv4 ? v4 : mv4;\n            mv5 = v5 > mv5 ? v5 : mv5;\n            mv6 = v6 > mv6 ? v6 : mv6;\n            mv7 = v7 > mv7 ? v7 : mv7;\n        }\n        // Combine partial maxima\n        float mA = mv0 > mv1 ? mv0 : mv1;\n        float mB = mv2 > mv3 ? mv2 : mv3;\n        float mC = mv4 > mv5 ? mv4 : mv5;\n        float mD = mv6 > mv7 ? mv6 : mv7;\n        float mAB = mA > mB ? mA : mB;\n        float mCD = mC > mD ? mC : mD;\n        max_val = mAB > mCD ? mAB : mCD;\n\n        // Scalar tail for max\n        for (; i < LEN_1D; i++) {\n            if (a[i] > max_val) max_val = a[i];\n        }\n\n        // Find first index with max value\n        // Unrolled search for first occurrence\n        int first_index = 0;\n        int found = 0;\n\n        for (int j = 0; j < LEN_1D && !found; j += 8) {\n            int end = j + 8;\n            if (end > LEN_1D) end = LEN_1D;\n            for (int k = j; k < end; k++) {\n                if (a[k] == max_val && first_index == 0) {\n                    first_index = k;\n                    found = 1;\n                    break;\n                }\n            }\n        }\n\n        x = max_val;\n        index = first_index;\n        chksum = x + (float)index;\n    }\n\n    return index + x + 1;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s315_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s315",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s315_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s315_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s315_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

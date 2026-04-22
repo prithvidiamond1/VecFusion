@@ -1,0 +1,8 @@
+- The function returns `sum` which is overwritten each outer loop iteration, losing previous iteration's contributions; should accumulate across outer iterations.
+- The outer loop runs `2 * iterations` times but `sum` is reset each iteration; need to accumulate `sum_a + sum_b` into `sum` across all outer iterations.
+- The vectorized loops use unaligned vector loads/stores (`*(v4f *)&c[i]`) which may cause alignment faults; should use explicit unaligned load/store intrinsics or ensure alignment.
+- Horizontal sum reduction inside vectorized loops is inefficient and may cause aliasing issues; consider using vector reduction intrinsics or a separate scalar accumulator.
+- The scalar tail loops reuse index `i` but reset it between first and second loop; this is correct but ensure `i` is reset before second vectorized loop (already done).
+- The outer loop variable `nl` is unused but that's fine; however, the loop's trip count `2 * iterations` may be large, ensure it doesn't overflow if `iterations` is large (not a correctness issue here).
+- The test failure (exit code 2, return mismatch) likely due to `sum` not accumulating across outer iterations; fix by initializing `sum = 0.0f` outside outer loop and adding `sum_a + sum_b` to `sum` each iteration.
+- The vectorized loops assume `LEN_1D` is positive and at least 4; if `LEN_1D` can be less than 4, the scalar tail loops handle it, but ensure no out-of-bounds access in vector loop condition `i + 3 < LEN_1D`.

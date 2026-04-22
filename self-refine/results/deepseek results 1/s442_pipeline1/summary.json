@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s442_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s442(int iterations, int LEN_1D, float* a, float *b, float* c, float *d, float* e, int* indx)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        for (int i = 0; i < LEN_1D; i++) {\n            int idx = indx[i];\n            if (idx == 2) {\n                a[i] += c[i] * c[i];\n            } else if (idx == 3) {\n                a[i] += d[i] * d[i];\n            } else if (idx == 4) {\n                a[i] += e[i] * e[i];\n            } else {\n                /* case 1 and default (no match in switch): fall through to L15 */\n                a[i] += b[i] * b[i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 3.",
+      "compile_feedback": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 3.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 3,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s442_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s442",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s442_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s442_pipeline1/llmvec/candidate_round_3.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s442_pipeline1/llmvec/candidate_round_3"
+      }
+    }
+  ]
+}

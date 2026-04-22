@@ -1,0 +1,70 @@
+
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations,int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            if (fabsf(a[k]) <= max) {
+                goto L5;
+            }
+            index = i;
+            max = fabsf(a[k]);
+L5:
+            k += inc;
+        }
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+#include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    float max, chksum = 0.0f;
+    for (int nl = 0; nl < iterations; nl++) {
+        int k = 0;
+        int index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            float val = fabsf(a[k]);
+            if (val > max) {
+                index = i;
+                max = val;
+            }
+            k += inc;
+        }
+        chksum = max + (float) index;
+    }
+    return chksum + 1.0f;
+}
+        ```
+
+        Tester feedback:
+        - The vectorizer must ensure that the inner loop’s induction variable `k` is correctly updated per iteration: `k += inc` after each access. The current candidate does not show explicit vectorized handling of `k`; verify that the vectorized version increments `k` by `inc` for each element, not by a fixed stride.
+
+- The inner loop bounds are `i = 1` to `i < LEN_1D`, which is non-canonical (starting at 1). The vectorizer should canonicalize this to start at 0 by adjusting the initial `k` and `max` computation, or explicitly handle the first iteration separately to avoid off-by-one errors in vectorized accesses.
+
+- The reduction of `max` (via conditional update) and the scalar `index` assignment are data-dependent. The vectorizer must preserve the sequential semantics: only update `index` when a new maximum is found. If using masked operations, ensure the mask correctly reflects the comparison and that `index` is set to the last occurrence (since `val > max` uses strict greater-than, ties keep earlier index).
+
+- The outer loop `nl` is a repeat loop for testing; the vectorizer should not attempt to vectorize it, only the inner loop. Confirm that the outer loop remains scalar and that `chksum` is correctly accumulated across outer iterations.
+
+- The return value `chksum + 1.0f` is a scalar operation; ensure no vectorization artifacts affect this final addition.
+
+- The compile succeeded but exit code 2 indicates a runtime mismatch. Focus on the inner loop’s trip count: `LEN_1D - 1` iterations. Verify that the vectorized loop processes exactly that many elements, with the first element (`a[0]`) handled before the loop.
+
+        Return a corrected candidate function named `vectorized_s318`.

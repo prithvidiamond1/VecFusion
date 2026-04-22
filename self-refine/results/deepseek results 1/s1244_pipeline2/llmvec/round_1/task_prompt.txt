@@ -1,0 +1,8 @@
+Vectorize the scalar C function `s1244` below.
+
+Scalar source:
+```c
+d[i] = a[i] + a[i+1];
+```
+
+Produce a candidate function named `vectorized_s1244`.

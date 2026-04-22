@@ -1,0 +1,8 @@
+Vectorize the scalar C function `s242` below.
+
+Scalar source:
+```c
+a[i] = a[i - 1] + s1 + s2 + b[i] + c[i] + d[i];
+```
+
+Produce a candidate function named `vectorized_s242`.

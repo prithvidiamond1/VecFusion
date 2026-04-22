@@ -1,0 +1,13 @@
+The test is checking that the function writes back computed values into the `src` array (the caller's buffer), but the candidate only builds a local `srcBuf` copy and never writes back to `src`.
+
+- **Fix**: After building `srcBuf`, write the values back to `src`. Specifically, copy `srcBuf[0..divCount+1]` back into `src[0..divCount+1]` (or whatever slice the caller expects). The original function likely updates `src` in-place with the boundary points (start, divs..., end).
+
+- **Concrete change**: After the line `srcBuf[divCount + 1] = srcEnd;`, add a loop:
+  ```c
+  for (int i = 0; i <= divCount + 1; i++) {
+      src[i] = srcBuf[i];
+  }
+  ```
+  This restores the write-back to the caller's `src` array that the candidate currently omits.
+
+- **Also check**: The `dst` array write-back looks correct structurally, but verify `dst[divCount + 1] = dstEnd` isn't overwriting a value that should be computed (the accumulation loop already sets `dst[totalSegs]` = `dst[divCount+1]`; the forced assignment to `dstEnd` may mask a rounding difference — consider removing that forced assignment and letting the accumulation stand).

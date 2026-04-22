@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s244_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "void vectorized_s244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // This loop has a loop-carried dependency through a[i+1] and b[i],\n        // so we cannot vectorize across iterations of the inner loop.\n        // We unroll manually but keep the sequential dependency intact.\n        int i = 0;\n        // Unroll by 4, but since there's a dependency chain (b[i] feeds into a[i+1]\n        // which is used in the next iteration), we must process sequentially.\n        // We unroll to help the compiler pipeline the scalar operations.\n        int limit = LEN_1D - 1;\n        int limit4 = limit - (limit % 4);\n\n        for (i = 0; i < limit4; i += 4) {\n            float bi0, bi1, bi2, bi3;\n            float ai0, ai1, ai2, ai3, ai4;\n\n            // iteration i\n            ai0 = b[i] + c[i] * d[i];\n            bi0 = c[i] + b[i];\n            ai1 = bi0 + a[i+1] * d[i];\n            a[i] = ai0;\n            b[i] = bi0;\n            a[i+1] = ai1;\n\n            // iteration i+1\n            ai1 = b[i+1] + c[i+1] * d[i+1];\n            bi1 = c[i+1] + b[i+1];\n            ai2 = bi1 + a[i+2] * d[i+1];\n            a[i+1] = ai1;\n            b[i+1] = bi1;\n            a[i+2] = ai2;\n\n            // iteration i+2\n            ai2 = b[i+2] + c[i+2] * d[i+2];\n            bi2 = c[i+2] + b[i+2];\n            ai3 = bi2 + a[i+3] * d[i+2];\n            a[i+2] = ai2;\n            b[i+2] = bi2;\n            a[i+3] = ai3;\n\n            // iteration i+3\n            ai3 = b[i+3] + c[i+3] * d[i+3];\n            bi3 = c[i+3] + b[i+3];\n            ai4 = bi3 + a[i+4] * d[i+3];\n            a[i+3] = ai3;\n            b[i+3] = bi3;\n            a[i+4] = ai4;\n        }\n\n        // scalar cleanup\n        for (; i < limit; i++) {\n            a[i] = b[i] + c[i] * d[i];\n            b[i] = c[i] + b[i];\n            a[i+1] = b[i] + a[i+1] * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s244_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s244",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s244_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s244_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s244_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s232_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s232(int iterations, float aa[256][256], float bb[256][256])\n{\n    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {\n        for (int j = 1; j < 256; j++) {\n            // The inner loop has a loop-carried dependency:\n            // aa[j][i] = aa[j][i-1]*aa[j][i-1] + bb[j][i]\n            // Each iteration depends on the previous result, so we cannot\n            // vectorize across i. We unroll manually to help the compiler.\n            int i = 1;\n            // Unroll by 4, but note: due to the dependency chain, each\n            // iteration still depends on the previous. We unroll for\n            // instruction-level pipelining benefit.\n            int limit = j - 3;\n            for (; i <= limit; i += 4) {\n                float v0 = aa[j][i-1];\n                v0 = v0 * v0 + bb[j][i];\n                aa[j][i] = v0;\n\n                float v1 = v0;\n                v1 = v1 * v1 + bb[j][i+1];\n                aa[j][i+1] = v1;\n\n                float v2 = v1;\n                v2 = v2 * v2 + bb[j][i+2];\n                aa[j][i+2] = v2;\n\n                float v3 = v2;\n                v3 = v3 * v3 + bb[j][i+3];\n                aa[j][i+3] = v3;\n            }\n            // Scalar cleanup\n            for (; i <= j; i++) {\n                aa[j][i] = aa[j][i-1] * aa[j][i-1] + bb[j][i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s232_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s232",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s232_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s232_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s232_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

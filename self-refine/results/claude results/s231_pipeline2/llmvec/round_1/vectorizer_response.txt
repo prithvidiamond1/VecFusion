@@ -1,0 +1,24 @@
+```c
+#include <stdint.h>
+
+typedef float float4 __attribute__((vector_size(16)));
+
+void vectorized_s231(int iterations, float aa[256][256], float bb[256][256])
+{
+    for (int nl = 0; nl < 100*(iterations/256); nl++) {
+        for (int j = 1; j < 256; j++) {
+            int i = 0;
+            for (; i <= 256 - 4; i += 4) {
+                float4 a_prev, b_cur, result;
+                __builtin_memcpy(&a_prev, &aa[j-1][i], sizeof(float4));
+                __builtin_memcpy(&b_cur,  &bb[j][i],   sizeof(float4));
+                result = a_prev + b_cur;
+                __builtin_memcpy(&aa[j][i], &result, sizeof(float4));
+            }
+            for (; i < 256; i++) {
+                aa[j][i] = aa[j-1][i] + bb[j][i];
+            }
+        }
+    }
+}
+```

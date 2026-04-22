@@ -1,0 +1,7 @@
+- The inner loop that computes `s_vec` uses a sequential dependency (`prev_s = s_vec[j]`) which is not correctly vectorized; the scalar `s` update after the inner loop also depends on the last `a[i+j] > 0.0f` condition, but the vectorized code incorrectly uses `prev_s` from the previous iteration instead of the original scalar `s` from before the inner loop.
+
+- The final loop that updates `s` scans backwards and breaks on the first `a[i+j] > 0.0f`; the current vectorized code does not replicate this backward scan and break logic, leading to incorrect `s` values for subsequent outer iterations.
+
+- The mismatch at index 0 of parameter `a` suggests that the initial value of `s` (0.0f) is not being correctly propagated through the first iteration of the inner loop when `a[0] <= 0.0f`; the vectorized code should use the original `s` (not `prev_s` from a previous vector lane) for the first element of each 4-element chunk.
+
+- Fix: restructure the inner loop to compute `s_vec` sequentially (not vectorized) or use a prefix-sum-like approach that correctly handles the dependency on the previous scalar `s` and the backward scan for the final `s` update.

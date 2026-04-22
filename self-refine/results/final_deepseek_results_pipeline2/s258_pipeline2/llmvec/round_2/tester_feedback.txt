@@ -1,0 +1,15 @@
+- The test failure indicates a mismatch in array `a` after the function runs, but the candidate code only reads from `a` and does not modify it. This suggests the original scalar loop may modify `a`, which the vectorized version does not replicate.
+
+- The first loop in the candidate computes `s_vals` using `a` only for a conditional, but the scalar original likely updates `a[i]` inside the loop. The candidate must preserve all writes to `a`.
+
+- The candidate assumes `N = 256` and `VEC_ITERS = N / VEC_SIZE` with `VEC_SIZE = 4`, but the original loop may have a trip count not divisible by 4. The candidate must handle the remainder iterations.
+
+- The candidate’s first loop has an inner sequential loop over `VEC_SIZE` to maintain dependency for `s`, but it may incorrectly compute `s_vals` because the scalar dependency might cross vector chunk boundaries. The dependency must be preserved across the entire loop, not just within each chunk.
+
+- The candidate’s second and third loops vectorize using `VEC_ITERS`, but if `N` is not a multiple of 4, they will miss the last few elements. A tail loop must be added.
+
+- The candidate does not show the original scalar code, but the mismatch in `a` implies the vectorizer incorrectly assumed `a` is read-only. Check if the original loop writes to `a` (e.g., `a[i] = ...`) and add those writes.
+
+- The candidate uses `float4` loads with pointer casting which may cause alignment issues. Ensure the data is aligned or use unaligned loads if necessary.
+
+- The candidate’s first loop uses `s = d[base + j] * d[base + j]` when `a[i] > 0`, but the scalar original might use a different expression or update `s` differently. Verify the exact computation.

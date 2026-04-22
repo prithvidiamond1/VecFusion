@@ -1,0 +1,13 @@
+- The test expects `a` to be a 2D array `aa[256][256]` used as the main data array, but the function signature has separate `a, b, c, d, e` float pointers plus `aa[256][256]` — check the original benchmark signature for `s258` to confirm the correct parameters.
+- The core issue is the loop-carried dependency on `s`: the reference implementation likely updates `s` only when `a[i] > 0`, but the vectorized version must preserve this exact conditional update semantics — verify the condition and assignment are correct.
+- The mismatch at `a[0]` on trial 0 suggests the function is writing to the wrong output array or reading from the wrong input. Confirm that `b` is the output and `a` is the input condition array.
+- The `s = d[i] * d[i]` assignment inside the loop overwrites `s` on every positive `a[i]`, but `s` should **accumulate or persist** from the last positive index — ensure `s` is not reset between iterations of `nl` (it currently resets to `0.0f` each `nl` iteration, which may be wrong if the reference keeps `s` across outer iterations).
+- Fix: move `float s = 0.0f;` **outside** the `nl` loop if the reference benchmark initializes `s` once before all iterations, e.g.:
+  ```c
+  float s = 0.0f;
+  for (int nl = 0; nl < iterations; nl++) {
+      for (int i = 0; i < 256; ++i) { ... }
+  }
+  ```
+- Verify the array indexing: `aa[0][i]` may need to be `aa[nl % 256][i]` or simply a flat array depending on the original benchmark — using only row 0 every iteration is likely wrong.
+- Remove the comment-only "vectorization" and ensure the loop body exactly matches the reference scalar loop before attempting any transformation.

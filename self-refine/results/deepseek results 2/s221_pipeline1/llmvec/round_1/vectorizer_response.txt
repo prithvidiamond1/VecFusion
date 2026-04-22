@@ -1,0 +1,43 @@
+Looking at this function, I need to analyze the dependencies:
+
+1. `a[i] += c[i] * d[i]` - no loop-carried dependency, can be vectorized
+2. `b[i] = b[i-1] + a[i] + d[i]` - has a loop-carried dependency through `b[i-1]`, so this must remain scalar
+
+Since the second statement has a recurrence relation, I can only vectorize the first statement and keep the second scalar.
+
+```c
+#include <stdint.h>
+
+void vectorized_s221(int iterations, int LEN_1D, float*a, float*b, float*c, float*d)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        // First, vectorize the a[i] update (no loop-carried dependency)
+        int i = 1;
+        // Vector width of 4 floats
+        typedef float float4 __attribute__((vector_size(16)));
+
+        int vec_end = 1 + ((LEN_1D - 1) / 4) * 4;
+
+        for (; i + 3 < LEN_1D; i += 4) {
+            float4 ai, ci, di;
+            // Load
+            __builtin_memcpy(&ai, &a[i], 16);
+            __builtin_memcpy(&ci, &c[i], 16);
+            __builtin_memcpy(&di, &d[i], 16);
+            // Compute
+            ai = ai + ci * di;
+            // Store
+            __builtin_memcpy(&a[i], &ai, 16);
+        }
+        // Scalar tail for a[] update
+        for (; i < LEN_1D; i++) {
+            a[i] += c[i] * d[i];
+        }
+
+        // b[i] has loop-carried dependency: must be scalar
+        for (i = 1; i < LEN_1D; i++) {
+            b[i] = b[i - 1] + a[i] + d[i];
+        }
+    }
+}
+```

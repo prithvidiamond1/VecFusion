@@ -1,0 +1,121 @@
+#include <stdbool.h>
+        #include <stdint.h>
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <string.h>
+        #include <math.h>
+
+        void s451(int iterations, int LEN_1D, float* a, float* b, float* c)
+{
+    int loop_count = iterations / 5;
+
+    for (int nl = 0; nl < loop_count; nl++) {
+        // No loop-carried dependencies - each iteration writes to a[i] 
+        // using only b[i] and c[i], which are read-only in this loop
+        // The operations are independent across i, so we can keep the loop structure
+        // as is for vectorization, but we can split the computation if needed
+
+        // Since sinf(b[i]) and cosf(c[i]) are independent computations,
+        // we could split them, but they both feed into the same assignment.
+        // Instead, we keep the simple structure which is already vectorizable
+
+        for (int i = 0; i < LEN_1D; i++) {
+            a[i] = sinf(b[i]) + cosf(c[i]);
+        }
+    }
+}
+
+        #include <math.h>
+
+void vectorized_s451(int iterations, int LEN_1D, float* a, float* b, float* c)
+{
+    int loop_count = iterations / 5;
+
+    for (int nl = 0; nl < loop_count; nl++) {
+        int i = 0;
+
+#if defined(__clang__) || defined(__GNUC__)
+        /* Use vector width of 8 floats (256-bit) */
+        #define VW 8
+        typedef float vf8 __attribute__((vector_size(VW * sizeof(float))));
+
+        for (; i <= LEN_1D - VW; i += VW) {
+            /* Load 8 floats from b and c */
+            vf8 vb, vc, va;
+            __builtin_memcpy(&vb, b + i, sizeof(vf8));
+            __builtin_memcpy(&vc, c + i, sizeof(vf8));
+
+            /* Scalar fallback per lane - compiler may auto-vectorize sinf/cosf */
+            float rb[VW], rc[VW], ra[VW];
+            __builtin_memcpy(rb, &vb, sizeof(vf8));
+            __builtin_memcpy(rc, &vc, sizeof(vf8));
+
+            for (int k = 0; k < VW; k++) {
+                ra[k] = sinf(rb[k]) + cosf(rc[k]);
+            }
+
+            __builtin_memcpy(&va, ra, sizeof(vf8));
+            __builtin_memcpy(a + i, &va, sizeof(vf8));
+        }
+        #undef VW
+#endif
+
+        /* Scalar cleanup tail */
+        for (; i < LEN_1D; i++) {
+            a[i] = sinf(b[i]) + cosf(c[i]);
+        }
+    }
+}
+
+        static uint32_t next_u32(uint32_t *state) {
+            *state = (*state * 1664525u) + 1013904223u;
+            return *state;
+        }
+
+        static void fill_i32(int *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = (int)(next_u32(state) % 2001u) - 1000;
+            }
+        }
+
+        static void fill_f32(float *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = ((float)(next_u32(state) % 2001u) - 1000.0f) / 17.0f;
+            }
+        }
+
+        static void fill_f64(double *buf, int n, uint32_t *state) {
+            for (int i = 0; i < n; ++i) {
+                buf[i] = ((double)(next_u32(state) % 2001u) - 1000.0) / 17.0;
+            }
+        }
+
+        int main(void) {
+            const int arr_len = 128;
+            uint32_t seed = 7u;
+            int iterations = 5; int LEN_1D = arr_len; float a_scalar[128]; float a_vector[128]; float b_scalar[128]; float b_vector[128]; float c_scalar[128]; float c_vector[128];
+
+            for (int trial = 0; trial < 64; ++trial) {
+                fill_f32(a_scalar, arr_len, &seed); memcpy(a_vector, a_scalar, sizeof(a_scalar)); fill_f32(b_scalar, arr_len, &seed); memcpy(b_vector, b_scalar, sizeof(b_scalar)); fill_f32(c_scalar, arr_len, &seed); memcpy(c_vector, c_scalar, sizeof(c_scalar));
+                s451(iterations, LEN_1D, a_scalar, b_scalar, c_scalar); vectorized_s451(iterations, LEN_1D, a_vector, b_vector, c_vector);
+                for (int i = 0; i < arr_len; ++i) {
+    if (fabsf((a_scalar[i]) - (a_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter a on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < arr_len; ++i) {
+    if (fabsf((b_scalar[i]) - (b_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter b on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+} for (int i = 0; i < arr_len; ++i) {
+    if (fabsf((c_scalar[i]) - (c_vector[i])) > 1e-5f) {
+        fprintf(stderr, "Mismatch in parameter c on trial %d at index %d\n", trial, i);
+        return 2;
+    }
+}
+            }
+
+            printf("PASS trials=%d\n", 64);
+            return 0;
+        }

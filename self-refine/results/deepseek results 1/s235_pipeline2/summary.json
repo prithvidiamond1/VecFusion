@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s235_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s235_opt(int iterations, float* a, float* b, float* c, float aa[256][256], float bb[256][256])\n{\n    int total_nl = 200 * (iterations / 256);\n    \n    for (int nl = 0; nl < total_nl; nl++) {\n        // First: compute all a[i] updates\n        for (int i = 0; i < 256; i++) {\n            a[i] += b[i] * c[i];\n        }\n        \n        // Second: compute aa columns independently\n        for (int i = 0; i < 256; i++) {\n            float a_val = a[i];  // Store in register for reuse\n            float aa_prev = aa[0][i];  // Store previous value\n            \n            for (int j = 1; j < 256; j++) {\n                aa_prev = aa_prev + bb[j][i] * a_val;\n                aa[j][i] = aa_prev;\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s235_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s235_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s235_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s235(int iterations, float* a, float* b, float* c, float aa[256][256], float bb[256][256])\n{\n    int total_nl = 200 * (iterations / 256);\n\n    for (int nl = 0; nl < total_nl; nl++) {\n        // First: compute all a[i] updates - vectorized with unrolling\n        int i = 0;\n        for (; i <= 256 - 8; i += 8) {\n            a[i+0] += b[i+0] * c[i+0];\n            a[i+1] += b[i+1] * c[i+1];\n            a[i+2] += b[i+2] * c[i+2];\n            a[i+3] += b[i+3] * c[i+3];\n            a[i+4] += b[i+4] * c[i+4];\n            a[i+5] += b[i+5] * c[i+5];\n            a[i+6] += b[i+6] * c[i+6];\n            a[i+7] += b[i+7] * c[i+7];\n        }\n        for (; i < 256; i++) {\n            a[i] += b[i] * c[i];\n        }\n\n        // Second: compute aa columns independently\n        // Process multiple columns at once (unroll over i)\n        int col = 0;\n        for (; col <= 256 - 4; col += 4) {\n            float a_val0 = a[col+0];\n            float a_val1 = a[col+1];\n            float a_val2 = a[col+2];\n            float a_val3 = a[col+3];\n\n            float aa_prev0 = aa[0][col+0];\n            float aa_prev1 = aa[0][col+1];\n            float aa_prev2 = aa[0][col+2];\n            float aa_prev3 = aa[0][col+3];\n\n            for (int j = 1; j < 256; j++) {\n                aa_prev0 = aa_prev0 + bb[j][col+0] * a_val0;\n                aa_prev1 = aa_prev1 + bb[j][col+1] * a_val1;\n                aa_prev2 = aa_prev2 + bb[j][col+2] * a_val2;\n                aa_prev3 = aa_prev3 + bb[j][col+3] * a_val3;\n                aa[j][col+0] = aa_prev0;\n                aa[j][col+1] = aa_prev1;\n                aa[j][col+2] = aa_prev2;\n                aa[j][col+3] = aa_prev3;\n            }\n        }\n        for (; col < 256; col++) {\n            float a_val = a[col];\n            float aa_prev = aa[0][col];\n            for (int j = 1; j < 256; j++) {\n                aa_prev = aa_prev + bb[j][col] * a_val;\n                aa[j][col] = aa_prev;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s235_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s235",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s235_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s235_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s235_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

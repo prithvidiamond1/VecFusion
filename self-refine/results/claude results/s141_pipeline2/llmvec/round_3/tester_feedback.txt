@@ -1,0 +1,11 @@
+The compile errors are in the test harness (line 147), not in the candidate code itself. The harness declares `float __restrict__ flat_2d_array_scalar[128]` which is invalid (restrict on non-pointer array). However, since the harness is auto-generated from the function signature, the issue is that the candidate's function signature is fine — the errors are pre-existing harness issues unrelated to the candidate.
+
+But looking more carefully: the errors at line 147 are in the harness, which we cannot change. The warnings about `float[128]` being passed as `float (*)[256]` suggest the harness uses small 128-element arrays while the function expects `bb[256][256]`. This means the candidate is accessing out-of-bounds memory.
+
+Key fixes needed:
+
+- **The `bb` parameter dimension mismatch**: The harness passes a `float[128]` array but the function declares `bb[256][256]` (65536 elements). The function must handle `bb` as a flat pointer and not assume any particular 2D stride — use the same flat indexing the harness uses (likely `bb[i*256+j]` or smaller).
+- **The `static float col_sum[256][256]` is not thread-safe and persists across calls** — replace with a local VLA or heap allocation, or at minimum zero it correctly each call (memset is present, but static storage causes issues if called multiple times in tests).
+- **Out-of-bounds access on `flat_2d_array`**: The harness allocates only 128 floats but the triangular indexing `k` can reach values up to `(255+1)*255/2 + 255 = 32895`, far exceeding 128. The candidate must match the actual array sizes used by the harness.
+- **The `k` update in the unrolled loop is wrong**: After processing `j+7`, you do `k += j + 8` but `j` hasn't been incremented yet, so the next iteration starts with stale `j`. The scalar fallback loop also does `k += j+1` after the body but `j` is already incremented by the loop — verify the k-advancement formula matches the original loop's triangular indexing.
+- **Remove the manual cast `(float * __restrict__)bb`** — this is a C11 violation; use `float *bb_flat = (float *)bb;` instead.

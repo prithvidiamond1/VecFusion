@@ -1,0 +1,38 @@
+```c
+#include <stdlib.h>
+#include <string.h>
+
+void vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {
+    float *temp = (float*)malloc(LEN_1D * sizeof(float));
+
+    for (int nl = 0; nl < 3 * iterations; nl++) {
+        // Copy original 'a' values to temp before modification
+        memcpy(temp, a, LEN_1D * sizeof(float));
+
+        // Process all iterations in forward order using original values
+        // a[i+1] = temp[i] + b[i] for i in [0, LEN_1D-2]
+        // This is: a[1..LEN_1D-1] = temp[0..LEN_1D-2] + b[0..LEN_1D-2]
+        // No loop-carried dependency since we use temp[], so vectorizable.
+        int i = 0;
+        int n = LEN_1D - 1;
+
+#if defined(__clang__) || defined(__GNUC__)
+        typedef float float4 __attribute__((vector_size(16)));
+        int vec_end = n - (n % 4);
+        for (; i < vec_end; i += 4) {
+            float4 t, bv, res;
+            __builtin_memcpy(&t,  temp + i, 16);
+            __builtin_memcpy(&bv, b    + i, 16);
+            res = t + bv;
+            __builtin_memcpy(a + i + 1, &res, 16);
+        }
+#endif
+        // Scalar tail
+        for (; i < n; i++) {
+            a[i + 1] = temp[i] + b[i];
+        }
+    }
+
+    free(temp);
+}
+```

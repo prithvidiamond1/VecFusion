@@ -1,0 +1,16 @@
+{
+  "pipeline": "vectrans_only",
+  "success": true,
+  "final_stage": "vectrans_only",
+  "final_code_path": "results/vectrans_only_suite/set_points/vectrans_only_input.c",
+  "steps": [
+    {
+      "stage": "vectrans_only",
+      "ok": true,
+      "candidate_code": "\nvoid set_points_opt(float* dst, int* src, const int* divs, int divCount, int srcFixed,\n                    int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,\n                    bool isScalable) {\n    float dstLen = dstEnd - dstStart;\n    float scale;\n    int normal_case = (srcFixed <= dstLen);\n    \n    if (normal_case) {\n        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);\n    } else {\n        scale = dstLen / ((float) srcFixed);\n    }\n\n    src[0] = srcStart;\n    dst[0] = dstStart;\n    \n    // Pre-compute all src positions first (independent)\n    for (int i = 0; i < divCount; i++) {\n        src[i + 1] = divs[i];\n    }\n    \n    // Compute all srcDelta values in a separate vectorizable loop\n    int* srcDelta = (int*)__builtin_alloca(divCount * sizeof(int));\n    for (int i = 0; i < divCount; i++) {\n        srcDelta[i] = src[i + 1] - src[i];\n    }\n    \n    // Compute scalable flags without loop-carried dependency\n    int* scalable_flag = (int*)__builtin_alloca(divCount * sizeof(int));\n    int start_flag = isScalable ? 1 : 0;\n    for (int i = 0; i < divCount; i++) {\n        scalable_flag[i] = start_flag ^ (i & 1);\n    }\n    \n    // Compute dstDelta_temp using arithmetic masking (no branching)\n    float* dstDelta_temp = (float*)__builtin_alloca(divCount * sizeof(float));\n    if (normal_case) {\n        // dstDelta = isScalable ? scale * srcDelta : srcDelta\n        for (int i = 0; i < divCount; i++) {\n            float fixed_part = (float)srcDelta[i] * (1.0f - scalable_flag[i]);\n            float scalable_part = scale * (float)srcDelta[i] * scalable_flag[i];\n            dstDelta_temp[i] = fixed_part + scalable_part;\n        }\n    } else {\n        // dstDelta = isScalable ? 0.0f : scale * srcDelta\n        for (int i = 0; i < divCount; i++) {\n            dstDelta_temp[i] = scale * (float)srcDelta[i] * (1.0f - scalable_flag[i]);\n        }\n    }\n    \n    // Compute dst positions with prefix sum\n    // This dependency remains but is isolated in a simple loop\n    for (int i = 0; i < divCount; i++) {\n        dst[i + 1] = dst[i] + dstDelta_temp[i];\n    }\n    \n    src[divCount + 1] = srcEnd;\n    dst[divCount + 1] = dstEnd;\n}\n",
+      "summary": "",
+      "artifact_path": "",
+      "error": null
+    }
+  ]
+}

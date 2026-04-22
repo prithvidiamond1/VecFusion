@@ -1,0 +1,10 @@
+The errors are in the test harness code (lines 123+), not in the candidate function itself. The compile errors show:
+
+- `float __restrict__ flat_2d_array_scalar[128]` — `__restrict__` cannot be applied to array declarations, only pointers. The test harness is using array declarations with `__restrict__`, which is invalid.
+- The test arrays are sized `[128]` but the function expects `float bb[256][256]` — size mismatch causing incompatible pointer type warnings.
+
+These are harness-side issues injected alongside the candidate. The fixes needed in the harness (which the vectorizer must emit correctly):
+
+- Remove `__restrict__` from array variable declarations (e.g., `float flat_2d_array_scalar[128]` not `float __restrict__ flat_2d_array_scalar[128]`).
+- Size the test arrays appropriately: `flat_2d_array` should be large enough for the triangular index `k` which can reach up to ~`256*257/2 ≈ 32896`, so use at least `float flat_2d_array_scalar[33000]` (not `[128]`).
+- Size `bb` arrays as `float bb_scalar[256*256]` (or `float bb_scalar[256][256]`) not `[128]`.

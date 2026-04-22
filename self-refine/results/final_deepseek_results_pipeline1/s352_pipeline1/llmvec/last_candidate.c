@@ -1,0 +1,24 @@
+#include <stdint.h>
+typedef float v4sf __attribute__((__vector_size__(16)));
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float *b) {
+    float dot = 0.0f;
+    for (int nl = 0; nl < iterations; nl++) {
+        v4sf dot_vec = {0.0f, 0.0f, 0.0f, 0.0f};
+        int i = 0;
+        int vec_end = LEN_1D & ~3;
+        if (LEN_1D >= 4) {
+            for (; i < vec_end; i += 4) {
+                v4sf a_vec = __builtin_ia32_loadups(a + i);
+                v4sf b_vec = __builtin_ia32_loadups(b + i);
+                dot_vec += a_vec * b_vec;
+            }
+        }
+        float tail_dot = 0.0f;
+        for (; i < LEN_1D; i++) {
+            tail_dot += a[i] * b[i];
+        }
+        dot += dot_vec[0] + dot_vec[1] + dot_vec[2] + dot_vec[3] + tail_dot;
+    }
+    return dot;
+}

@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s314_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s314_opt(int iterations, int LEN_1D, float* a)\n{\n    float x;\n    for (int nl = 0; nl < iterations*5; nl++) {\n        x = a[0];\n        for (int i = 0; i < LEN_1D; i++) {\n            float current = a[i];\n            x = (current > x) ? current : x;\n        }\n    }\n    return x;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s314_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s314_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s314_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "typedef float float4 __attribute__((ext_vector_type(4)));\n\nfloat vectorized_s314(int iterations, int LEN_1D, float* a)\n{\n    float x;\n    for (int nl = 0; nl < iterations*5; nl++) {\n        x = a[0];\n        \n        // Vectorized main loop\n        int i = 0;\n        if (LEN_1D >= 4) {\n            float4 vmax = (float4){x, x, x, x};\n            for (; i <= LEN_1D - 4; i += 4) {\n                float4 vcurrent = *(float4*)&a[i];\n                \n                // Component-wise maximum\n                vmax = (float4){\n                    vcurrent.x > vmax.x ? vcurrent.x : vmax.x,\n                    vcurrent.y > vmax.y ? vcurrent.y : vmax.y,\n                    vcurrent.z > vmax.z ? vcurrent.z : vmax.z,\n                    vcurrent.w > vmax.w ? vcurrent.w : vmax.w\n                };\n            }\n            \n            // Reduce vector maximum to scalar\n            float vmax_reduced = vmax.x;\n            if (vmax.y > vmax_reduced) vmax_reduced = vmax.y;\n            if (vmax.z > vmax_reduced) vmax_reduced = vmax.z;\n            if (vmax.w > vmax_reduced) vmax_reduced = vmax.w;\n            x = vmax_reduced;\n        }\n        \n        // Scalar tail cleanup\n        for (; i < LEN_1D; i++) {\n            float current = a[i];\n            x = (current > x) ? current : x;\n        }\n    }\n    return x;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s314_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s314",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s314_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s314_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s314_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s314_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

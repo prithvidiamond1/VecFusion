@@ -1,0 +1,29 @@
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s112(float *a, float *b, int iterations, int LEN_1D) {
+    int total_iters = 3 * iterations;
+    
+    for (int nl = 0; nl < total_iters; nl++) {
+        // Vectorized backward processing
+        int i = LEN_1D - 2;
+        
+        // Process vector chunks
+        for (; i >= 3; i -= 4) {
+            float4 a_vec = (float4){a[i-3], a[i-2], a[i-1], a[i]};
+            float4 b_vec = (float4){b[i-3], b[i-2], b[i-1], b[i]};
+            float4 temp_vec = a_vec + b_vec;
+            
+            // Store results shifted by +1 position
+            a[i-2] = temp_vec[0];
+            a[i-1] = temp_vec[1];
+            a[i] = temp_vec[2];
+            a[i+1] = temp_vec[3];
+        }
+        
+        // Scalar cleanup for remaining elements
+        for (; i >= 0; i--) {
+            float temp = a[i] + b[i];
+            a[i + 1] = temp;
+        }
+    }
+}

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s482_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stddef.h>\n\ntypedef float float32x4_t __attribute__((ext_vector_type(4)));\ntypedef int int32x4_t __attribute__((ext_vector_type(4)));\n\nvoid vectorized_s482(int iterations, int LEN_1D, float* a, float *b, float *c) {\n    for (int nl = 0; nl < iterations; nl++) {\n        int i = 0;\n        // Vectorized main loop\n        for (; i <= LEN_1D - 4; i += 4) {\n            float32x4_t va = *(float32x4_t*)(a + i);\n            float32x4_t vb = *(float32x4_t*)(b + i);\n            float32x4_t vc = *(float32x4_t*)(c + i);\n            float32x4_t vprod = vb * vc;\n            va += vprod;\n            *(float32x4_t*)(a + i) = va;\n\n            // Check break condition for each element\n            int32x4_t cmp = vc > vb;\n            int32x4_t mask = cmp;\n            int scalar_mask = __builtin_reduce_or(mask);\n            if (scalar_mask) {\n                // Find the first element that triggered the break\n                int first_break = i;\n                for (int j = 0; j < 4; j++) {\n                    if (c[i + j] > b[i + j]) {\n                        first_break = i + j;\n                        break;\n                    }\n                }\n                i = first_break; // Start cleanup at the break element\n                break;\n            }\n        }\n        // Scalar cleanup\n        for (; i < LEN_1D; i++) {\n            a[i] += b[i] * c[i];\n            if (c[i] > b[i]) break;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 4",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 4",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s482_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s482",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s482_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s482_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s482_opt(int iterations, int LEN_1D, float* a, float *b, float *c)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // Find the break point first  \n        int break_point = LEN_1D;\n        for (int i = 0; i < LEN_1D - 1; i++) {\n            if (c[i] > b[i]) {\n                break_point = i;\n                break;\n            }\n        }\n        \n        // Vectorizable prefix: no break condition to check  \n        for (int i = 0; i < break_point; i++) {\n            a[i] += b[i] * c[i];\n        }\n        \n        // Handle the break iteration  \n        if (break_point < LEN_1D) {\n            a[break_point] += b[break_point] * c[break_point];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s482_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s482_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline1_20260422_044515/s482_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

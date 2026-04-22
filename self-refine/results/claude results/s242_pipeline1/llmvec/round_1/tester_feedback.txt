@@ -1,0 +1,16 @@
+- The VLA `float tmp[LEN_1D]` is allocated on the stack each iteration of the outer loop, which is fine, but the real issue is that `tmp[0]` is never initialized, and more importantly the recurrence starting value `a[0]` is never updated — the original loop `a[i] = a[i-1] + tmp[i]` for `i` starting at 1 is correct, but `a[0]` must remain unchanged (which it does). That part looks correct.
+
+- The actual bug: the limit calculation `LEN_1D - ((LEN_1D - 1) % 8)` is wrong. When `LEN_1D - 1` is exactly divisible by 8, `limit == LEN_1D`, causing the unrolled loop to access `tmp[LEN_1D]` through `tmp[LEN_1D+6]` — **out-of-bounds write**, corrupting stack/heap data including `a[]`.
+
+- Fix the limit to ensure the unrolled loop never goes past `LEN_1D`: change `int limit = LEN_1D - ((LEN_1D - 1) % 8);` to:
+  ```c
+  int limit = 1 + ((LEN_1D - 1) / 8) * 8;
+  if (limit + 7 >= LEN_1D) limit = 1; // fallback if no full 8-wide chunk fits
+  ```
+  Or more simply:
+  ```c
+  int limit = LEN_1D - 7; // ensure i+7 < LEN_1D
+  if (limit < 1) limit = 1;
+  ```
+
+- Replace the broken limit with `int limit = LEN_1D - 7;` so that `i+7 <= LEN_1D - 1` is always satisfied inside the unrolled loop, then let the scalar cleanup loop handle the remainder.

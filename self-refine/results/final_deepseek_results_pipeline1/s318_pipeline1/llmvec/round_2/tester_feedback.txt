@@ -1,0 +1,9 @@
+The candidate compiles but produces incorrect results (exit code 2 indicates a runtime mismatch). The issue is that the vectorizer likely restructured the loop incorrectly for the reduction pattern.
+
+**Specific fixes needed:**
+
+- The loop contains a conditional max reduction with index tracking (`if (val > max) { index = i; max = val; }`). Ensure the vectorizer preserves the sequential dependency: `index` must only update when `val > max`, not based on any reordered or speculative computation.
+- The trip count is `LEN_1D - 1` (starting at `i=1`). Verify the vectorizer uses this exact bound and does not introduce off-by-one errors when peeling or remainder-looping.
+- The induction variable `k` increments by `inc` each iteration. Confirm the vectorizer correctly handles the non-unit stride access `a[k]` — it must not assume contiguous memory or simplify `k += inc` into a linear index without accounting for the stride.
+- The scalar `max` is initialized before the inner loop and updated conditionally. The vectorizer must not hoist or speculate `max` updates across iterations in a way that changes the final value.
+- Ensure the final `chksum = max + (float) index` uses the scalar results from the last iteration, not a vector-reduced value that might combine partial results incorrectly.

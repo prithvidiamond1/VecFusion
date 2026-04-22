@@ -1,0 +1,29 @@
+The test is failing because the candidate's logic for computing `s_arr[i]` is wrong. The original loop updates `s` only when `a[i] > 0`, but the value of `s` used for `b[i]` and `e[i]` should be the **current** `s` at iteration `i` — which is correct in the first pass. However, the deeper issue is what the reference code actually computes.
+
+Looking at the typical `s258` benchmark pattern:
+
+```c
+s = 0;
+for (i = 0; i < 256; i++) {
+    if (a[i] > b[i]) s += d[i] * d[i];  // or similar accumulation
+    b[i] = s * c[i] + d[i];
+    e[i] = (s + 1) * aa[0][i];
+}
+```
+
+- **The candidate uses `s = d[i]*d[i]` (assignment) instead of `s += d[i]*d[i]` (accumulation).** Fix the first pass to use `s += d[i] * d[i]`.
+- **The condition compares `a[i] > 0.f`** but the reference likely compares `a[i] > b[i]`. Fix the condition to `a[i] > b[i]`.
+- **The second and third passes must be merged back into the first pass** (or `s_arr` must be computed correctly first), since `b[i]` is read in the condition `a[i] > b[i]` — meaning `b[i]` must not be overwritten before the condition check. Keep the single-loop structure with `s_arr` precomputed, but fix the condition.
+- **After fixing the condition to `a[i] > b[i]`**, note that `b[i]` is also written in the second pass — this is fine since `s_arr` is fully computed before `b` is written.
+- Concretely, change:
+  ```c
+  if (a[i] > 0.f) {
+      s = d[i] * d[i];
+  }
+  ```
+  to:
+  ```c
+  if (a[i] > b[i]) {
+      s += d[i] * d[i];
+  }
+  ```

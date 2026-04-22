@@ -1,0 +1,71 @@
+Revise your candidate for `s242` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s242(int iterations, int LEN_1D, float s1, float s2, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations/5; nl++) {
+        for (int i = 1; i < LEN_1D; ++i) {
+            a[i] = a[i - 1] + s1 + s2 + b[i] + c[i] + d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        void vectorized_s242(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d)
+{
+    float s12 = s1 + s2;
+    for (int nl = 0; nl < iterations/5; nl++) {
+        // This loop has a loop-carried dependency: a[i] depends on a[i-1]
+        // We can partially vectorize by computing the independent parts (b[i]+c[i]+d[i]+s12)
+        // and then doing the recurrence in scalar.
+        // Precompute the independent increments
+        float tmp[LEN_1D];
+
+        // Vectorize the independent part
+        int i = 1;
+        int limit = LEN_1D - ((LEN_1D - 1) % 8);
+
+        for (; i < limit; i += 8) {
+            tmp[i]   = b[i]   + c[i]   + d[i]   + s12;
+            tmp[i+1] = b[i+1] + c[i+1] + d[i+1] + s12;
+            tmp[i+2] = b[i+2] + c[i+2] + d[i+2] + s12;
+            tmp[i+3] = b[i+3] + c[i+3] + d[i+3] + s12;
+            tmp[i+4] = b[i+4] + c[i+4] + d[i+4] + s12;
+            tmp[i+5] = b[i+5] + c[i+5] + d[i+5] + s12;
+            tmp[i+6] = b[i+6] + c[i+6] + d[i+6] + s12;
+            tmp[i+7] = b[i+7] + c[i+7] + d[i+7] + s12;
+        }
+        for (; i < LEN_1D; i++) {
+            tmp[i] = b[i] + c[i] + d[i] + s12;
+        }
+
+        // Scalar recurrence (loop-carried dependency, cannot be vectorized)
+        for (i = 1; i < LEN_1D; i++) {
+            a[i] = a[i-1] + tmp[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The VLA `float tmp[LEN_1D]` is allocated on the stack each iteration of the outer loop, which is fine, but the real issue is that `tmp[0]` is never initialized, and more importantly the recurrence starting value `a[0]` is never updated — the original loop `a[i] = a[i-1] + tmp[i]` for `i` starting at 1 is correct, but `a[0]` must remain unchanged (which it does). That part looks correct.
+
+- The actual bug: the limit calculation `LEN_1D - ((LEN_1D - 1) % 8)` is wrong. When `LEN_1D - 1` is exactly divisible by 8, `limit == LEN_1D`, causing the unrolled loop to access `tmp[LEN_1D]` through `tmp[LEN_1D+6]` — **out-of-bounds write**, corrupting stack/heap data including `a[]`.
+
+- Fix the limit to ensure the unrolled loop never goes past `LEN_1D`: change `int limit = LEN_1D - ((LEN_1D - 1) % 8);` to:
+  ```c
+  int limit = 1 + ((LEN_1D - 1) / 8) * 8;
+  if (limit + 7 >= LEN_1D) limit = 1; // fallback if no full 8-wide chunk fits
+  ```
+  Or more simply:
+  ```c
+  int limit = LEN_1D - 7; // ensure i+7 < LEN_1D
+  if (limit < 1) limit = 1;
+  ```
+
+- Replace the broken limit with `int limit = LEN_1D - 7;` so that `i+7 <= LEN_1D - 1` is always satisfied inside the unrolled loop, then let the scalar cleanup loop handle the remainder.
+
+        Return a corrected candidate function named `vectorized_s242`.

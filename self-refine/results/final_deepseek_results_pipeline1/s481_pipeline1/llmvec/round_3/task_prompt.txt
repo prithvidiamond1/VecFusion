@@ -1,0 +1,70 @@
+
+Revise your candidate for `s481` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s481(int iterations,int LEN_1D, float* a, float *b, float *c, float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < LEN_1D; i++) {
+            if (d[i] < (float)0.) {
+                return;
+            }
+            a[i] += b[i] * c[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+typedef int int32_vec_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s481(int iterations, int LEN_1D, float* a, float *b, float *c, float* d) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        // Vectorized loop
+        for (; i <= LEN_1D - 4; i += 4) {
+            float32_t d_vec = *(float32_t*)(d + i);
+            float32_t zero = (float32_t){0.0f, 0.0f, 0.0f, 0.0f};
+            int32_vec_t cmp = (int32_vec_t)(d_vec < zero);
+            if (__builtin_reduce_or(cmp)) {
+                // Find first negative element
+                for (int j = 0; j < 4; j++) {
+                    if (d[i + j] < 0.0f) {
+                        return;
+                    }
+                }
+            }
+            float32_t a_vec = *(float32_t*)(a + i);
+            float32_t b_vec = *(float32_t*)(b + i);
+            float32_t c_vec = *(float32_t*)(c + i);
+            a_vec += b_vec * c_vec;
+            *(float32_t*)(a + i) = a_vec;
+        }
+        // Scalar cleanup
+        for (; i < LEN_1D; i++) {
+            if (d[i] < 0.0f) {
+                return;
+            }
+            a[i] += b[i] * c[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - **Incorrect early exit semantics**: The vectorized loop uses `return` when a negative `d` element is found, but the original scalar loop likely only exits the innermost loop iteration (`nl`), not the entire function. Change `return` to a break or flag-based exit that continues to the next `nl` iteration.
+
+- **Missing loop-carried dependency handling**: The vectorized loop updates `a[i]` in place, which is correct only if no other iteration reads the same `a` element. Verify that `a`, `b`, `c`, `d` do not alias; if they might, add `restrict` or fall back to scalar.
+
+- **Incorrect trip count for vectorized loop**: The bound `i <= LEN_1D - 4` may underflow if `LEN_1D < 4`. Add a guard to skip the vectorized loop when `LEN_1D < 4`.
+
+- **Unsafe vector load alignment**: `*(float32_t*)(d + i)` assumes 16-byte alignment. Use `__builtin_assume_aligned` or a safe unaligned load if alignment is not guaranteed.
+
+- **Reduction of `cmp` may be incorrect for early exit**: `__builtin_reduce_or(cmp)` checks if any element is negative, but the subsequent scalar loop over `j` uses `return` again. Replace the inner `return` with a flag that breaks out of the vectorized loop and skips the update for that `nl` iteration.
+
+        Return a corrected candidate function named `vectorized_s481`.

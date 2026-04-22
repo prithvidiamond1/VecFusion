@@ -1,0 +1,9 @@
+- The original `s318` uses `inc=1` (stride-1 access), so `a[i * inc]` is correct, but the reference likely initializes `a[0]` as the starting element with `index=0` referring to 1-based or 0-based indexing — check that `index` starts at `0` and `max = fabsf(a[0])` is correct (this part looks fine).
+
+- The main bug: the loop runs `iterations/2` times but the reference scalar likely runs `iterations` times. Change `iterations/2` to `iterations` to match the expected iteration count.
+
+- If the reference uses 1-based indexing (i.e., starts `i` from 1 and reports 1-based index), the returned `index` value will differ. Verify whether the reference initializes `index=1` and starts scanning from `i=2`, or `index=0` from `i=1`. The current code uses `index=0, i=1` which is 0-based — ensure this matches the reference implementation exactly.
+
+- The `inc` parameter: if `inc` can be non-1, `a[0]` should be `a[0 * inc]` (i.e., `a[0]`) — that's already correct since `0 * inc = 0`.
+
+- Most likely the sole fix needed: change `iterations/2` → `iterations` in the outer loop bound.

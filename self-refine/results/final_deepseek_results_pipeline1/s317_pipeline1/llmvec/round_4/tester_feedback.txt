@@ -1,0 +1,10 @@
+The candidate compiles but produces incorrect results (exit code 2 indicates a runtime mismatch).
+
+**Specific issues to fix:**
+
+- The vectorized inner loop multiplies `inner_product` by `0.99f^4` per iteration, but the scalar loop multiplies by `0.99f` per iteration — this is correct only if `inner_len` is a multiple of 4, which is not guaranteed since `LEN_1D` can be odd.
+- The trip count for the vector loop is `inner_len / 4` (integer division), but the scalar remainder loop handles `inner_len % 4` extra iterations — this is correct in structure, but the mismatch suggests the scalar remainder loop is not being executed when it should be.
+- Verify that the scalar remainder loop actually runs when `inner_len` is not a multiple of 4 — the current code has `i` starting at the vector loop's end, but the scalar loop condition `i < inner_len` may be skipped if `inner_len` is already reached.
+- The outer loop multiplies `q` by `inner_product` each iteration — ensure `inner_product` is reset to `1.0f` at the start of each outer iteration (it is, so this is fine).
+- Check that `inner_len = LEN_1D / 2` is computed correctly — integer division truncates, which is fine, but the test may expect different behavior for odd `LEN_1D`.
+- The most likely fix: ensure the scalar remainder loop is entered when `inner_len` is not a multiple of 4 — currently `i` starts at `0` and the vector loop increments by 4, so the remainder loop should work; double-check that the vector loop's upper bound `i + 4 <= inner_len` correctly leaves `i` at the right value.

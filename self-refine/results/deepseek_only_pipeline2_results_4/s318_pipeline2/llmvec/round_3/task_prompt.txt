@@ -1,0 +1,134 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Do not aggressively rewrite the code from scratch unless a clear blocker remains.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Avoid introducing unnecessary new dependency-breaking transformations.
+
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations,int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        // Precompute all absolute values into a temporary array
+        // This allows vectorization of fabsf calls
+        float* abs_vals = (float*)__builtin_alloca(LEN_1D * sizeof(float));
+        int current_k = k;
+        for (int i = 1; i < LEN_1D; i++) {
+            abs_vals[i] = fabsf(a[current_k]);
+            current_k += inc;
+        }
+
+        // Separate reduction into two independent loops
+        // First: find maximum value (simple reduction pattern)
+        float max_val = max;
+        for (int i = 1; i < LEN_1D; i++) {
+            float abs_val = abs_vals[i];
+            if (abs_val > max_val) {
+                max_val = abs_val;
+            }
+        }
+
+        // Second: find first index where value equals maximum
+        // This avoids the complex argmax reduction pattern
+        int max_idx = 0;
+        for (int i = 1; i < LEN_1D; i++) {
+            if (abs_vals[i] == max_val) {
+                max_idx = i;
+                break;  // Only need first occurrence
+            }
+        }
+
+        // Update original variables
+        index = max_idx;
+        max = max_val;
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+#include <string.h>
+#include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc) {
+    float max = 0.0f;
+    int index = 0;
+
+    for (int nl = 0; nl < iterations/2; nl++) {
+        int k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        // Vectorized maximum reduction with index tracking
+        float max_val = max;
+        int max_idx = 0;
+        int current_k = k;
+
+        // Process in chunks of 4
+        int i;
+        for (i = 1; i + 3 < LEN_1D; i += 4) {
+            // Load 4 values with stride
+            float v0 = fabsf(a[current_k]);
+            current_k += inc;
+            float v1 = fabsf(a[current_k]);
+            current_k += inc;
+            float v2 = fabsf(a[current_k]);
+            current_k += inc;
+            float v3 = fabsf(a[current_k]);
+            current_k += inc;
+
+            // Track maximum and index
+            if (v0 > max_val) { max_val = v0; max_idx = i; }
+            if (v1 > max_val) { max_val = v1; max_idx = i + 1; }
+            if (v2 > max_val) { max_val = v2; max_idx = i + 2; }
+            if (v3 > max_val) { max_val = v3; max_idx = i + 3; }
+        }
+
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float abs_val = fabsf(a[current_k]);
+            current_k += inc;
+            if (abs_val > max_val) {
+                max_val = abs_val;
+                max_idx = i;
+            }
+        }
+
+        // Update k to match original scalar behavior
+        k = current_k;
+
+        // Update original variables
+        index = max_idx;
+        max = max_val;
+        float chksum = max + (float)index;
+    }
+
+    return max + index + 1;
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop incorrectly initializes `current_k = k` where `k = inc`, but the scalar loop starts at `i = 1` with `k` already incremented once. This misaligns memory access indices.
+- The scalar loop increments `k` before reading `a[k]` in each iteration, but the vectorized loop reads `a[current_k]` then increments `current_k`. This reverses the order, causing off-by-one errors.
+- The index `max_idx` tracks vector-relative positions (`i`, `i+1`, etc.), but the original scalar index is based on `k` increments, not loop counter `i`. The mapping between `i` and `k` is non-linear due to stride `inc`.
+- The scalar tail loop uses `current_k` which may have been over-incremented beyond the array bounds if `LEN_1D` is not a multiple of 4.
+- The reduction variables `max_val` and `max_idx` are initialized with `max` and `0`, but `max` is set to `fabsf(a[0])` and `index = 0`. This matches the scalar start, but the vector loop starts at `i=1`, skipping the first element.
+- The final `k = current_k` assignment does not affect the outer loop because `k` is reset each iteration, but the scalar loop's `k` is used to compute the next iteration's starting point incorrectly.
+- The function returns `max + index + 1`, but the scalar reference may expect a different formula; however, the immediate failure is due to incorrect max/index values.
+- The vectorized loop must exactly replicate the scalar access pattern: for each `i` from `1` to `LEN_1D-1`, read `a[k]` where `k` starts at `inc` and increments by `inc` each step.
+
+        Return a corrected candidate function named `vectorized_s318`.

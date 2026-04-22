@@ -1,0 +1,14 @@
+The cleanup loop assumes remaining elements are always a multiple of 5, but `LEN_1D % 20` can leave 5, 10, or 15 elements — which are multiples of 5, so that's fine. However, the real issue is that `LEN_1D` itself may not be a multiple of 5, causing out-of-bounds access in the cleanup loop (`i + 1` through `i + 4` may exceed `LEN_1D`).
+
+More critically, the return value mismatch suggests the accumulation logic differs from the reference. The original `s352` does a simple dot product `dot += a[i]*b[i]` for all `i` in `[0, LEN_1D)`, not grouped by 5.
+
+- **Root cause**: The original loop is a plain dot product over all `LEN_1D` elements. The candidate incorrectly structures cleanup in steps of 5, which can read out-of-bounds and produce wrong results when `LEN_1D` is not a multiple of 5 (or 20).
+- **Fix**: Replace the cleanup loop with a simple scalar loop `for (; i < LEN_1D; i++) dot += a[i] * b[i];` — no step of 5, no `i+1..i+4` accesses.
+- **Also fix**: The main loop's grouping-by-5 structure is fine for performance but the cleanup must handle any remainder 1–19 elements one at a time, not in chunks of 5.
+- **Specifically change** the cleanup loop to:
+  ```c
+  for (; i < LEN_1D; i++) {
+      dot += a[i] * b[i];
+  }
+  ```
+- This prevents out-of-bounds reads when `LEN_1D % 5 != 0` and matches the reference scalar behavior exactly.

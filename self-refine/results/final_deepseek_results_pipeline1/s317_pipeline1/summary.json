@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s317_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <math.h>\n\nfloat vectorized_s317(int iterations, int LEN_1D) {\n    float q = 1.0f;\n    int total_outer = 5 * iterations;\n    int inner_len = LEN_1D / 2;\n    \n    float inner_product = powf(0.99f, (float)inner_len);\n    \n    for (int nl = 0; nl < total_outer; nl++) {\n        q *= inner_product;\n    }\n    \n    return q;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s317_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s317",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s317_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s317_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s317_opt(int iterations, int LEN_1D)\n{\n    float q = 1.0f;\n    int inner_iterations = LEN_1D / 2;\n    \n    // Compute q once\n    for (int i = 0; i < inner_iterations; i++) {\n        q *= 0.99f;\n    }\n    \n    // No need to repeat the inner loop - q is the same each time\n    // The outer loop just multiplies by 1 each iteration (no change)\n    // So we just return q\n    \n    return q;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s317_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s317_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline1_20260422_044515/s317_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

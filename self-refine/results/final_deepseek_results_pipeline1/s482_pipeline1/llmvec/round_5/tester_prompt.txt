@@ -1,0 +1,50 @@
+Candidate code:
+```c
+#include <stddef.h>
+
+typedef float float32x4_t __attribute__((ext_vector_type(4)));
+typedef int int32x4_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s482(int iterations, int LEN_1D, float* a, float *b, float *c) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        // Vectorized main loop
+        for (; i <= LEN_1D - 4; i += 4) {
+            float32x4_t va = *(float32x4_t*)(a + i);
+            float32x4_t vb = *(float32x4_t*)(b + i);
+            float32x4_t vc = *(float32x4_t*)(c + i);
+            float32x4_t vprod = vb * vc;
+            va += vprod;
+            *(float32x4_t*)(a + i) = va;
+
+            // Check break condition for each element
+            int32x4_t cmp = vc > vb;
+            int32x4_t mask = cmp;
+            int scalar_mask = __builtin_reduce_or(mask);
+            if (scalar_mask) {
+                // Find the first element that triggered the break
+                int first_break = i;
+                for (int j = 0; j < 4; j++) {
+                    if (c[i + j] > b[i + j]) {
+                        first_break = i + j;
+                        break;
+                    }
+                }
+                i = first_break + 1; // Start cleanup after the break element
+                break;
+            }
+        }
+        // Scalar cleanup
+        for (; i < LEN_1D; i++) {
+            a[i] += b[i] * c[i];
+            if (c[i] > b[i]) break;
+        }
+    }
+}
+```
+
+External compile/test report:
+Compile succeeded for round 5.
+Exit code: 2
+stderr:
+Mismatch in parameter a on trial 0 at index 4

@@ -1,0 +1,39 @@
+float s315(int iterations, int LEN_1D, float* a) {
+    // First loop: fill array (already vectorizable)
+    for (int i = 0; i < LEN_1D; i++) {
+        a[i] = (i * 7) % LEN_1D;
+    }
+
+    float x, chksum;
+    int index;
+    
+    // Main iterations loop
+    for (int nl = 0; nl < iterations; nl++) {
+        x = a[0];
+        index = 0;
+        
+        // Loop distribution: separate max-value and first-index finding
+        // First find max value (vectorizable reduction)
+        float max_val = a[0];
+        for (int i = 1; i < LEN_1D; ++i) {
+            if (a[i] > max_val) {
+                max_val = a[i];
+            }
+        }
+        
+        // Then find first index with max value (vectorizable comparison)
+        // Use conditional assignment without branching for first occurrence
+        int first_index = 0;
+        for (int i = 0; i < LEN_1D; ++i) {
+            // Update index only when value equals max_val AND first_index hasn't been set yet
+            // This maintains "first occurrence" semantics
+            first_index = (a[i] == max_val && first_index == 0) ? i : first_index;
+        }
+        
+        x = max_val;
+        index = first_index;
+        chksum = x + (float)index;
+    }
+    
+    return index + x + 1;
+}

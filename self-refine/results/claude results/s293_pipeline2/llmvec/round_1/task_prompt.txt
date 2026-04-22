@@ -1,0 +1,14 @@
+Vectorize the scalar C function `s293` below.
+
+        Scalar source:
+        ```c
+        void s293(int iterations, int LEN_1D, float* a)
+{
+    float val = a[0];
+    for (int i = 0; i < LEN_1D; i++) {
+        a[i] = val;
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s293`.

@@ -1,0 +1,5 @@
+The vectorizer candidate has a correctness bug in the inner loop body.
+
+- **Incorrect operation order**: The original scalar code likely computed `a[i] += bc; e[i] = e_prev * e_prev; a[i] -= bc;` but the candidate reorders to `a[i] += bc; e_sq = e_prev * e_prev; e[i] = e_sq; a[i] -= bc;` — this is fine, but the mismatch at index 1 suggests the **initial value of `e_prev`** is wrong.
+- **Fix `e_prev` initialization**: The candidate sets `e_prev = e[0]` before the inner loop, but the original scalar code likely used `e[i-1]` from the *previous iteration* of the outer `nl` loop. After the first outer iteration, `e[0]` may have been updated. Set `e_prev = e[0]` only on the first outer iteration (`nl == 0`), then reuse the last `e_sq` from the previous outer iteration.
+- **Alternative fix**: Move `e_prev` initialization inside the outer loop but before the inner loop, using `e[0]` from the *current* state of `e` (which may have been modified by the previous outer iteration).

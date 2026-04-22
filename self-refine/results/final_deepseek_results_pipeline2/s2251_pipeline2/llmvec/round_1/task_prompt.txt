@@ -1,0 +1,44 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Vectorize the scalar C function `s2251` below.
+
+        Scalar source:
+        ```c
+        void s2251(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = (float)0.0;
+
+        // First: compute all s_vals = b[i] + c[i] (vectorizable)
+        float* s_vals = (float*)malloc(LEN_1D * sizeof(float));
+        for (int i = 0; i < LEN_1D; i++) {
+            s_vals[i] = b[i] + c[i];
+        }
+
+        // Second: compute a[i] = s_vals[i-1] * e[i] for i>=1 (vectorizable)
+        a[0] = s * e[0];  // i=0 case
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] = s_vals[i-1] * e[i];
+        }
+        s = s_vals[LEN_1D-1];  // final s value
+
+        // Third: update b[i] = a[i] + d[i] (vectorizable)
+        for (int i = 0; i < LEN_1D; i++) {
+            b[i] = a[i] + d[i];
+        }
+
+        free(s_vals);
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s2251`.

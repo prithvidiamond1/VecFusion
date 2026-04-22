@@ -1,0 +1,43 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260418_133434/s481_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s481_opt(int iterations,int LEN_1D, float* a, float *b, float *c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        int exit_point = LEN_1D;\n        \n        // Vector-friendly scan: find first negative without early exit in inner loop\n        int i;\n        for (i = 0; i < LEN_1D; i++) {\n            if (d[i] < (float)0.) {\n                exit_point = i;\n                break;\n            }\n        }\n        \n        // Vectorized computation loop\n        for (int j = 0; j < exit_point; j++) {\n            a[j] += b[j] * c[j];\n        }\n        \n        // Early return after computation if negative found\n        if (exit_point < LEN_1D) {\n            return;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s481_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s481_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260418_133434/s481_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s481(int iterations, int LEN_1D, float* a, float *b, float *c, float* d)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        int exit_point = LEN_1D;\n\n        // Find first negative in d[]\n        int i;\n        for (i = 0; i < LEN_1D; i++) {\n            if (d[i] < 0.0f) {\n                exit_point = i;\n                break;\n            }\n        }\n\n        // Vectorized computation loop using 4-wide unrolling\n        int j = 0;\n        int limit4 = exit_point - (exit_point % 4);\n        for (j = 0; j < limit4; j += 4) {\n            a[j+0] += b[j+0] * c[j+0];\n            a[j+1] += b[j+1] * c[j+1];\n            a[j+2] += b[j+2] * c[j+2];\n            a[j+3] += b[j+3] * c[j+3];\n        }\n        // Scalar tail\n        for (; j < exit_point; j++) {\n            a[j] += b[j] * c[j];\n        }\n\n        // Early return if negative found\n        if (exit_point < LEN_1D) {\n            return;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260418_133434/s481_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s481",
+        "input_snapshot": "results/all_tests_rerun_20260418_133434/s481_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_rerun_20260418_133434/s481_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260418_133434/s481_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

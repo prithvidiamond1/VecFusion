@@ -1,0 +1,26 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s3113_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <math.h>\n\nfloat vectorized_s3113(int iterations, int LEN_1D, float* a)\n{\n    float max;\n    for (int nl = 0; nl < iterations * 4; nl++) {\n        // Process 8 elements at a time using unrolled vector-friendly code\n        int i = 0;\n        float max0 = fabsf(a[0]);\n        float max1 = max0;\n        float max2 = max0;\n        float max3 = max0;\n        float max4 = max0;\n        float max5 = max0;\n        float max6 = max0;\n        float max7 = max0;\n\n        int limit = LEN_1D - (LEN_1D % 8);\n        for (i = 0; i < limit; i += 8) {\n            float v0 = fabsf(a[i + 0]);\n            float v1 = fabsf(a[i + 1]);\n            float v2 = fabsf(a[i + 2]);\n            float v3 = fabsf(a[i + 3]);\n            float v4 = fabsf(a[i + 4]);\n            float v5 = fabsf(a[i + 5]);\n            float v6 = fabsf(a[i + 6]);\n            float v7 = fabsf(a[i + 7]);\n            if (v0 > max0) max0 = v0;\n            if (v1 > max1) max1 = v1;\n            if (v2 > max2) max2 = v2;\n            if (v3 > max3) max3 = v3;\n            if (v4 > max4) max4 = v4;\n            if (v5 > max5) max5 = v5;\n            if (v6 > max6) max6 = v6;\n            if (v7 > max7) max7 = v7;\n        }\n\n        // Reduce the 8 partial maxima\n        if (max1 > max0) max0 = max1;\n        if (max2 > max0) max0 = max2;\n        if (max3 > max0) max0 = max3;\n        if (max4 > max0) max0 = max4;\n        if (max5 > max0) max0 = max5;\n        if (max6 > max0) max0 = max6;\n        if (max7 > max0) max0 = max7;\n\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            float v = fabsf(a[i]);\n            if (v > max0) max0 = v;\n        }\n\n        max = max0;\n    }\n    return max;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s3113_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s3113",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s3113_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s3113_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s3113_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s312_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s312_opt(int iterations, int LEN_1D, float* a)\n{\n    float prod;\n    int total_outer = 10 * iterations;\n    \n    for (int nl = 0; nl < total_outer; nl++) {\n        prod = 1.0f;\n        \n        // Loop distribution: separate reduction from potential other operations\n        // Here we only have reduction, so we keep it as is but ensure\n        // the reduction variable is properly initialized each outer iteration\n        \n        // The inner loop has loop-carried dependency (prod depends on previous iteration)\n        // This prevents vectorization of the reduction itself\n        // However, we can ensure the loop structure is clean for potential\n        // compiler optimizations like unrolling\n        \n        for (int i = 0; i < LEN_1D; i++) {\n            prod *= a[i];\n        }\n    }\n    \n    return prod;\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s312_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s312_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s312_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nfloat vectorized_s312(int iterations, int LEN_1D, float* a)\n{\n    float prod;\n    int total_outer = 10 * iterations;\n\n    for (int nl = 0; nl < total_outer; nl++) {\n        prod = 1.0f;\n\n        // Unroll by 8 to allow better pipelining/vectorization\n        float p0 = 1.0f, p1 = 1.0f, p2 = 1.0f, p3 = 1.0f;\n        float p4 = 1.0f, p5 = 1.0f, p6 = 1.0f, p7 = 1.0f;\n\n        int i = 0;\n        int limit = LEN_1D - (LEN_1D % 8);\n\n        for (; i < limit; i += 8) {\n            p0 *= a[i + 0];\n            p1 *= a[i + 1];\n            p2 *= a[i + 2];\n            p3 *= a[i + 3];\n            p4 *= a[i + 4];\n            p5 *= a[i + 5];\n            p6 *= a[i + 6];\n            p7 *= a[i + 7];\n        }\n\n        // Combine partial products\n        prod = p0 * p1 * p2 * p3 * p4 * p5 * p6 * p7;\n\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            prod *= a[i];\n        }\n    }\n\n    return prod;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s312_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s312",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s312_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s312_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s312_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

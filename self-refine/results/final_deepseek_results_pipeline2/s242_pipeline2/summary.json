@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s242_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s242_opt(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d) {\n    float s_sum = s1 + s2;\n    \n    for (int nl = 0; nl < iterations/5; nl++) {\n        float prev = a[0];\n        \n        // Compute independent parts and store in a temporary array\n        float* temp = (float*)__builtin_alloca(LEN_1D * sizeof(float));\n        for (int i = 1; i < LEN_1D; ++i) {\n            temp[i] = s_sum + b[i] + c[i] + d[i];\n        }\n        \n        // Perform recurrence accumulation\n        for (int i = 1; i < LEN_1D; ++i) {\n            prev = prev + temp[i];\n            a[i] = prev;\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s242_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s242_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s242_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s242(int iterations, int LEN_1D, float s1, float s2, float* a, float* b, float* c, float* d) {\n    float s_sum = s1 + s2;\n    int loop_bound = iterations / 5;\n    \n    for (int nl = 0; nl < loop_bound; nl++) {\n        float prev = a[0];\n        \n        // Compute independent parts with explicit bounds\n        int i = 1;\n        int main_loop_bound = LEN_1D - 1;\n        \n        // Vector-friendly loop for independent computations\n        for (; i <= main_loop_bound; i++) {\n            // Independent computation - no dependencies\n            a[i] = s_sum + b[i] + c[i] + d[i];\n        }\n        \n        // Perform recurrence accumulation with explicit bounds\n        prev = a[0];\n        for (i = 1; i < LEN_1D; i++) {\n            prev = prev + a[i];\n            a[i] = prev;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s242_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s242",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s242_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s242_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s242_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s242_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

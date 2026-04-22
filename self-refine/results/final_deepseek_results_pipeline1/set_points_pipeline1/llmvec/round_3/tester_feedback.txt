@@ -1,0 +1,15 @@
+- **Fix the vectorized store offset for `dst`**: The vectorized loop writes `dst_new` to `dst + i + 1`, but the scalar loop writes to `dst[i + 1]`. The vector store should be `*(float32x4_t*)(dst + i + 1) = dst_new;` — this is already correct in the candidate, so verify the scalar cleanup loop also writes to `dst[i + 1]` (it does). The mismatch at index 0 suggests the initial `dst[0] = dstStart` may be overwritten or the vector store at `i=0` writes to `dst[1..4]` incorrectly.
+
+- **Check the initial `dst[0]` assignment**: The vectorized loop starts at `i=0` and writes `dst_new` to `dst + i + 1 = dst + 1`, which is correct (skips index 0). However, the scalar cleanup loop also writes to `dst[i + 1]` for `i < divCount`. Ensure no element is written twice or missed.
+
+- **Verify the `src` vector store offset**: The vectorized loop writes `divs_vec` to `src + i + 1`, which matches the scalar `src[i + 1] = divs[i]`. This is correct.
+
+- **Confirm the `src_prev` load uses the correct index**: The vectorized loop loads `*(int32x4_t*)(src + i)` as `src_prev`. For `i=0`, this loads `src[0..3]`, but `src[0]` was set to `srcStart` before the loop. This is correct for computing `src_delta = divs_vec - src_prev`.
+
+- **Check the alternating `isScalable` logic**: The vectorized loop computes `s0 = isScalable`, `s1 = !isScalable`, `s2 = !s1`, `s3 = !s2`. This simplifies to `s0 = isScalable`, `s1 = !isScalable`, `s2 = isScalable`, `s3 = !isScalable`. The update `isScalable = !s3` sets `isScalable = isScalable`, which is wrong — it should toggle each iteration. Fix: `isScalable = !isScalable` after the vector block, or compute `s3 = !s2` correctly toggling each element.
+
+- **Fix the `isScalable` update for the vector loop**: The current update `isScalable = !s3` results in no change because `s3 = !s2 = !(!s1) = s1 = !isScalable`, so `!s3 = isScalable`. Change to `isScalable = !isScalable` after the vector block to match the scalar loop’s toggle behavior.
+
+- **Ensure the vector loop trip count is correct**: The loop runs while `i + 4 <= divCount`, processing 4 elements per iteration. The scalar cleanup handles remaining `i < divCount`. This is sound.
+
+- **Check the `dst_delta` computation for the `srcFixed <= dstLen` branch**: The vectorized code uses `scaled` and `src_delta_f` correctly based on the `s0..s3` flags. The scalar loop uses the same logic. No issue here.

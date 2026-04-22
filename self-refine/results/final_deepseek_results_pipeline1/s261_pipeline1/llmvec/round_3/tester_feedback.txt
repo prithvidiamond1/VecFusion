@@ -1,0 +1,7 @@
+The vectorizer candidate has a **correctness bug** in the prologue loop:
+
+- **Incorrect prologue semantics**: The scalar prologue computes `c[0]` through `c[3]` but uses the wrong formula. The original loop body has a conditional `if (i > 0)` that affects `a[i]` computation, but the prologue applies the same `t = a[i] + b[i]; a[i] = t + c[i-1]` unconditionally for all `i < 4`. For `i=0`, `c[-1]` is accessed (undefined behavior), and the `if (i > 0)` guard is missing.
+
+- **Fix**: The prologue must replicate the exact original loop body including the `if (i > 0)` condition. For `i=0`, only the `c[0] = c[0] * d[0]` part should execute, not the `a[0]` update.
+
+- **Trip count mismatch**: The main loop starts at `i=4` assuming `c[0..3]` are fully computed, but the prologue incorrectly computes `a[0]` and reads `c[-1]`, corrupting memory and producing wrong `a[1]` (as the mismatch at index 1 shows).

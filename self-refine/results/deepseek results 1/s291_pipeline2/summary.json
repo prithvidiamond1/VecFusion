@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260416_182309/s291_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s291_opt(int iterations,int LEN_1D, float* a,float* b)\n{\n    int im1;\n    for (int nl = 0; nl < 2*iterations; nl++) {\n        im1 = LEN_1D-1;\n        // Handle first iteration separately to break dependency\n        a[0] = (b[0] + b[im1]) * (float).5;\n        // Main loop: im1 is now i-1, which is already computed\n        for (int i = 1; i < LEN_1D; i++) {\n            a[i] = (b[i] + b[i-1]) * (float).5;\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s291_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s291_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260416_182309/s291_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s291(int iterations, int LEN_1D, float* a, float* b)\n{\n    int im1;\n    for (int nl = 0; nl < 2 * iterations; nl++) {\n        im1 = LEN_1D - 1;\n        // Handle first element separately\n        a[0] = (b[0] + b[im1]) * 0.5f;\n\n        // Vectorize the main loop: a[i] = (b[i] + b[i-1]) * 0.5f for i in [1, LEN_1D)\n        int i = 1;\n        int limit = LEN_1D - 4;\n\n        for (; i <= limit; i += 4) {\n            a[i]     = (b[i]     + b[i - 1]) * 0.5f;\n            a[i + 1] = (b[i + 1] + b[i])     * 0.5f;\n            a[i + 2] = (b[i + 2] + b[i + 1]) * 0.5f;\n            a[i + 3] = (b[i + 3] + b[i + 2]) * 0.5f;\n        }\n\n        // Scalar cleanup tail\n        for (; i < LEN_1D; i++) {\n            a[i] = (b[i] + b[i - 1]) * 0.5f;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260416_182309/s291_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s291",
+        "input_snapshot": "results/all_tests_rerun_20260416_182309/s291_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260416_182309/s291_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260416_182309/s291_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

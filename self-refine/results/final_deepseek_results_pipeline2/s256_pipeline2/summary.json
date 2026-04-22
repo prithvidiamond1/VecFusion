@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s256_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s256_opt(int iterations, float* a, float* d, float aa[256][256], float bb[256][256]) {\n    int outer_iters = 10 * (iterations / 256);\n    float a_prev[256];\n    \n    for (int nl = 0; nl < outer_iters; nl++) {\n        // Store initial a values for this nl iteration\n        for (int k = 0; k < 256; k++) {\n            a_prev[k] = a[k];\n        }\n        \n        // Process all i for each j to enable vectorization over i\n        for (int j = 1; j < 256; j++) {\n            // Compute a[j] once per j (independent of i)\n            a[j] = (float)1.0 - a[j - 1];\n            \n            // Vectorizable loop over i\n            for (int i = 0; i < 256; i++) {\n                aa[j][i] = a[j] + bb[j][i] * d[j];\n            }\n        }\n        \n        // Restore a[0] for next iteration\n        a[0] = a_prev[0];\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s256_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s256_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s256_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n\nvoid vectorized_s256(int iterations, float* a, float* d, float aa[256][256], float bb[256][256]) {\n    int outer_iters = 10 * (iterations / 256);\n    float a_prev[256];\n    \n    for (int nl = 0; nl < outer_iters; nl++) {\n        // Store initial a values\n        for (int k = 0; k < 256; k++) {\n            a_prev[k] = a[k];\n        }\n        \n        // Process all i for each j\n        for (int j = 1; j < 256; j++) {\n            // Compute a[j] once per j\n            a[j] = 1.0f - a[j - 1];\n            \n            // Vectorizable loop over i with explicit bounds\n            float aj = a[j];\n            float dj = d[j];\n            float* aa_row = aa[j];\n            float* bb_row = bb[j];\n            \n            // Process 8 elements at a time (256-bit vectors)\n            int i = 0;\n            for (; i + 7 < 256; i += 8) {\n                // Load 8 bb values\n                float bb0 = bb_row[i];\n                float bb1 = bb_row[i + 1];\n                float bb2 = bb_row[i + 2];\n                float bb3 = bb_row[i + 3];\n                float bb4 = bb_row[i + 4];\n                float bb5 = bb_row[i + 5];\n                float bb6 = bb_row[i + 6];\n                float bb7 = bb_row[i + 7];\n                \n                // Compute bb[j][i] * d[j]\n                float prod0 = bb0 * dj;\n                float prod1 = bb1 * dj;\n                float prod2 = bb2 * dj;\n                float prod3 = bb3 * dj;\n                float prod4 = bb4 * dj;\n                float prod5 = bb5 * dj;\n                float prod6 = bb6 * dj;\n                float prod7 = bb7 * dj;\n                \n                // Compute a[j] + bb[j][i] * d[j]\n                aa_row[i] = aj + prod0;\n                aa_row[i + 1] = aj + prod1;\n                aa_row[i + 2] = aj + prod2;\n                aa_row[i + 3] = aj + prod3;\n                aa_row[i + 4] = aj + prod4;\n                aa_row[i + 5] = aj + prod5;\n                aa_row[i + 6] = aj + prod6;\n                aa_row[i + 7] = aj + prod7;\n            }\n            \n            // Scalar cleanup for remaining elements\n            for (; i < 256; i++) {\n                aa_row[i] = aj + bb_row[i] * dj;\n            }\n        }\n        \n        // Restore a[0] for next iteration\n        a[0] = a_prev[0];\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s256_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s256",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s256_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s256_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s256_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s256_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

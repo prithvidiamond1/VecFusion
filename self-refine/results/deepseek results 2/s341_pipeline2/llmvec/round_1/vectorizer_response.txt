@@ -1,0 +1,13 @@
+```c
+#include <stddef.h>
+
+void vectorized_s341(int n, float *a, float *b, int *j_ptr) {
+    int j = *j_ptr;
+    for (int i = 0; i < n; i++) {
+        if (b[i] > 0.0f) {
+            a[++j] = b[i];
+        }
+    }
+    *j_ptr = j;
+}
+```

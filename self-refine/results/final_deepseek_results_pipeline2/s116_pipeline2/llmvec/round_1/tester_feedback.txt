@@ -1,0 +1,4 @@
+- The scalar cleanup loop incorrectly assumes `remainder_start` aligns with the pattern; it should process the leftover elements after the vectorized chunks, not restart at `vectorizable_len` with a stride of 5.
+- The cleanup loop's condition `i < LEN_1D - 5` is wrong because `vectorizable_len` already ensures we don't exceed `LEN_1D - 5`; the cleanup should handle indices from `vectorizable_len` up to `LEN_1D - 5` (exclusive) sequentially, not in strides of 5.
+- The vectorized loops access `a[i + 5]` for the last position, which may read beyond `LEN_1D` when `i` is near `vectorizable_len`; ensure `vectorizable_len` is computed to guarantee `i + 5 < LEN_1D`.
+- The mismatch at index 0 suggests the first element `a[0]` is incorrect; check that the vectorized loop for position 0 starts at `i = 0` and correctly computes `a[0] = a[1] * a[0]` without interference from other positions.

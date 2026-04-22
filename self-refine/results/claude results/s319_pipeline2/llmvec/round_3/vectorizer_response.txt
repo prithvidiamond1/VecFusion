@@ -1,0 +1,59 @@
+```c
+#include <stdint.h>
+
+float vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)
+{
+    float sum;
+    for (int nl = 0; nl < 2 * iterations; nl++) {
+        sum = 0.0f;
+
+        int i = 0;
+        int limit = LEN_1D - (LEN_1D % 8);
+
+        for (; i < limit; i += 8) {
+            float ai0 = c[i+0] + d[i+0];
+            float ai1 = c[i+1] + d[i+1];
+            float ai2 = c[i+2] + d[i+2];
+            float ai3 = c[i+3] + d[i+3];
+            float ai4 = c[i+4] + d[i+4];
+            float ai5 = c[i+5] + d[i+5];
+            float ai6 = c[i+6] + d[i+6];
+            float ai7 = c[i+7] + d[i+7];
+
+            float bi0 = c[i+0] + e[i+0];
+            float bi1 = c[i+1] + e[i+1];
+            float bi2 = c[i+2] + e[i+2];
+            float bi3 = c[i+3] + e[i+3];
+            float bi4 = c[i+4] + e[i+4];
+            float bi5 = c[i+5] + e[i+5];
+            float bi6 = c[i+6] + e[i+6];
+            float bi7 = c[i+7] + e[i+7];
+
+            a[i+0] = ai0; a[i+1] = ai1; a[i+2] = ai2; a[i+3] = ai3;
+            a[i+4] = ai4; a[i+5] = ai5; a[i+6] = ai6; a[i+7] = ai7;
+
+            b[i+0] = bi0; b[i+1] = bi1; b[i+2] = bi2; b[i+3] = bi3;
+            b[i+4] = bi4; b[i+5] = bi5; b[i+6] = bi6; b[i+7] = bi7;
+
+            sum += ai0; sum += bi0;
+            sum += ai1; sum += bi1;
+            sum += ai2; sum += bi2;
+            sum += ai3; sum += bi3;
+            sum += ai4; sum += bi4;
+            sum += ai5; sum += bi5;
+            sum += ai6; sum += bi6;
+            sum += ai7; sum += bi7;
+        }
+
+        for (; i < LEN_1D; i++) {
+            float ai = c[i] + d[i];
+            float bi = c[i] + e[i];
+            a[i] = ai;
+            b[i] = bi;
+            sum += ai;
+            sum += bi;
+        }
+    }
+    return sum;
+}
+```

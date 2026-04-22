@@ -1,0 +1,60 @@
+
+Revise your candidate for `s453` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s453(int iterations,int LEN_1D, float* a, float *b)
+{
+    float s;
+    for (int nl = 0; nl < iterations*2; nl++) {
+        s = 0.;
+        for (int i = 0; i < LEN_1D; i++) {
+            s += (float)2.;
+            a[i] = s * b[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s453(int iterations, int LEN_1D, float* a, float *b) {
+    float s;
+    int total_iters = iterations * 2;
+    for (int nl = 0; nl < total_iters; nl++) {
+        s = 0.0f;
+        int i = 0;
+        // Vectorized main loop: start s at 1.0f so first chunk uses s=1,2,3,4
+        s = 1.0f;
+        for (; i + 4 <= LEN_1D; i += 4) {
+            float32_t s_vec = {s, s + 1.0f, s + 2.0f, s + 3.0f};
+            float32_t b_vec = *(float32_t*)(b + i);
+            float32_t a_vec = s_vec * b_vec;
+            *(float32_t*)(a + i) = a_vec;
+            s += 4.0f;
+        }
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            s += 1.0f;
+            a[i] = s * b[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate fails because the **initial value of `s` is incorrect** for the original scalar semantics.
+
+**Fixes needed:**
+
+1. **Restore correct initial `s` per outer iteration** – The original code starts `s = 0.0f` before the inner loop, then increments `s` before each use. The candidate sets `s = 1.0f` before the vector loop, which shifts all computed values by +1.0.
+
+2. **Fix the vectorized accumulation** – With `s` starting at 0.0f, the first vector chunk should use `s_vec = {1.0f, 2.0f, 3.0f, 4.0f}` (i.e., `s+1` through `s+4`). The current code uses `s` directly, producing `{1,2,3,4}` when `s=1`, but the correct first values are `{1,2,3,4}` starting from `s=0`. The simplest fix: keep `s = 0.0f` and change the vector load to `s_vec = {s+1, s+2, s+3, s+4}`.
+
+3. **Align scalar tail** – The tail loop must also start with the correct `s` value (the one after the last vector chunk). Currently it inherits `s` from the vector loop, which is off by 1.0.
+
+        Return a corrected candidate function named `vectorized_s453`.

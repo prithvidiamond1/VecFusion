@@ -1,0 +1,69 @@
+```c
+#include <stdbool.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed,
+                           int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd,
+                           bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= (int)dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    src[0] = srcStart;
+    dst[0] = dstStart;
+
+    // Precompute scale factors:
+    // scaleA: scale to apply when isScalable matches initial isScalable (even iterations)
+    // scaleB: scale to apply when isScalable is flipped (odd iterations)
+    float scaleA, scaleB;
+    if (normalCase) {
+        scaleA = isScalable ? scale : 1.0f;
+        scaleB = isScalable ? 1.0f  : scale;
+    } else {
+        scaleA = isScalable ? 0.0f  : scale;
+        scaleB = isScalable ? scale : 0.0f;
+    }
+
+    int i = 0;
+
+    // Unroll by 4: after 4 iterations isScalable returns to original state
+    for (; i <= divCount - 4; i += 4) {
+        src[i+1] = divs[i+0];
+        src[i+2] = divs[i+1];
+        src[i+3] = divs[i+2];
+        src[i+4] = divs[i+3];
+
+        float d0 = scaleA * (float)(src[i+1] - src[i+0]);
+        float d1 = scaleB * (float)(src[i+2] - src[i+1]);
+        float d2 = scaleA * (float)(src[i+3] - src[i+2]);
+        float d3 = scaleB * (float)(src[i+4] - src[i+3]);
+
+        dst[i+1] = dst[i+0] + d0;
+        dst[i+2] = dst[i+1] + d1;
+        dst[i+3] = dst[i+2] + d2;
+        dst[i+4] = dst[i+3] + d3;
+        // 4 flips: isScalable unchanged
+    }
+
+    // Scalar tail
+    for (; i < divCount; i++) {
+        src[i + 1] = divs[i];
+        int srcDelta = src[i + 1] - src[i];
+        float dstDelta;
+        if (normalCase) {
+            dstDelta = isScalable ? scale * (float)srcDelta : (float)srcDelta;
+        } else {
+            dstDelta = isScalable ? 0.0f : scale * (float)srcDelta;
+        }
+        dst[i + 1] = dst[i] + dstDelta;
+        isScalable = !isScalable;
+    }
+
+    src[divCount + 1] = srcEnd;
+    dst[divCount + 1] = dstEnd;
+}
+```

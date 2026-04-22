@@ -1,0 +1,28 @@
+```c
+#include <stddef.h>
+
+typedef float float_vec __attribute__((ext_vector_type(4)));
+
+void vectorized_s235(int iterations, float* a, float* b, float* c, float aa[256][256], float bb[256][256]) {
+    int total_iters = 200 * (iterations / 256);
+    for (int nl = 0; nl < total_iters; nl++) {
+        for (int i = 0; i < 256; i++) {
+            float ai = a[i] + b[i] * c[i];
+            a[i] = ai;
+            
+            // Vectorized inner loop over j
+            int j = 1;
+            for (; j + 3 < 256; j += 4) {
+                float_vec bb_vec = *(float_vec*)&bb[j][i];
+                float_vec aa_prev = *(float_vec*)&aa[j-1][i];
+                float_vec aa_curr = aa_prev + bb_vec * ai;
+                *(float_vec*)&aa[j][i] = aa_curr;
+            }
+            // Scalar cleanup for remaining j
+            for (; j < 256; j++) {
+                aa[j][i] = aa[j-1][i] + bb[j][i] * ai;
+            }
+        }
+    }
+}
+```

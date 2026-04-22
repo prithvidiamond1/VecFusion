@@ -1,0 +1,40 @@
+Looking at this function, I need to be careful: there's a loop-carried dependency between `a[i]` and `b[i]` since `b[i]` uses `a[i+1]` which is written in the next iteration. This means the inner loop cannot be fully vectorized without care.
+
+Let me analyze:
+- `a[i] = b[i-1] + c[i]` — reads `b[i-1]` (previous b)
+- `b[i] = a[i+1] * d[i]` — reads `a[i+1]` (next a, which will be written in next iteration)
+
+Since `a[i+1]` is written in iteration `i+1`, `b[i]` depends on the *future* value of `a`. This creates a true dependency: `b[i]` needs `a[i+1]` which is computed in iteration `i+1`. So we can't vectorize the inner loop directly without breaking semantics.
+
+The safest approach is to keep the inner loop scalar but unroll it manually, or just do a simple unrolled version that preserves the sequential dependency.
+
+```c
+void vectorized_s1213(int iterations, int LEN_1D, float* a, float* b, float* c, float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        // Due to loop-carried dependency (b[i] = a[i+1]*d[i] where a[i+1] is
+        // written in next iteration), we must preserve sequential order.
+        // Unroll by 4 but keep sequential semantics.
+        int i = 1;
+        int limit = LEN_1D - 1;
+        int unroll_limit = limit - ((limit - 1) % 4);
+
+        for (; i < unroll_limit - 3; i += 4) {
+            a[i]   = b[i-1]   + c[i];
+            b[i]   = a[i+1]   * d[i];
+            a[i+1] = b[i]     + c[i+1];
+            b[i+1] = a[i+2]   * d[i+1];
+            a[i+2] = b[i+1]   + c[i+2];
+            b[i+2] = a[i+3]   * d[i+2];
+            a[i+3] = b[i+2]   + c[i+3];
+            b[i+3] = a[i+4]   * d[i+3];
+        }
+
+        // Scalar cleanup
+        for (; i < limit; i++) {
+            a[i] = b[i-1] + c[i];
+            b[i] = a[i+1] * d[i];
+        }
+    }
+}
+```

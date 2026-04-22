@@ -1,0 +1,1 @@
+ValueError: VecTrans-preprocessed input is not a single full function; cannot safely normalize handoff.

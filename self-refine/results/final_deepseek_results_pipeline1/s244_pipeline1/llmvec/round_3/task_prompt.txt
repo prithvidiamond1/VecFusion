@@ -1,0 +1,82 @@
+
+Revise your candidate for `s244` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s244(int iterations, int LEN_1D, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 0; i < LEN_1D-1; ++i) {
+            a[i] = b[i] + c[i] * d[i];
+            b[i] = c[i] + b[i];
+            a[i+1] = b[i] + a[i+1] * d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float_vec __attribute__((ext_vector_type(4)));
+
+void vectorized_s244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    int n = LEN_1D - 1;
+    if (n <= 0) return;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // Handle first element separately to break the recurrence
+        if (n >= 1) {
+            float b0 = b[0];
+            float c0 = c[0];
+            float d0 = d[0];
+            a[0] = b0 + c0 * d0;
+            b[0] = c0 + b0;
+            a[1] = b[0] + a[1] * d0;
+        }
+
+        // Vectorize remaining elements starting from i=1
+        int i = 1;
+        for (; i <= n - 4; i += 4) {
+            float_vec vb = *(float_vec*)(b + i);
+            float_vec vc = *(float_vec*)(c + i);
+            float_vec vd = *(float_vec*)(d + i);
+
+            // a[i] = b[i] + c[i] * d[i]
+            float_vec va = vb + vc * vd;
+            *(float_vec*)(a + i) = va;
+
+            // b[i] = c[i] + b[i]
+            vb = vc + vb;
+            *(float_vec*)(b + i) = vb;
+
+            // a[i+1] = b[i] + a[i+1] * d[i]
+            // Now safe because a[i+1] was not modified by previous vector iteration
+            float_vec va_next = *(float_vec*)(a + i + 1);
+            va_next = vb + va_next * vd;
+            *(float_vec*)(a + i + 1) = va_next;
+        }
+
+        // Scalar cleanup
+        for (; i < n; i++) {
+            a[i] = b[i] + c[i] * d[i];
+            b[i] = c[i] + b[i];
+            a[i+1] = b[i] + a[i+1] * d[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer has a correctness bug: the vectorized loop body incorrectly computes `a[i+1]` using `d[i]` from the same iteration, but the scalar reference pattern uses `d[i]` from the *previous* iteration for the `a[i+1]` update.
+
+Specifically:
+- In the scalar loop, `a[i+1] = b[i] + a[i+1] * d[i]` uses `d[i]` from the current `i`, which is correct.
+- But in the vectorized version, `va_next = vb + va_next * vd` uses `vd` (which is `d[i..i+3]`) for all four lanes, while the scalar semantics require `d[i]` for `a[i+1]`, `d[i+1]` for `a[i+2]`, etc. This is actually correct because `vd` contains `d[i], d[i+1], d[i+2], d[i+3]` and `va_next` loads `a[i+1..i+4]`, so the elementwise multiplication is correct.
+
+The real issue is at index 2: the vectorized loop processes `i=1` and writes `a[2]` using `b[1]` and `d[1]`, but the scalar loop would have computed `a[2]` using `b[1]` and `d[1]` as well. The mismatch suggests the scalar cleanup or the first-element handling is wrong.
+
+**Fix**: The first-element handling writes `a[1] = b[0] + a[1] * d[0]`, but the vector loop starting at `i=1` also writes `a[1]` (as `a[i]` for `i=1`). This double-writes `a[1]` with different values. Move the vector loop start to `i=2` or adjust the first-element handling to not write `a[1]`.
+
+        Return a corrected candidate function named `vectorized_s244`.

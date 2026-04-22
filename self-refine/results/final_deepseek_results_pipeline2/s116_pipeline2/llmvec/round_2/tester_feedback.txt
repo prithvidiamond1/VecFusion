@@ -1,0 +1,8 @@
+- The scalar cleanup loop incorrectly processes all five positions for each leftover element `i`, causing overlapping writes and incorrect semantics.
+- The cleanup loop should only process the first position (`a[i] = a[i+1] * a[i]`) for each leftover `i` to match the original sequential loop's behavior.
+- The vectorizable length calculation `((limit - 0) / 4) * 4` is correct for ensuring `i+5 < LEN_1D` when `limit = LEN_1D - 5`.
+- However, the vectorized loops are strided by 4 but each processes a different offset (0,1,2,3,4), which is safe because each offset's accesses stay within `[i, i+5]`.
+- The mismatch at index 0 suggests the first element's value is wrong after the first outer iteration, likely due to cleanup overwriting.
+- Change the scalar cleanup to a single loop: `for (int i = vectorizable_len; i < limit; i++) { a[i] = a[i + 1] * a[i]; }`
+- Remove the extra four statements inside the cleanup loop that update `a[i+1]` through `a[i+4]`.
+- This ensures the transformation is equivalent to the original loop nest where each outer iteration processes all `i` from `0` to `limit-1` for the first statement before moving to the next statement.

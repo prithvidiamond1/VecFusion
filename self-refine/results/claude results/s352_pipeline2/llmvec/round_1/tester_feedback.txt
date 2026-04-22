@@ -1,0 +1,21 @@
+The test expects the dot product to accumulate across all `nl` iterations (or at least be consistent with the reference), but the current code **resets all accumulators at the start of each `nl` iteration** and overwrites `dot` each time, so `dot` only reflects the last iteration's result.
+
+Looking at the original `s352` pattern: it's a simple dot product loop run `iterations` times where `dot` is reset each outer iteration — that part is correct. The bug is elsewhere:
+
+- **The `limit` calculation is wrong.** `(LEN_1D / 5) & ~3` gives the number of 5-element groups rounded down to a multiple of 4, then multiplied by 5. But `i` steps by 20 (4 groups × 5 elements), so `limit` should be `((LEN_1D / 20) * 20)` — i.e., the largest multiple of 20 ≤ `LEN_1D`. Fix: `int limit = (LEN_1D / 20) * 20;`
+
+- **The scalar tail loop steps by 5 but `i` starts at `limit` which may not be a multiple of 5.** After fixing limit to a multiple of 20 (which is also a multiple of 5), this is fine — but verify `i` starts correctly at `limit`.
+
+- **The scalar tail assumes elements come in groups of 5**, but if `LEN_1D` is not a multiple of 5, `a[i+4]` etc. will go out of bounds. Add a bounds check or handle the true remainder element-by-element.
+
+- **Specifically**: replace the limit computation with:
+  ```c
+  int limit = (LEN_1D / 20) * 20;
+  ```
+  and change the scalar tail to iterate element by element:
+  ```c
+  for (; i < LEN_1D; i++) {
+      dot_scalar += a[i] * b[i];
+  }
+  ```
+  accumulating into a single scalar rather than assuming stride-5 groups.

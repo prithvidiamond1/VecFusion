@@ -1,0 +1,5 @@
+- The vectorized loop body incorrectly uses `b[i]`, `c[i]`, `d[i]`, `e[i]` for all four lanes, but the original scalar code uses `b[i]`, `c[i]`, `d[i]`, `e[i]` only for lane 0; lanes 1–3 should use `b[i+1]`, `c[i+1]`, `d[i+1]`, `e[i+1]`, etc. Fix the array accesses in the vectorized loop to use the correct offsets for each lane.
+
+- The mismatch at index 0 suggests the first iteration of the vectorized loop computed the wrong value for `a[0]`. Verify that the `indx`-based selection logic correctly maps each lane to the corresponding array element (b, c, d, or e) with the proper index offset.
+
+- Ensure the trip count for the vectorized loop (`i <= LEN_1D - 4`) is correct: it should be `i < LEN_1D - 3` or equivalently `i <= LEN_1D - 4` only if `LEN_1D` is a multiple of 4. Consider using `i < LEN_1D - 3` to avoid off-by-one when `LEN_1D` is not a multiple of 4.

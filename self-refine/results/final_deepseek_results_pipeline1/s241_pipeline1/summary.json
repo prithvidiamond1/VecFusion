@@ -1,0 +1,28 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s241_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\ntypedef float float32_t __attribute__((ext_vector_type(4)));\n\nvoid vectorized_s241(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {\n    int total_iterations = 2 * iterations;\n    int n = LEN_1D - 1;\n    \n    for (int nl = 0; nl < total_iterations; nl++) {\n        int i = 0;\n        // Vectorized main loop (process 4 elements at a time)\n        for (; i <= n - 4; i += 4) {\n            float32_t b_vec = *(float32_t*)(b + i);\n            float32_t c_vec = *(float32_t*)(c + i);\n            float32_t d_vec = *(float32_t*)(d + i);\n            float32_t a_next = *(float32_t*)(a + i + 1);\n            \n            // a[i] = b[i] * c[i] * d[i]\n            float32_t a_vec = b_vec * c_vec * d_vec;\n            *(float32_t*)(a + i) = a_vec;\n            \n            // b[i] = a[i] * a[i+1] * d[i]\n            // Need to shift a_next for the multiplication\n            float32_t a_shifted;\n            a_shifted[0] = a_vec[0] * a_next[0];\n            a_shifted[1] = a_vec[1] * a_next[1];\n            a_shifted[2] = a_vec[2] * a_next[2];\n            a_shifted[3] = a_vec[3] * a_next[3];\n            \n            *(float32_t*)(b + i) = a_shifted * d_vec;\n        }\n        \n        // Scalar cleanup for remaining elements\n        for (; i < n; i++) {\n            a[i] = b[i] * c[i] * d[i];\n            b[i] = a[i] * a[i+1] * d[i];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s241_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s241",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s241_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s241_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_pipeline1_20260422_044515/s241_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline1_20260422_044515/s241_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

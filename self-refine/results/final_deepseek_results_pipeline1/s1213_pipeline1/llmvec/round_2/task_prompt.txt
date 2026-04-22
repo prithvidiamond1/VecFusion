@@ -1,0 +1,81 @@
+
+Revise your candidate for `s1213` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s1213(int iterations, int LEN_1D, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 1; i < LEN_1D-1; i++) {
+            a[i] = b[i-1]+c[i];
+            b[i] = a[i+1]*d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((__vector_size__(16))); // 4 floats per vector
+
+void vectorized_s1213(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    // Handle edge cases: LEN_1D must be at least 3 for the loop to execute
+    if (LEN_1D < 3) return;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        // Vectorized main loop: process 4 elements at a time
+        // Note: loop body uses a[i+1] which requires reading ahead, so we stop at LEN_1D-2
+        for (; i <= LEN_1D - 3; i += 4) {
+            // Load b[i-1..i+2] (shifted left by 1)
+            float32_t b_prev = __builtin_shufflevector(
+                *(float32_t*)(b + i - 1),
+                *(float32_t*)(b + i + 3),
+                0, 1, 2, 3
+            );
+            // Actually we need b[i-1], b[i], b[i+1], b[i+2] but b[i] is being written
+            // So we load b[i-1..i+2] from original b (before update)
+            float32_t b_orig = *(float32_t*)(b + i - 1);
+
+            // Load c[i..i+3]
+            float32_t c_vec = *(float32_t*)(c + i);
+
+            // Compute a[i..i+3] = b[i-1..i+2] + c[i..i+3]
+            float32_t a_new = b_orig + c_vec;
+            *(float32_t*)(a + i) = a_new;
+
+            // Now compute b[i..i+3] = a[i+1..i+4] * d[i..i+3]
+            // Load a[i+1..i+4]
+            float32_t a_next = *(float32_t*)(a + i + 1);
+
+            // Load d[i..i+3]
+            float32_t d_vec = *(float32_t*)(d + i);
+
+            // Compute b[i..i+3] = a[i+1..i+4] * d[i..i+3]
+            float32_t b_new = a_next * d_vec;
+            *(float32_t*)(b + i) = b_new;
+        }
+
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D - 1; i++) {
+            a[i] = b[i-1] + c[i];
+            b[i] = a[i+1] * d[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop starts at `i = 1` but the scalar cleanup loop starts at `i = LEN_1D - 1` after the vector loop; however, the vector loop increments `i` by 4, so when `LEN_1D - 3` is not a multiple of 4 offset from 1, the cleanup loop may skip or double-process elements. Fix: adjust the vector loop bound to `i <= LEN_1D - 4` (or use `i < LEN_1D - 3`) and ensure the cleanup loop covers all remaining indices from `i` to `LEN_1D - 2`.
+
+- The mismatch at index 0 suggests element `a[0]` is never computed because the loop starts at `i = 1`. The original scalar loop likely started at `i = 1` but the test expects `a[0]` to be set. Verify the original loop bounds: if the original loop was `for (i = 1; i < LEN_1D - 1; i++)`, then `a[0]` is never written, so the mismatch may be a test issue. If the original loop started at `i = 0`, then the vectorizer must handle `i = 0` as well.
+
+- The vector load `*(float32_t*)(b + i - 1)` reads `b[i-1]` through `b[i+2]`, but `b[i]` is later written in the same iteration, creating a potential read-after-write hazard. Ensure the load of `b_orig` happens before the store to `b[i]` (it does in this code), but verify that the compiler does not reorder these operations.
+
+- The vector load `*(float32_t*)(a + i + 1)` reads `a[i+1]` through `a[i+4]`, but `a[i]` was just written in the same iteration. This is safe because `a[i+1]` is not overwritten, but ensure alignment and that `a[i+4]` does not exceed array bounds when `i = LEN_1D - 3`.
+
+- The scalar cleanup loop condition `i < LEN_1D - 1` matches the original loop bound, but the vector loop may leave `i` at a value greater than `LEN_1D - 2` if the vector loop exits early. Fix: after the vector loop, set `i` to the next unprocessed index (e.g., `i = (i > LEN_1D - 2) ? LEN_1D - 2 : i`).
+
+        Return a corrected candidate function named `vectorized_s1213`.

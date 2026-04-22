@@ -1,0 +1,79 @@
+```c
+#include <stdbool.h>
+#include <alloca.h>
+
+void vectorized_set_points(float* dst, int* src, const int* divs, int divCount, int srcFixed, int srcScalable, int srcStart, int srcEnd, float dstStart, float dstEnd, bool isScalable) {
+    float dstLen = dstEnd - dstStart;
+    float scale;
+    int normalCase = (srcFixed <= dstLen);
+    if (normalCase) {
+        scale = (dstLen - ((float) srcFixed)) / ((float) srcScalable);
+    } else {
+        scale = dstLen / ((float) srcFixed);
+    }
+
+    float scaleWhenScalable    = normalCase ? scale : 0.0f;
+    float scaleWhenNonScalable = normalCase ? 1.0f  : scale;
+
+    // Fill src array (write back to caller's src)
+    src[0] = srcStart;
+    {
+        int i = 0;
+        for (; i + 3 < divCount; i += 4) {
+            src[i + 1] = divs[i];
+            src[i + 2] = divs[i + 1];
+            src[i + 3] = divs[i + 2];
+            src[i + 4] = divs[i + 3];
+        }
+        for (; i < divCount; i++) {
+            src[i + 1] = divs[i];
+        }
+    }
+    src[divCount + 1] = srcEnd;
+
+    int totalSegs = divCount + 1;
+
+    // Precompute srcDelta array: totalSegs elements
+    int* srcDelta = (int*)alloca(totalSegs * sizeof(int));
+    {
+        int i = 0;
+        for (; i + 3 < totalSegs; i += 4) {
+            srcDelta[i]     = src[i + 1] - src[i];
+            srcDelta[i + 1] = src[i + 2] - src[i + 1];
+            srcDelta[i + 2] = src[i + 3] - src[i + 2];
+            srcDelta[i + 3] = src[i + 4] - src[i + 3];
+        }
+        for (; i < totalSegs; i++) {
+            srcDelta[i] = src[i + 1] - src[i];
+        }
+    }
+
+    // Precompute dstDelta array: totalSegs elements
+    // Even segments: scalable when isScalable==true, non-scalable when isScalable==false
+    // Odd segments: non-scalable when isScalable==true, scalable when isScalable==false
+    float* dstDelta = (float*)alloca(totalSegs * sizeof(float));
+    {
+        float scaleEven = isScalable ? scaleWhenScalable    : scaleWhenNonScalable;
+        float scaleOdd  = isScalable ? scaleWhenNonScalable : scaleWhenScalable;
+
+        int i = 0;
+        for (; i + 3 < totalSegs; i += 4) {
+            dstDelta[i]     = scaleEven * (float)srcDelta[i];
+            dstDelta[i + 1] = scaleOdd  * (float)srcDelta[i + 1];
+            dstDelta[i + 2] = scaleEven * (float)srcDelta[i + 2];
+            dstDelta[i + 3] = scaleOdd  * (float)srcDelta[i + 3];
+        }
+        for (; i < totalSegs; i++) {
+            float s = ((i % 2) == 0) ? scaleEven : scaleOdd;
+            dstDelta[i] = s * (float)srcDelta[i];
+        }
+    }
+
+    // Accumulate dst (sequential due to dependency)
+    dst[0] = dstStart;
+    for (int i = 0; i < totalSegs; i++) {
+        dst[i + 1] = dst[i] + dstDelta[i];
+    }
+    dst[divCount + 1] = dstEnd;
+}
+```

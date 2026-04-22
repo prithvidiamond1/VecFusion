@@ -1,0 +1,105 @@
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations,int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            if (fabsf(a[k]) <= max) {
+                goto L5;
+            }
+            index = i;
+            max = fabsf(a[k]);
+L5:
+            k += inc;
+        }
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        // Process in chunks of 4 (unrolled for vectorization hint)
+        int i = 1;
+        // Scalar loop - but structured to be vectorization-friendly
+        // Since we have a data-dependent index tracking (find max abs),
+        // we can vectorize by tracking max and index in parallel chunks
+
+        // Use a simple unrolled approach tracking 4 candidates at once
+        float max0 = max, max1 = -1.0f, max2 = -1.0f, max3 = -1.0f;
+        int idx0 = index, idx1 = 0, idx2 = 0, idx3 = 0;
+
+        // Reset and redo properly
+        max = fabsf(a[0]);
+        index = 0;
+        k = inc; // k = 1*inc after first element
+
+        int chunk = (LEN_1D - 1) / 4;
+        int rem_start = 1 + chunk * 4;
+
+        // Process 4 elements at a time
+        int ki = k;
+        for (int ci = 0; ci < chunk; ci++) {
+            float v0 = fabsf(a[ki]);          ki += inc;
+            float v1 = fabsf(a[ki]);          ki += inc;
+            float v2 = fabsf(a[ki]);          ki += inc;
+            float v3 = fabsf(a[ki]);          ki += inc;
+
+            int base = 1 + ci * 4;
+
+            if (v0 > max) { max = v0; index = base + 0; }
+            if (v1 > max) { max = v1; index = base + 1; }
+            if (v2 > max) { max = v2; index = base + 2; }
+            if (v3 > max) { max = v3; index = base + 3; }
+        }
+
+        // Scalar cleanup
+        k = ki;
+        for (int i2 = rem_start; i2 < LEN_1D; i2++) {
+            float v = fabsf(a[k]);
+            if (v > max) {
+                max = v;
+                index = i2;
+            }
+            k += inc;
+        }
+
+        chksum = max + (float)index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Tester feedback:
+        The function returns `max + index + 1` using variables that are local to the loop body scope but declared outside — however the real issue is that `max` and `index` are not initialized before the loop when `iterations/2 == 0`, and more critically the return value doesn't match the reference implementation's expected output.
+
+Looking at the reference pattern (s318 is an ISAMAX-style loop finding the index of the maximum absolute value), the return should be `chksum` (which is `max + (float)index`), not `max + index + 1`.
+
+- **Wrong return value**: Change `return max + index + 1;` to `return chksum;` — the reference returns `chksum = max + (float)index`, not `max + index + 1`.
+- **Uninitialized `chksum`**: If `iterations/2 == 0`, `chksum` is never set; initialize `chksum = 0.0f;` before the loop.
+- **Uninitialized `max`/`index` for return**: `max` and `index` are declared inside the loop scope implicitly via the first assignment — move `float max; int index;` declarations before the loop so they're accessible at the return statement (currently they shadow outer scope or cause undefined behavior).
+- **`k` indexing assumption**: The loop uses `ki` starting at `k = inc`, assuming `a` is indexed as `a[i * inc]`. Verify `inc == 1` is the expected case; if `inc` can be other values, `a[ki]` where `ki` grows by `inc` each step is correct only if array is 1D with stride — confirm this matches the reference.
+- **`max0/max1/max2/max3` variables** are computed but never used (dead code); remove them to avoid confusion and potential compiler warnings treated as errors.
+
+        Return a corrected candidate function named `vectorized_s318`.

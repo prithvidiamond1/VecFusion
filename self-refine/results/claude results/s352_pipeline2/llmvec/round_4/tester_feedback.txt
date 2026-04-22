@@ -1,0 +1,2 @@
+- The function accumulates `dot` across all `8 * iterations` outer loop iterations, but the reference implementation computes the dot product once (or recomputes it each iteration without accumulating across iterations). The return value should be just `total` from the last iteration (or equivalently, compute once and return), not the sum of all iterations' dot products.
+- Fix: move `dot` assignment inside the loop (replace `dot += total` with `dot = total`) and return `dot` after the loop, so only the final iteration's result is returned.

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_rerun_20260415_215652/s343_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s343_opt(int iterations, float *flat_2d_array, float aa[256][256], float bb[256][256])\n{\n    int cond[256][256];\n    int row_count[256];\n    int row_start[257];\n\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        // Compute conditions: cond[j][i] = bb[j][i] > 0, j-outer for contiguous bb access\n        for (int j = 0; j < 256; j++) {\n            for (int i = 0; i < 256; i++) {\n                cond[j][i] = (bb[j][i] > (float)0.);\n            }\n        }\n\n        // Compute per-row counts (vectorizable reduction)\n        for (int j = 0; j < 256; j++) {\n            int cnt = 0;\n            for (int i = 0; i < 256; i++) {\n                cnt += cond[j][i];\n            }\n            row_count[j] = cnt;\n        }\n\n        // Compute row start offsets (sequential prefix sum, only 256 iterations)\n        row_start[0] = 0;\n        for (int j = 0; j < 256; j++) {\n            row_start[j+1] = row_start[j] + row_count[j];\n        }\n\n        // Scatter values using per-row local offset (each row independent)\n        for (int j = 0; j < 256; j++) {\n            int base = row_start[j];\n            for (int i = 0; i < 256; i++) {\n                flat_2d_array[base] = aa[j][i];\n                base += cond[j][i];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s343_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s343_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_rerun_20260415_215652/s343_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <string.h>\n\nvoid vectorized_s343(int iterations, float *flat_2d_array, float aa[256][256], float bb[256][256])\n{\n    int cond[256][256];\n    int row_count[256];\n    int row_start[257];\n\n    for (int nl = 0; nl < 10*(iterations/256); nl++) {\n        // Compute conditions with unrolling for vectorization\n        for (int j = 0; j < 256; j++) {\n            int i = 0;\n            for (; i <= 256 - 8; i += 8) {\n                cond[j][i+0] = (bb[j][i+0] > 0.0f);\n                cond[j][i+1] = (bb[j][i+1] > 0.0f);\n                cond[j][i+2] = (bb[j][i+2] > 0.0f);\n                cond[j][i+3] = (bb[j][i+3] > 0.0f);\n                cond[j][i+4] = (bb[j][i+4] > 0.0f);\n                cond[j][i+5] = (bb[j][i+5] > 0.0f);\n                cond[j][i+6] = (bb[j][i+6] > 0.0f);\n                cond[j][i+7] = (bb[j][i+7] > 0.0f);\n            }\n            for (; i < 256; i++) {\n                cond[j][i] = (bb[j][i] > 0.0f);\n            }\n        }\n\n        // Compute per-row counts with unrolling\n        for (int j = 0; j < 256; j++) {\n            int cnt0 = 0, cnt1 = 0, cnt2 = 0, cnt3 = 0;\n            int cnt4 = 0, cnt5 = 0, cnt6 = 0, cnt7 = 0;\n            int i = 0;\n            for (; i <= 256 - 8; i += 8) {\n                cnt0 += cond[j][i+0];\n                cnt1 += cond[j][i+1];\n                cnt2 += cond[j][i+2];\n                cnt3 += cond[j][i+3];\n                cnt4 += cond[j][i+4];\n                cnt5 += cond[j][i+5];\n                cnt6 += cond[j][i+6];\n                cnt7 += cond[j][i+7];\n            }\n            int cnt = (cnt0 + cnt1) + (cnt2 + cnt3) + (cnt4 + cnt5) + (cnt6 + cnt7);\n            for (; i < 256; i++) {\n                cnt += cond[j][i];\n            }\n            row_count[j] = cnt;\n        }\n\n        // Prefix sum (sequential)\n        row_start[0] = 0;\n        for (int j = 0; j < 256; j++) {\n            row_start[j+1] = row_start[j] + row_count[j];\n        }\n\n        // Scatter values\n        for (int j = 0; j < 256; j++) {\n            int base = row_start[j];\n            for (int i = 0; i < 256; i++) {\n                flat_2d_array[base] = aa[j][i];\n                base += cond[j][i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_rerun_20260415_215652/s343_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s343",
+        "input_snapshot": "results/all_tests_rerun_20260415_215652/s343_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "harness_path": "results/all_tests_rerun_20260415_215652/s343_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_rerun_20260415_215652/s343_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

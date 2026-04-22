@@ -1,0 +1,53 @@
+Candidate code:
+```c
+#include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+
+        // Process elements one at a time (gather pattern with stride inc
+        // prevents true SIMD vectorization, so we unroll manually)
+        int i = 1;
+        // Unroll by 4
+        for (; i <= LEN_1D - 4; i += 4) {
+            float v0 = fabsf(a[k]);
+            if (v0 > max) { max = v0; index = i; }
+            k += inc;
+
+            float v1 = fabsf(a[k]);
+            if (v1 > max) { max = v1; index = i + 1; }
+            k += inc;
+
+            float v2 = fabsf(a[k]);
+            if (v2 > max) { max = v2; index = i + 2; }
+            k += inc;
+
+            float v3 = fabsf(a[k]);
+            if (v3 > max) { max = v3; index = i + 3; }
+            k += inc;
+        }
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float v = fabsf(a[k]);
+            if (v > max) { max = v; index = i; }
+            k += inc;
+        }
+
+        chksum = max + (float)index;
+    }
+    return max + index + 1;
+}
+```
+
+External compile/test report:
+Compile succeeded for round 1.
+Exit code: 2
+stderr:
+Return mismatch on trial 0
