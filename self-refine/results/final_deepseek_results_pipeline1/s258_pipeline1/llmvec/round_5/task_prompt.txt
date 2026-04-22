@@ -1,0 +1,72 @@
+
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a,float* b,float* c, float* d,float* e, float aa[256][256])
+{
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > 0.) {
+                s = d[i] * d[i];
+            }
+            b[i] = s * c[i] + d[i];
+            e[i] = (s + (float)1.) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+typedef float float32_t;
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    if (iterations <= 0) return;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = 0.0f;
+        for (int i = 0; i < 256; i += 4) {
+            float32_t a_vec[4] = {a[i], a[i+1], a[i+2], a[i+3]};
+            float32_t d_vec[4] = {d[i], d[i+1], d[i+2], d[i+3]};
+            float32_t c_vec[4] = {c[i], c[i+1], c[i+2], c[i+3]};
+            float32_t aa0_vec[4] = {aa[0][i], aa[0][i+1], aa[0][i+2], aa[0][i+3]};
+
+            float32_t s_vec[4];
+            float32_t prev_s = s;
+            for (int j = 0; j < 4; j++) {
+                s_vec[j] = (a_vec[j] > 0.0f) ? (d_vec[j] * d_vec[j]) : prev_s;
+                prev_s = s_vec[j];
+            }
+
+            for (int j = 0; j < 4; j++) {
+                b[i + j] = s_vec[j] * c_vec[j] + d_vec[j];
+                e[i + j] = (s_vec[j] + 1.0f) * aa0_vec[j];
+            }
+
+            for (int j = 3; j >= 0; j--) {
+                if (a[i + j] > 0.0f) {
+                    s = d[i + j] * d[i + j];
+                    break;
+                }
+            }
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The inner loop that computes `s_vec` uses a sequential dependency (`prev_s = s_vec[j]`) which is not correctly vectorized; the scalar `s` update after the inner loop also depends on the last `a[i+j] > 0.0f` condition, but the vectorized code incorrectly uses `prev_s` from the previous iteration instead of the original scalar `s` from before the inner loop.
+
+- The final loop that updates `s` scans backwards and breaks on the first `a[i+j] > 0.0f`; the current vectorized code does not replicate this backward scan and break logic, leading to incorrect `s` values for subsequent outer iterations.
+
+- The mismatch at index 0 of parameter `a` suggests that the initial value of `s` (0.0f) is not being correctly propagated through the first iteration of the inner loop when `a[0] <= 0.0f`; the vectorized code should use the original `s` (not `prev_s` from a previous vector lane) for the first element of each 4-element chunk.
+
+- Fix: restructure the inner loop to compute `s_vec` sequentially (not vectorized) or use a prefix-sum-like approach that correctly handles the dependency on the previous scalar `s` and the backward scan for the final `s` update.
+
+        Return a corrected candidate function named `vectorized_s258`.

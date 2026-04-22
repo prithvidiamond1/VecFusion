@@ -1,0 +1,106 @@
+
+Revise your candidate for `s13110` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s13110(int iterations,float aa[256][256])
+{
+    int xindex, yindex;
+    float max, chksum;
+    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {
+        max = aa[(0)][0];
+        xindex = 0;
+        yindex = 0;
+        for (int i = 0; i < 256; i++) {
+            for (int j = 0; j < 256; j++) {
+                if (aa[i][j] > max) {
+                    max = aa[i][j];
+                    xindex = i;
+                    yindex = j;
+                }
+            }
+        }
+        chksum = max + (float) xindex + (float) yindex;
+    }
+    return max + xindex+1 + yindex+1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float __attribute__((ext_vector_type(4))) float4;
+typedef int __attribute__((ext_vector_type(4))) int4;
+
+float vectorized_s13110(int iterations, float aa[256][256]) {
+    int xindex, yindex;
+    float max;
+    int nl_limit = 100 * (iterations / 256);
+    for (int nl = 0; nl < nl_limit; nl++) {
+        float4 max_vec = {aa[0][0], aa[0][0], aa[0][0], aa[0][0]};
+        int xindex_vec[4] = {0, 0, 0, 0};
+        int yindex_vec[4] = {0, 0, 0, 0};
+
+        for (int i = 0; i < 256; i++) {
+            for (int j = 0; j < 256; j += 4) {
+                float4 current = *(float4*)&aa[i][j];
+                int4 mask = current > max_vec;
+
+                // Update max where current > max
+                max_vec = __builtin_shufflevector(max_vec, current, 
+                    mask[0] ? 4 : 0,
+                    mask[1] ? 5 : 1,
+                    mask[2] ? 6 : 2,
+                    mask[3] ? 7 : 3);
+
+                // Update xindex and yindex where current > max
+                if (mask[0]) {
+                    xindex_vec[0] = i;
+                    yindex_vec[0] = j;
+                }
+                if (mask[1]) {
+                    xindex_vec[1] = i;
+                    yindex_vec[1] = j + 1;
+                }
+                if (mask[2]) {
+                    xindex_vec[2] = i;
+                    yindex_vec[2] = j + 2;
+                }
+                if (mask[3]) {
+                    xindex_vec[3] = i;
+                    yindex_vec[3] = j + 3;
+                }
+            }
+        }
+
+        // Reduce across vector lanes
+        float max_val = max_vec[0];
+        int xindex_val = xindex_vec[0];
+        int yindex_val = yindex_vec[0];
+        for (int k = 1; k < 4; k++) {
+            if (max_vec[k] > max_val) {
+                max_val = max_vec[k];
+                xindex_val = xindex_vec[k];
+                yindex_val = yindex_vec[k];
+            }
+        }
+
+        max = max_val;
+        xindex = xindex_val;
+        yindex = yindex_val;
+    }
+    return max + xindex + 1 + yindex + 1;
+}
+        ```
+
+        Tester feedback:
+        - **Fix `__builtin_shufflevector` indices**: The indices must be compile-time constants, but `mask[0] ? 4 : 0` is a runtime ternary. Replace with a scalar loop or use `__builtin_shufflevector` with constant indices only, e.g., compute `max_vec` via element-wise `fmaxf` or a conditional select builtin like `__builtin_convertvector` + blend.
+
+- **Correct loop bounds**: The inner loop `j += 4` assumes `256` is divisible by 4, which is fine, but ensure the vector load `*(float4*)&aa[i][j]` is aligned. Add `__attribute__((aligned(16)))` to `aa` or use `__builtin_assume_aligned`.
+
+- **Fix trip count for outer loop**: `nl_limit = 100 * (iterations / 256)` may be zero if `iterations < 256`, causing no iterations. Ensure the scalar version's behavior is matched, or add a minimum of 1 iteration if needed.
+
+- **Remove unused variable `chksum`** to eliminate the warning, or add a use to avoid compiler complaints.
+
+- **Fix incompatible pointer types in test harness**: The test passes `float[128]` but the function expects `float[256][256]`. Adjust the test array dimensions or function signature to match.
+
+        Return a corrected candidate function named `vectorized_s13110`.

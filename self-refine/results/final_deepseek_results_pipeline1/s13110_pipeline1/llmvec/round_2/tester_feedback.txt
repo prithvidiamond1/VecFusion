@@ -1,0 +1,9 @@
+- **Fix `__builtin_shufflevector` indices**: The indices must be compile-time constants, but `mask[0] ? 4 : 0` is a runtime ternary. Replace with a scalar loop or use `__builtin_shufflevector` with constant indices only, e.g., compute `max_vec` via element-wise `fmaxf` or a conditional select builtin like `__builtin_convertvector` + blend.
+
+- **Correct loop bounds**: The inner loop `j += 4` assumes `256` is divisible by 4, which is fine, but ensure the vector load `*(float4*)&aa[i][j]` is aligned. Add `__attribute__((aligned(16)))` to `aa` or use `__builtin_assume_aligned`.
+
+- **Fix trip count for outer loop**: `nl_limit = 100 * (iterations / 256)` may be zero if `iterations < 256`, causing no iterations. Ensure the scalar version's behavior is matched, or add a minimum of 1 iteration if needed.
+
+- **Remove unused variable `chksum`** to eliminate the warning, or add a use to avoid compiler complaints.
+
+- **Fix incompatible pointer types in test harness**: The test passes `float[128]` but the function expects `float[256][256]`. Adjust the test array dimensions or function signature to match.

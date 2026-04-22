@@ -1,0 +1,8 @@
+The vectorizer has a **trip‑count / recurrence‑initialization bug** in the vectorized main loop.
+
+- **Incorrect `s` recurrence for the vector loop**  
+  The scalar `s` is updated by `s += 4.0f` after each vector iteration, but the vector `s_vec` is initialized as `{s, s+1, s+2, s+3}`. This assumes the scalar `s` already holds the value for the first element of the vector chunk. However, after the first vector iteration, `s` is advanced by 4, so the next iteration’s `s_vec` becomes `{s+4, s+5, s+6, s+7}` — which is correct. The bug is that **the initial `s` before the vector loop is 0.0**, but the first vector chunk should compute `a[0..3]` using `s=1,2,3,4` (since the scalar loop increments `s` *before* the multiply). The vector loop must start with `s = 1.0f` (or equivalently, use `s_vec = {s+1, s+2, s+3, s+4}` and then `s += 4`).
+
+- **Fix**: Change the vector loop’s initial `s` to `1.0f` (or adjust the `s_vec` construction to `{s+1, s+2, s+3, s+4}` and keep `s` starting at 0). The scalar tail loop correctly increments `s` before the multiply, so the vector loop must match that order.
+
+- **No other structural issues** – loop bounds, trip counts, and control flow are sound.

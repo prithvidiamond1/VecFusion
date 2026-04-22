@@ -1,0 +1,70 @@
+
+Revise your candidate for `s1213` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s1213(int iterations, int LEN_1D, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 1; i < LEN_1D-1; i++) {
+            a[i] = b[i-1]+c[i];
+            b[i] = a[i+1]*d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((__vector_size__(16)));
+
+void vectorized_s1213(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    if (LEN_1D < 3) return;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        // Vectorize 4 elements at a time, ensuring we don't read past array bounds
+        // Need a[i+1]..a[i+4] and b[i-1]..b[i+2], so max i is LEN_1D-5
+        for (; i <= LEN_1D - 5; i += 4) {
+            // Load b[i-1..i+2] (before b[i] is updated)
+            float32_t b_orig = *(float32_t*)(b + i - 1);
+
+            // Load c[i..i+3]
+            float32_t c_vec = *(float32_t*)(c + i);
+
+            // Compute a[i..i+3] = b[i-1..i+2] + c[i..i+3]
+            float32_t a_new = b_orig + c_vec;
+            *(float32_t*)(a + i) = a_new;
+
+            // Load a[i+1..i+4] (after a[i..i+3] is written, but a[i+1..i+4] is safe)
+            float32_t a_next = *(float32_t*)(a + i + 1);
+
+            // Load d[i..i+3]
+            float32_t d_vec = *(float32_t*)(d + i);
+
+            // Compute b[i..i+3] = a[i+1..i+4] * d[i..i+3]
+            float32_t b_new = a_next * d_vec;
+            *(float32_t*)(b + i) = b_new;
+        }
+
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D - 1; i++) {
+            a[i] = b[i-1] + c[i];
+            b[i] = a[i+1] * d[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop incorrectly computes `a[i]` using `b[i-1]` that was already updated in a previous iteration. In the scalar version, `b[i-1]` is the value from the *previous* outer iteration (or initial state), but the vector code loads `b[i-1..i+2]` after `b[i-1]` may have been overwritten by the vector store from the prior 4-element chunk.
+
+- Fix: load `b[i-1..i+2]` *before* any stores to `b` in the current vector iteration. Since the vector loop processes `i` in steps of 4, the store to `b[i-1]` happened in the previous chunk (when `i` was `i-4`). The current load of `b[i-1]` is correct only if the previous chunk’s store to `b[i-1]` is the intended value. Verify that the scalar semantics require `b[i-1]` to be the value from before the entire loop nest (i.e., not updated within the same `nl` iteration). If so, the vector loop must load all `b` values before any stores to `b` in that `nl` iteration.
+
+- The mismatch at index 2 suggests the computed `a[2]` is wrong, likely because `b[1]` was already updated by the vector store from the first chunk (i=1) before computing `a[2]` in the second chunk (i=5? but index 2 is in the first chunk). Actually, for i=1, the vector code stores `b[1..4]`, then for i=5, it loads `b[4..7]` – but `b[4]` was just stored. The scalar code would use the original `b[4]` for `a[5]`. This is a loop-carried dependency violation.
+
+- To fix: restructure the vector loop to process elements in a way that respects the true dependency: `a[i]` depends on `b[i-1]` (old value), and `b[i]` depends on `a[i+1]` (new value from same iteration). This is a recurrence that cannot be fully vectorized without reordering. Consider peeling the first iteration or using a different vectorization strategy (e.g., vectorize only the `a` computation, then the `b` computation separately, or use a shift register).
+
+        Return a corrected candidate function named `vectorized_s1213`.

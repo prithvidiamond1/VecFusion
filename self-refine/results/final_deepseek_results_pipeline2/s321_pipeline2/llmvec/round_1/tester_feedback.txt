@@ -1,0 +1,13 @@
+- The recurrence dependency is not correctly handled across vector lanes: `prev` must propagate sequentially through each element, but the vectorized version uses `prev_vec = {prev, a[i], a[i+1], a[i+2]}` which incorrectly assumes `a[i]` etc. are the original values before update.
+
+- The recurrence update `prev = result[3]` is correct for the next vector iteration, but the computation inside the vector lane uses outdated `a[i]` values for lanes 1-3 instead of the just-computed values from previous lanes.
+
+- To fix, implement a sequential scan pattern across the vector: compute lane 0 using `prev`, then lane 1 using result[0], lane 2 using result[1], etc. This requires serializing the operation within the vector, which may not be efficiently vectorizable.
+
+- Since the loop carries a true dependency (each iteration uses `prev` from the previous), consider if vectorization is possible only with in-order reductions or specialized hardware support; otherwise fall back to scalar.
+
+- For correctness, restructure to compute sequentially within the vector chunk: compute result[0] = a[i] + prev * b[i]; then result[1] = a[i+1] + result[0] * b[i+1]; etc.
+
+- Update the vectorized loop to perform this sequential scan explicitly, perhaps using a loop over the 4 lanes inside the vector iteration, or use a vectorized recurrence intrinsic if available.
+
+- Ensure the scalar cleanup loop starts with the correct `prev` value from the last vector iteration.

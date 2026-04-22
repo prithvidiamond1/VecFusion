@@ -1,0 +1,48 @@
+#include <stddef.h>
+
+typedef float float_vec __attribute__((ext_vector_type(4)));
+
+void vectorized_s244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    int n = LEN_1D - 1;
+    if (n <= 0) return;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // Handle first element separately to break the recurrence
+        if (n >= 1) {
+            float b0 = b[0];
+            float c0 = c[0];
+            float d0 = d[0];
+            a[0] = b0 + c0 * d0;
+            b[0] = c0 + b0;
+            a[1] = b[0] + a[1] * d0;
+        }
+
+        // Vectorize remaining elements starting from i=2 to avoid overwriting a[1]
+        int i = 2;
+        for (; i <= n - 4; i += 4) {
+            float_vec vb = *(float_vec*)(b + i);
+            float_vec vc = *(float_vec*)(c + i);
+            float_vec vd = *(float_vec*)(d + i);
+
+            // a[i] = b[i] + c[i] * d[i]
+            float_vec va = vb + vc * vd;
+            *(float_vec*)(a + i) = va;
+
+            // b[i] = c[i] + b[i]
+            vb = vc + vb;
+            *(float_vec*)(b + i) = vb;
+
+            // a[i+1] = b[i] + a[i+1] * d[i]
+            float_vec va_next = *(float_vec*)(a + i + 1);
+            va_next = vb + va_next * vd;
+            *(float_vec*)(a + i + 1) = va_next;
+        }
+
+        // Scalar cleanup
+        for (; i < n; i++) {
+            a[i] = b[i] + c[i] * d[i];
+            b[i] = c[i] + b[i];
+            a[i+1] = b[i] + a[i+1] * d[i];
+        }
+    }
+}

@@ -1,0 +1,92 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+Previous refinement rounds did not succeed.
+You may now aggressively restructure the transformed code if needed.
+You may rewrite control flow, split or peel loops, isolate switch/case behavior, derive trip counts explicitly,
+and perform larger semantic-preserving rewrites if that improves correctness or vectorization potential.
+At this stage, do not stay conservative just to preserve the prior shape.
+
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b)
+{
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = 0.0f;
+
+        // Create multiple partial sums to break dependency chain
+        float dot0 = 0.0f, dot1 = 0.0f, dot2 = 0.0f, dot3 = 0.0f, dot4 = 0.0f;
+
+        // Process groups of 5 elements with 5 independent accumulators
+        int i;
+        for (i = 0; i + 4 < LEN_1D; i += 5) {
+            // Each accumulator handles one element from the group
+            dot0 += a[i] * b[i];
+            dot1 += a[i + 1] * b[i + 1];
+            dot2 += a[i + 2] * b[i + 2];
+            dot3 += a[i + 3] * b[i + 3];
+            dot4 += a[i + 4] * b[i + 4];
+        }
+
+        // Combine partial sums
+        dot = dot0 + dot1 + dot2 + dot3 + dot4;
+
+        // Handle remaining elements (if any)
+        for (; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        float vectorized_s352(int iterations, int LEN_1D, float* a, float *b) {
+    float dot = 0.0f;
+
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        float partial_dot = 0.0f;
+
+        // Process in groups of 5 to match original accumulation pattern
+        int i = 0;
+        for (; i + 4 < LEN_1D; i += 5) {
+            // Preserve exact accumulation order
+            partial_dot += a[i] * b[i];
+            partial_dot += a[i + 1] * b[i + 1];
+            partial_dot += a[i + 2] * b[i + 2];
+            partial_dot += a[i + 3] * b[i + 3];
+            partial_dot += a[i + 4] * b[i + 4];
+        }
+
+        // Handle remaining elements (0-4)
+        for (; i < LEN_1D; i++) {
+            partial_dot += a[i] * b[i];
+        }
+
+        dot = partial_dot;  // Overwrite dot each iteration like original
+    }
+
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The test failure indicates a mismatch in the computed dot product, likely due to floating-point accumulation order differences between the original and vectorized versions.
+- The candidate attempts to preserve accumulation order by processing groups of 5 explicitly, but the original loop accumulates sequentially across all elements without any grouping.
+- The vectorized version's partial accumulation within the 5-element group is still sequential, but the overall loop structure (two separate loops: grouped then remainder) may produce different floating-point results compared to a single continuous loop.
+- To match the original semantics exactly, the vectorizer should generate a single loop that processes all elements sequentially, possibly using vector instructions but ensuring the accumulation order remains identical.
+- Consider using a reduction that sums vector lanes in order (e.g., horizontal add with precise ordering) or avoid regrouping altogether if vectorization cannot guarantee identical floating-point outcomes.
+- Since the exit code is 2 (likely a test failure), not a crash, focus on numerical equivalence: ensure the loop bound `LEN_1D` is handled correctly—the current grouped loop may skip or miscompute when `LEN_1D` is not a multiple of 5, but the remainder loop should catch that; verify the remainder loop is correct.
+- Check if the original code had any special properties (e.g., `dot` is overwritten each outer iteration, which is preserved). The issue is likely the inner loop's accumulation order.
+- Proposed fix: Replace the grouped + remainder loops with a single loop that processes elements one by one, but use vector intrinsics to compute multiple partial sums and combine them in order at the end of each outer iteration.
+
+        Return a corrected candidate function named `vectorized_s352`.

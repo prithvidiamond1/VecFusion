@@ -1,0 +1,68 @@
+
+Revise your candidate for `s261` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s261(int iterations,int LEN_1D, float* a,float* b,float* c, float* d)
+{
+    float t;
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 1; i < LEN_1D; ++i) {
+            t = a[i] + b[i];
+            a[i] = t + c[i-1];
+            t = c[i] * d[i];
+            c[i] = t;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s261(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        // Vectorized main loop
+        for (; i + 3 < LEN_1D; i += 4) {
+            float32_t va = *(float32_t*)(a + i);
+            float32_t vb = *(float32_t*)(b + i);
+            float32_t vc_prev = *(float32_t*)(c + i - 1);
+            float32_t vc = *(float32_t*)(c + i);
+            float32_t vd = *(float32_t*)(d + i);
+
+            float32_t t1 = va + vb;
+            float32_t t2 = t1 + vc_prev;
+            *(float32_t*)(a + i) = t2;
+
+            float32_t t3 = vc * vd;
+            *(float32_t*)(c + i) = t3;
+        }
+        // Scalar cleanup tail
+        for (; i < LEN_1D; ++i) {
+            float t;
+            t = a[i] + b[i];
+            a[i] = t + c[i-1];
+            t = c[i] * d[i];
+            c[i] = t;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a **correctness bug** in the vectorized loop body:
+
+- **Incorrect vector load offset for `c[i-1]`**: The vector load `*(float32_t*)(c + i - 1)` loads 4 elements starting at index `i-1`, but the scalar loop uses `c[i-1]` as a single scalar. For the first vector iteration (`i=1`), this loads `c[0],c[1],c[2],c[3]`, but the scalar code only reads `c[0]` for `i=1`. This causes a mismatch at index 2 (as reported).
+
+- **Fix**: The vectorized loop must handle the `c[i-1]` dependency by either:
+  - Starting the vector loop at `i=4` (so `c[i-1]` is `c[3]`, the last element of the previous vector), or
+  - Using a vector shift/insert to bring in the previous element from `c[i-1]` for each lane, or
+  - Keeping the first 3 iterations scalar and vectorizing from `i=4` onward.
+
+- **Trip count issue**: The vector loop bound `i + 3 < LEN_1D` is correct for 4-wide vectors, but the starting index `i=1` combined with the `c[i-1]` load creates the off-by-one error described above.
+
+        Return a corrected candidate function named `vectorized_s261`.

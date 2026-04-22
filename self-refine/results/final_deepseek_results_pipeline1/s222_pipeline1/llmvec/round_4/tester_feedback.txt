@@ -1,0 +1,6 @@
+The vectorizer candidate has a correctness bug in the peeled first iteration.
+
+- **Incorrect peeled iteration index**: The peeled iteration uses `i = 1` but the original loop likely started at `i = 0`. The first iteration should process index 0, not index 1, causing a mismatch at index 1 (as reported).
+- **Fix**: Change the peeled iteration to start with `i = 0` and initialize `e_prev = e[0]` before the loop, then begin the vectorized loop at `i = 1`.
+- **Trip count off-by-one**: The vectorized loop currently runs from `i = 1` to `LEN_1D - 1`, skipping index 0 entirely. It should run from `i = 1` to `LEN_1D` after correctly peeling index 0.
+- **Recurrence initialization**: Ensure `e_prev` is set to `e[0]` before any iteration, and the peeled iteration updates it correctly for the vectorized loop.

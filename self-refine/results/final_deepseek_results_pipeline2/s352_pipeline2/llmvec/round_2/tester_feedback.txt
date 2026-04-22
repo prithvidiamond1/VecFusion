@@ -1,0 +1,8 @@
+- The test failure indicates a mismatch between the vectorized result and the reference scalar result, likely due to floating-point reassociation.
+- The vectorized loop accumulates into `vdot` (8 separate accumulators) and then sums them, which changes the order of additions compared to the original scalar accumulation.
+- This is a correctness issue because floating-point addition is not associative; different summation orders produce different results.
+- The fix is to maintain the same order of operations: accumulate the vector products into a single scalar accumulator within the vectorized loop, not into separate vector lanes.
+- Alternatively, use a reduction pattern that is recognized as allowing reassociation, but for strict bitwise equivalence, preserve the original accumulation order.
+- The scalar tail and outer loop accumulation are structured correctly; the issue is solely the internal vector reduction method.
+- Change the vectorized inner loop to perform a horizontal sum of each vector product and add it immediately to `partial_dot`.
+- This ensures the accumulation order matches the original scalar loop, maintaining bitwise identical results.

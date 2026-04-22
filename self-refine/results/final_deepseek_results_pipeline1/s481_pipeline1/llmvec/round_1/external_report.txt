@@ -1,0 +1,22 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:32:23: error: initializing 'float32_t' (vector of 4 'float' values) with an expression of incompatible type 'int __attribute__((ext_vector_type(4)))' (vector of 4 'int' values)
+   32 |             float32_t cmp = d_vec < zero;
+      |                       ^     ~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:33:17: error: initializing 'int' with an expression of incompatible type 'int32_t __attribute__((ext_vector_type(4)))' (vector of 4 'int32_t' values)
+   33 |             int mask = __builtin_convertvector(cmp, int32_t __attribute__((ext_vector_type(4))));
+      |                 ^      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:34:21: error: subscripted value is not an array, pointer, or vector
+   34 |             if (mask[0] || mask[1] || mask[2] || mask[3]) {
+      |                 ~~~~^~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:34:32: error: subscripted value is not an array, pointer, or vector
+   34 |             if (mask[0] || mask[1] || mask[2] || mask[3]) {
+      |                            ~~~~^~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:34:43: error: subscripted value is not an array, pointer, or vector
+   34 |             if (mask[0] || mask[1] || mask[2] || mask[3]) {
+      |                                       ~~~~^~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:34:54: error: subscripted value is not an array, pointer, or vector
+   34 |             if (mask[0] || mask[1] || mask[2] || mask[3]) {
+      |                                                  ~~~~^~
+6 errors generated.

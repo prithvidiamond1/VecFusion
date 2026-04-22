@@ -1,0 +1,5 @@
+The vectorizer candidate has a correctness bug. The fix:
+
+- The loop body uses `a_half = a[half]` which reads from `a` once per outer iteration, but the original scalar semantics likely expected `a[half]` to be updated as `a` changes during the inner loop. Move the `a_half` load inside the inner loop or restructure to match the original sequential semantics.
+
+- The vectorized inner loop writes to `a[i]` while the outer loop reads `a[half]` — this creates a loop-carried dependency that the vectorization ignored. Ensure the read of `a[half]` happens before any writes to `a` in the same outer iteration, or use a temporary.

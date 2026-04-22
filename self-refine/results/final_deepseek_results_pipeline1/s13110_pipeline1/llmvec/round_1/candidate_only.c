@@ -1,0 +1,53 @@
+typedef float __attribute__((ext_vector_type(4))) float4;
+
+float vectorized_s13110(int iterations, float aa[256][256]) {
+    int xindex, yindex;
+    float max, chksum;
+    int nl_limit = 100 * (iterations / 256);
+    for (int nl = 0; nl < nl_limit; nl++) {
+        float4 max_vec = {aa[0][0], aa[0][0], aa[0][0], aa[0][0]};
+        int xindex_vec[4] = {0, 0, 0, 0};
+        int yindex_vec[4] = {0, 0, 0, 0};
+        
+        for (int i = 0; i < 256; i++) {
+            for (int j = 0; j < 256; j += 4) {
+                float4 current = *(float4*)&aa[i][j];
+                float4 mask = current > max_vec;
+                int mask_int = __builtin_convertvector(mask, int4);
+                
+                // Update max where current > max
+                max_vec = __builtin_shufflevector(max_vec, current, 
+                    (mask_int[0] ? 4 : 0),
+                    (mask_int[1] ? 5 : 1),
+                    (mask_int[2] ? 6 : 2),
+                    (mask_int[3] ? 7 : 3));
+                
+                // Update xindex where current > max
+                for (int k = 0; k < 4; k++) {
+                    if (mask_int & (1 << k)) {
+                        xindex_vec[k] = i;
+                        yindex_vec[k] = j + k;
+                    }
+                }
+            }
+        }
+        
+        // Reduce across vector lanes
+        float max_val = max_vec[0];
+        int xindex_val = xindex_vec[0];
+        int yindex_val = yindex_vec[0];
+        for (int k = 1; k < 4; k++) {
+            if (max_vec[k] > max_val) {
+                max_val = max_vec[k];
+                xindex_val = xindex_vec[k];
+                yindex_val = yindex_vec[k];
+            }
+        }
+        
+        max = max_val;
+        xindex = xindex_val;
+        yindex = yindex_val;
+        chksum = max + (float)xindex + (float)yindex;
+    }
+    return max + xindex + 1 + yindex + 1;
+}

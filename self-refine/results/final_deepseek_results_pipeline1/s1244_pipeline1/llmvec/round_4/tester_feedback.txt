@@ -1,0 +1,13 @@
+The vectorizer candidate has a **trip‑count / bounds mismatch** that causes a memory access error.
+
+- The vector loop runs while `i < n - 4`, but the scalar remainder loop runs while `i < n`.  
+  This leaves the iteration `i = n - 4` (when `n - 4` is the last vector start) **uncovered** – the vector loop stops before it, and the scalar loop starts at `i = n - 4` (if `n - 4` is less than `n`).  
+  However, the vector loop’s upper bound should be `i <= n - 4` (or equivalently `i < n - 3`) to cover all full vectors, or the scalar loop must start at `i = n - 4` **only if** `(n - 4) % 4 == 0`.  
+
+- The mismatch manifests as an out‑of‑bounds read in the scalar loop: when `i = n - 1`, `a[i + 1]` reads `a[n]`, which is one past the allocated array (size `LEN_1D`).  
+  The original loop bound was `LEN_1D - 1`, so `a[n]` is out of range.
+
+**Fix:**  
+- Change the vector loop bound to `i < n - 3` (i.e., `i <= n - 4`).  
+- Ensure the scalar remainder loop starts at `i = (n - 4) & ~3` (or simply `i = 0` after the vector loop) and runs while `i < n`.  
+- Verify that `a[i + 1]` in the scalar loop never exceeds `LEN_1D - 1` – the original loop ran `i` from 0 to `LEN_1D - 2`, so the scalar loop must stop at `i < n` (i.e., `i <= LEN_1D - 2`).

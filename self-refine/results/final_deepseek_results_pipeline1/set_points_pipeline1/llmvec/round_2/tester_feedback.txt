@@ -1,0 +1,7 @@
+The vectorized loop has a correctness bug in how it computes `dst` values.
+
+**Specific issues to fix:**
+
+1. **Incorrect dst indexing in vector loop** – The vector loop writes `dst[i+1]` using `*(float32x4_t*)(dst + i + 1)`, but the scalar cleanup writes `dst[i+1]` using `dst[i] + dstDelta`. The vector loop should write to `dst[i+1..i+4]` but the load of `dst_prev` uses `dst + i` which is off by one from the scalar pattern. The vector loop should load from `dst + i + 1` (the last written position) or restructure to match the scalar accumulation.
+
+2. **Mismatch at index 0** – The report shows failure at `dst[0]`. The

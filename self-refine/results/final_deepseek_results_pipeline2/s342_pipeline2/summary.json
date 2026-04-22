@@ -1,0 +1,36 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s342_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "VecTrans adapter failed before producing a candidate: AttributeError: 'NoneType' object has no attribute 'model'",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s342_pipeline2/vectrans/vectrans_adapter_failure.txt",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s342_pipeline2/vectrans/vectrans_input_snapshot.c"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s342(int iterations,int LEN_1D, float* a, float *b)\n{\n    int j = 0;\n    for (int nl = 0; nl < iterations; nl++) {\n        j = -1;\n        for (int i = 0; i < LEN_1D; i++) {\n            if (a[i] > (float)0.) {\n                j++;\n                a[i] = b[j];\n            }\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the source unchanged and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s342_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

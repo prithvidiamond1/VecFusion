@@ -1,0 +1,33 @@
+#include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s1244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    int n = LEN_1D - 1;
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        // Vector loop: process 4 elements at a time, but need a[i+4] which requires i+4 <= n-1, so i <= n-5
+        for (; i <= n - 5; i += 4) {
+            float32_t vb = *(float32_t*)(b + i);
+            float32_t vc = *(float32_t*)(c + i);
+            float32_t vc_sq = vc * vc;
+            float32_t vb_sq = vb * vb;
+            float32_t va = vb + vc_sq + vb_sq + vc;
+            *(float32_t*)(a + i) = va;
+
+            // Load a[i+1] through a[i+4] for d[i] computation
+            float32_t va_next;
+            va_next[0] = a[i + 1];
+            va_next[1] = a[i + 2];
+            va_next[2] = a[i + 3];
+            va_next[3] = a[i + 4];
+            float32_t vd = va + va_next;
+            *(float32_t*)(d + i) = vd;
+        }
+        // Scalar remainder loop
+        for (; i < n; i++) {
+            a[i] = b[i] + c[i] * c[i] + b[i] * b[i] + c[i];
+            d[i] = a[i] + a[i + 1];
+        }
+    }
+}

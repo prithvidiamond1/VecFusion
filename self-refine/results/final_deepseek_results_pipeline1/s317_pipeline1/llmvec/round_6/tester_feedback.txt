@@ -1,0 +1,10 @@
+The candidate compiles but produces incorrect results (exit code 2 indicates a runtime mismatch). The issue is in the loop semantics:
+
+- The original loop likely had a different trip count or inner computation that was simplified incorrectly
+- `powf(0.99f, (float)inner_len)` computes `0.99^inner_len` once, but the original loop may have had a different per-iteration factor or a different number of iterations
+- The total trip count `5 * iterations` may not match the original loop structure
+
+**Fix:**
+- Verify the original loop's trip count matches `total_outer` exactly
+- Ensure the per-iteration multiplication factor is correct (not just `inner_product` computed once)
+- If the original loop had a different inner computation per iteration, the vectorizer must preserve that dependency rather than hoisting it out

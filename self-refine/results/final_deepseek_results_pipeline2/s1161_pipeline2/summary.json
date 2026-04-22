@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s1161_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s1161_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        // First loop: compute all a[i] updates for c[i] >= 0\n        for (int i = 0; i < LEN_1D-1; ++i) {\n            if (c[i] >= (float)0.) {\n                a[i] = c[i] + d[i] * e[i];\n            }\n        }\n        \n        // Second loop: compute all b[i] updates for c[i] < 0\n        for (int i = 0; i < LEN_1D-1; ++i) {\n            if (c[i] < (float)0.) {\n                b[i] = a[i] + d[i] * d[i];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s1161_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s1161_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s1161_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\nvoid vectorized_s1161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e) {\n    int n = LEN_1D - 1;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        // First loop: compute all a[i] updates for c[i] >= 0\n        int i = 0;\n        for (; i <= n - 4; i += 4) {\n            float c0 = c[i];\n            float c1 = c[i+1];\n            float c2 = c[i+2];\n            float c3 = c[i+3];\n            \n            float mask0 = c0 >= 0.0f;\n            float mask1 = c1 >= 0.0f;\n            float mask2 = c2 >= 0.0f;\n            float mask3 = c3 >= 0.0f;\n            \n            float val0 = c0 + d[i] * e[i];\n            float val1 = c1 + d[i+1] * e[i+1];\n            float val2 = c2 + d[i+2] * e[i+2];\n            float val3 = c3 + d[i+3] * e[i+3];\n            \n            a[i] = mask0 ? val0 : a[i];\n            a[i+1] = mask1 ? val1 : a[i+1];\n            a[i+2] = mask2 ? val2 : a[i+2];\n            a[i+3] = mask3 ? val3 : a[i+3];\n        }\n        \n        // Scalar tail for first loop\n        for (; i < n; i++) {\n            if (c[i] >= 0.0f) {\n                a[i] = c[i] + d[i] * e[i];\n            }\n        }\n        \n        // Second loop: compute all b[i] updates for c[i] < 0\n        i = 0;\n        for (; i <= n - 4; i += 4) {\n            float c0 = c[i];\n            float c1 = c[i+1];\n            float c2 = c[i+2];\n            float c3 = c[i+3];\n            \n            float mask0 = c0 < 0.0f;\n            float mask1 = c1 < 0.0f;\n            float mask2 = c2 < 0.0f;\n            float mask3 = c3 < 0.0f;\n            \n            float val0 = a[i] + d[i] * d[i];\n            float val1 = a[i+1] + d[i+1] * d[i+1];\n            float val2 = a[i+2] + d[i+2] * d[i+2];\n            float val3 = a[i+3] + d[i+3] * d[i+3];\n            \n            b[i] = mask0 ? val0 : b[i];\n            b[i+1] = mask1 ? val1 : b[i+1];\n            b[i+2] = mask2 ? val2 : b[i+2];\n            b[i+3] = mask3 ? val3 : b[i+3];\n        }\n        \n        // Scalar tail for second loop\n        for (; i < n; i++) {\n            if (c[i] < 0.0f) {\n                b[i] = a[i] + d[i] * d[i];\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s1161_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s1161",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s1161_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s1161_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s1161_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s1161_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

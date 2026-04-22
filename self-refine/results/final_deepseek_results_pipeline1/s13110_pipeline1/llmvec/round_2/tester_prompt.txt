@@ -1,0 +1,91 @@
+Candidate code:
+```c
+typedef float __attribute__((ext_vector_type(4))) float4;
+typedef int __attribute__((ext_vector_type(4))) int4;
+
+float vectorized_s13110(int iterations, float aa[256][256]) {
+    int xindex, yindex;
+    float max;
+    int nl_limit = 100 * (iterations / 256);
+    for (int nl = 0; nl < nl_limit; nl++) {
+        float4 max_vec = {aa[0][0], aa[0][0], aa[0][0], aa[0][0]};
+        int xindex_vec[4] = {0, 0, 0, 0};
+        int yindex_vec[4] = {0, 0, 0, 0};
+
+        for (int i = 0; i < 256; i++) {
+            for (int j = 0; j < 256; j += 4) {
+                float4 current = *(float4*)&aa[i][j];
+                int4 mask = current > max_vec;
+
+                // Update max where current > max
+                max_vec = __builtin_shufflevector(max_vec, current, 
+                    mask[0] ? 4 : 0,
+                    mask[1] ? 5 : 1,
+                    mask[2] ? 6 : 2,
+                    mask[3] ? 7 : 3);
+
+                // Update xindex and yindex where current > max
+                if (mask[0]) {
+                    xindex_vec[0] = i;
+                    yindex_vec[0] = j;
+                }
+                if (mask[1]) {
+                    xindex_vec[1] = i;
+                    yindex_vec[1] = j + 1;
+                }
+                if (mask[2]) {
+                    xindex_vec[2] = i;
+                    yindex_vec[2] = j + 2;
+                }
+                if (mask[3]) {
+                    xindex_vec[3] = i;
+                    yindex_vec[3] = j + 3;
+                }
+            }
+        }
+
+        // Reduce across vector lanes
+        float max_val = max_vec[0];
+        int xindex_val = xindex_vec[0];
+        int yindex_val = yindex_vec[0];
+        for (int k = 1; k < 4; k++) {
+            if (max_vec[k] > max_val) {
+                max_val = max_vec[k];
+                xindex_val = xindex_vec[k];
+                yindex_val = yindex_vec[k];
+            }
+        }
+
+        max = max_val;
+        xindex = xindex_val;
+        yindex = yindex_val;
+    }
+    return max + xindex + 1 + yindex + 1;
+}
+```
+
+External compile/test report:
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:11:16: warning: variable 'chksum' set but not used [-Wunused-but-set-variable]
+   11 |     float max, chksum;
+      |                ^
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:48:27: error: index for __builtin_shufflevector must be a constant integer
+   48 |                 max_vec = __builtin_shufflevector(max_vec, current, 
+      |                           ^
+   49 |                     mask[0] ? 4 : 0,
+      |                     ~~~~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:123:49: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  123 |                 ret_scalar = s13110(iterations, aa_scalar); ret_vector = vectorized_s13110(iterations, aa_vector); if (fabsf(ret_scalar - ret_vector) > 1e-5f) {
+      |                                                 ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:8:43: note: passing argument to parameter 'aa' here
+    8 |         float s13110(int iterations,float aa[256][256])
+      |                                           ^
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:123:104: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  123 |                 ret_scalar = s13110(iterations, aa_scalar); ret_vector = vectorized_s13110(iterations, aa_vector); if (fabsf(ret_scalar - ret_vector) > 1e-5f) {
+      |                                                                                                        ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:33:47: note: passing argument to parameter 'aa' here
+   33 | float vectorized_s13110(int iterations, float aa[256][256]) {
+      |                                               ^
+3 warnings and 1 error generated.

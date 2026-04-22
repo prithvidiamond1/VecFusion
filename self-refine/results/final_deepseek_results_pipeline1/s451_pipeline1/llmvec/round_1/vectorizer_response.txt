@@ -1,0 +1,27 @@
+```c
+#include <math.h>
+#include <stddef.h>
+
+typedef float float_vec __attribute__((ext_vector_type(4)));
+
+void vectorized_s451(int iterations, int LEN_1D, float* a, float *b, float* c) {
+    int outer_iters = iterations / 5;
+    for (int nl = 0; nl < outer_iters; nl++) {
+        int i = 0;
+        #pragma clang loop vectorize(enable)
+        for (; i <= LEN_1D - 4; i += 4) {
+            float_vec vb = *(float_vec*)(b + i);
+            float_vec vc = *(float_vec*)(c + i);
+            float_vec va;
+            va[0] = sinf(vb[0]) + cosf(vc[0]);
+            va[1] = sinf(vb[1]) + cosf(vc[1]);
+            va[2] = sinf(vb[2]) + cosf(vc[2]);
+            va[3] = sinf(vb[3]) + cosf(vc[3]);
+            *(float_vec*)(a + i) = va;
+        }
+        for (; i < LEN_1D; i++) {
+            a[i] = sinf(b[i]) + cosf(c[i]);
+        }
+    }
+}
+```

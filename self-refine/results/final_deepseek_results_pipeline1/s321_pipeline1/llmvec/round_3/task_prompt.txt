@@ -1,0 +1,56 @@
+
+Revise your candidate for `s321` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s321(int iterations,int LEN_1D, float* a, float* b)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] += a[i-1] * b[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float_vec __attribute__((ext_vector_type(4)));
+
+void vectorized_s321(int iterations, int LEN_1D, float* a, float* b) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        // Process first element scalar to establish recurrence
+        if (LEN_1D > 1) {
+            a[1] += a[0] * b[1];
+            i = 2;
+        }
+        // Vectorized main loop: process 4 elements at a time
+        for (; i + 3 < LEN_1D; i += 4) {
+            float_vec a_prev = *(float_vec*)&a[i-1];
+            float_vec b_curr = *(float_vec*)&b[i];
+            float_vec a_curr = *(float_vec*)&a[i];
+            a_curr += a_prev * b_curr;
+            *(float_vec*)&a[i] = a_curr;
+        }
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D; i++) {
+            a[i] += a[i-1] * b[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a **semantic correctness bug** in the vectorized loop body.
+
+- **Recurrence dependency broken**: The original scalar recurrence `a[i] += a[i-1] * b[i]` requires each iteration's `a[i]` to be computed *before* it is used as `a[i-1]` in the next iteration. The vectorized code loads all `a_prev` values from `a[i-1..i+2]` *before* any `a_curr` is written, so the later elements in the vector use stale `a` values instead of the just-computed ones.
+- **Fix**: The vectorized loop cannot safely process this backward recurrence in parallel. Either:
+  - Remove the vectorized loop entirely and keep only the scalar loop, or
+  - Restructure to a prefix-sum-like approach (e.g., scan) that respects the dependency, or
+  - Use a smaller vector width (e.g., 2) with manual dependency chaining between halves.
+- **Trip count / bounds**: The loop bounds `i + 3 < LEN_1D` and the scalar-first-element handling are correct for the structure, but the vector body itself is unsound for this recurrence pattern.
+
+        Return a corrected candidate function named `vectorized_s321`.

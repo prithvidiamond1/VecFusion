@@ -1,0 +1,80 @@
+
+Revise your candidate for `s261` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s261(int iterations,int LEN_1D, float* a,float* b,float* c, float* d)
+{
+    float t;
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 1; i < LEN_1D; ++i) {
+            t = a[i] + b[i];
+            a[i] = t + c[i-1];
+            t = c[i] * d[i];
+            c[i] = t;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s261(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        // Scalar prologue: handle i=0 separately, then compute c[0..3] fully
+        if (LEN_1D > 0) {
+            float t = c[0] * d[0];
+            c[0] = t;
+            i = 1;
+        }
+        for (; i < 4 && i < LEN_1D; ++i) {
+            float t = a[i] + b[i];
+            a[i] = t + c[i-1];
+            t = c[i] * d[i];
+            c[i] = t;
+        }
+        // Vectorized main loop: start at i=4, c[0..3] are fully computed
+        for (; i + 3 < LEN_1D; i += 4) {
+            float32_t va = *(float32_t*)(a + i);
+            float32_t vb = *(float32_t*)(b + i);
+            float32_t vc_prev = *(float32_t*)(c + i - 1);
+            float32_t vc = *(float32_t*)(c + i);
+            float32_t vd = *(float32_t*)(d + i);
+
+            float32_t t1 = va + vb;
+            float32_t t2 = t1 + vc_prev;
+            *(float32_t*)(a + i) = t2;
+
+            float32_t t3 = vc * vd;
+            *(float32_t*)(c + i) = t3;
+        }
+        // Scalar cleanup tail
+        for (; i < LEN_1D; ++i) {
+            float t;
+            t = a[i] + b[i];
+            a[i] = t + c[i-1];
+            t = c[i] * d[i];
+            c[i] = t;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a **correctness bug** in the vectorized main loop:
+
+- **Incorrect vector load offset for `c_prev`**: The vector load `*(float32_t*)(c + i - 1)` loads 4 elements starting at `c[i-1]`, which includes `c[i-1], c[i], c[i+1], c[i+2]`. However, the scalar code uses only `c[i-1]` (a single element) for the recurrence `a[i] = t + c[i-1]`. Loading a full vector from `c[i-1]` introduces values from `c[i], c[i+1], c[i+2]` that are not yet computed (they depend on the current iteration), breaking the loop-carried dependency.
+
+- **Fix**: The vectorized main loop must handle the recurrence differently. Either:
+  - Use a scalar load for `c[i-1]` and broadcast it, or
+  - Restructure the loop to compute `a[i]` using the *previously computed* `c[i-1]` from the prior iteration (e.g., keep a scalar `c_prev` variable updated across iterations), or
+  - Peel the first vector iteration to compute `c[0..3]` fully before entering the vector loop, then use `c[i-1]` from the already-computed vector.
+
+- **The mismatch at index 1** confirms this: the vector load of `c[i-1]` when `i=4` reads `c[3]` (correct, already computed) but also `c[4], c[5], c[6]` (not yet computed), corrupting the computation for `a[4]`.
+
+        Return a corrected candidate function named `vectorized_s261`.

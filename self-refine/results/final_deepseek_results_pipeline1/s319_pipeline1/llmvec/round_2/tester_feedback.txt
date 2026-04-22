@@ -1,0 +1,5 @@
+The candidate compiles but produces incorrect results. The issue is in the vectorized loop's trip count calculation.
+
+- **Incorrect trip count**: `vec_end = LEN_1D - (LEN_1D % 4)` is wrong when `LEN_1D` is not a multiple of 4. For example, `LEN_1D=5` gives `vec_end=4`, but the scalar loop starts at `i=4` and runs for `i=4` only, missing index 4. The correct formula is `LEN_1D & ~3` or `LEN_1D - (LEN_1D & 3)`.
+
+- **Fix**: Change `vec_end` calculation to `LEN_1D & ~3` (or `LEN_1D - (LEN_1D & 3)`) to properly align to the largest multiple of 4 ≤ LEN_1D.

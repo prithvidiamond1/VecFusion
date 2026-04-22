@@ -1,0 +1,34 @@
+Candidate code:
+```c
+typedef float float32 __attribute__((ext_vector_type(4)));
+
+float vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)
+{
+    float sum = 0.0f;
+    for (int nl = 0; nl < iterations; nl++) {
+        float32 vec_sum = {0.0f, 0.0f, 0.0f, 0.0f};
+        float running_sum = 0.0f;
+        int i;
+        for (i = 0; i <= LEN_1D - 4; i += 4) {
+            float32 va = *(float32*)(a + i);
+            vec_sum += va;
+            float32 vb = {vec_sum[0], vec_sum[1], vec_sum[2], vec_sum[3]};
+            *(float32*)(b + i) = vb;
+            running_sum = vec_sum[3];
+        }
+        // Tail handling: continue from the last running sum
+        for (; i < LEN_1D; i++) {
+            running_sum += a[i];
+            b[i] = running_sum;
+        }
+        sum = running_sum;
+    }
+    return sum;
+}
+```
+
+External compile/test report:
+Compile succeeded for round 2.
+Exit code: 2
+stderr:
+Return mismatch on trial 0

@@ -1,0 +1,7 @@
+- **Fix type mismatch for `cmp`**: `vc > vb` produces a vector of `int` (or `int32_t`), not `float32_t`. Change `float32_t cmp` to `int32_t __attribute__((ext_vector_type(4))) cmp` (or use `auto` if available).
+
+- **Fix type mismatch for `mask`**: `__builtin_convertvector` returns a vector of `int32_t`, not a scalar `int`. Change `int mask` to `int32_t __attribute__((ext_vector_type(4))) mask`.
+
+- **Fix `__builtin_ctz` argument**: `__builtin_ctz` expects a scalar `unsigned int`, not a vector. Use `__builtin_ctz` on a reduction (e.g., `__builtin_ctz((unsigned int)mask)` only works if mask is a scalar; for a vector, compute a scalar mask via `__builtin_reduce_or` or `__builtin_convertvector` to a scalar integer first).
+
+- **Ensure correct break logic**: After fixing types, verify that the `if (mask)` condition correctly detects any true element in the vector (e.g., `if (__builtin_reduce_or(mask))`).

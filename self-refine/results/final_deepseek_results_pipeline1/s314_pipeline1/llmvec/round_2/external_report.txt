@@ -1,0 +1,7 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_2
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_2.c:33:22: error: use of unknown builtin '__builtin_ia32_loadups' [-Wimplicit-function-declaration]
+   33 |             v4f va = __builtin_ia32_loadups(a + i);
+      |                      ^
+1 error generated.

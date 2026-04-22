@@ -1,0 +1,6 @@
+- Replace `__builtin_ia32_loadups` with a portable vector load, e.g., `*(v4f*)(a + i)` or `__builtin_convertvector` if alignment is guaranteed; the builtin is x86-specific and not available in generic C.
+- Ensure the vector load is aligned or use an unaligned load intrinsic if alignment cannot be assumed; the current code uses `a + i` which may not be 16-byte aligned.
+- Verify that the loop bound `i + 4 <= LEN_1D` is correct for the vectorized loop; it should be `i + 4 <= LEN_1D` to avoid out-of-bounds access, which is fine.
+- The scalar remainder loop `for (; i < LEN_1D; i++)` correctly handles leftover elements after vectorization.
+- The outer loop `for (int nl = 0; nl < total_outer; nl++)` with `total_outer = iterations * 5` is sound as a trip count multiplier.
+- The reduction logic across vector lanes (`vmax[0]`, `vmax[1]`, etc.) is correct for finding the maximum.

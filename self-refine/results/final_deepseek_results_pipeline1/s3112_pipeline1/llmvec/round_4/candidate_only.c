@@ -1,0 +1,26 @@
+typedef float float32 __attribute__((ext_vector_type(4)));
+
+float vectorized_s3112(int iterations, int LEN_1D, float* a, float* b)
+{
+    float sum = 0.0f;
+    for (int nl = 0; nl < iterations; nl++) {
+        float running_sum = 0.0f;
+        int i;
+        for (i = 0; i <= LEN_1D - 4; i += 4) {
+            float32 va = *(float32*)(a + i);
+            float32 vb;
+            vb[0] = running_sum + va[0];
+            vb[1] = vb[0] + va[1];
+            vb[2] = vb[1] + va[2];
+            vb[3] = vb[2] + va[3];
+            *(float32*)(b + i) = vb;
+            running_sum = vb[3];
+        }
+        for (; i < LEN_1D; i++) {
+            running_sum = running_sum + a[i];
+            b[i] = running_sum;
+        }
+        sum = running_sum;
+    }
+    return sum;
+}

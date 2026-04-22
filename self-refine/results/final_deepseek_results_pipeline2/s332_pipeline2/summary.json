@@ -1,0 +1,41 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s332_pipeline2/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s332_opt(int iterations,int LEN_1D,int t, float* a)\n{\n    int index;\n    float value;\n    float chksum;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        index = -2;\n        value = -1.0f;\n        \n        // Process in fixed-size chunks without early exit\n        int found_index = -1;\n        const int CHUNK_SIZE = 8; // SIMD-friendly fixed size\n        \n        // First loop: process full chunks without breaking\n        int i;\n        for (i = 0; i <= LEN_1D - CHUNK_SIZE; i += CHUNK_SIZE) {\n            // Process chunk - all iterations independent\n            int chunk_found = -1;\n            float chunk_value = -1.0f;\n            \n            // Unrolled chunk processing (no early exit within chunk)\n            for (int j = 0; j < CHUNK_SIZE; j++) {\n                int current_idx = i + j;\n                float current_val = a[current_idx];\n                int is_greater = (current_val > t);\n                \n                // Track first match in chunk using conditional update\n                if (is_greater && chunk_found == -1) {\n                    chunk_found = current_idx;\n                    chunk_value = current_val;\n                }\n            }\n            \n            // After processing chunk, check if found\n            if (chunk_found != -1) {\n                found_index = chunk_found;\n                value = chunk_value;\n                break;\n            }\n        }\n        \n        // Second loop: process remaining elements\n        if (found_index == -1) {\n            int start_remain = i;\n            for (int j = start_remain; j < LEN_1D; j++) {\n                if (a[j] > t) {\n                    found_index = j;\n                    value = a[j];\n                    break;\n                }\n            }\n        }\n        \n        // Set final results\n        if (found_index != -1) {\n            index = found_index;\n            // value already set above\n        }\n        \n        chksum = value + (float)index;\n    }\n    \n    return value;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s332_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s332_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s332_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: VecTrans-preprocessed input is not a single full function; cannot safely normalize handoff.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s332_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "s332",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s332_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    }
+  ]
+}

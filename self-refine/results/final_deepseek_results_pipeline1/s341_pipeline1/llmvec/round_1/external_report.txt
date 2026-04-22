@@ -1,0 +1,10 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s341_pipeline1/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s341_pipeline1/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s341_pipeline1/llmvec/candidate_round_1.c:37:23: error: initializing 'float32_t' (vector of 4 'float' values) with an expression of incompatible type 'int __attribute__((ext_vector_type(4)))' (vector of 4 'int' values)
+   37 |             float32_t mask = vb > zero;
+      |                       ^      ~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s341_pipeline1/llmvec/candidate_round_1.c:40:29: error: second argument to __builtin_convertvector must be of vector type
+   40 |             int mask_bits = __builtin_convertvector(mask, int32_t);
+      |                             ^
+2 errors generated.

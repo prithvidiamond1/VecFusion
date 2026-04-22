@@ -1,0 +1,58 @@
+Candidate code:
+```c
+#include <stddef.h>
+
+typedef float float32_t __attribute__((__vector_size__(16))); // 4 floats per vector
+
+void vectorized_s1213(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    // Handle edge cases: LEN_1D must be at least 3 for the loop to execute
+    if (LEN_1D < 3) return;
+    
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        // Vectorized main loop: process 4 elements at a time
+        // Note: loop body uses a[i+1] which requires reading ahead, so we stop at LEN_1D-2
+        for (; i <= LEN_1D - 3; i += 4) {
+            // Load b[i-1..i+2] (shifted left by 1)
+            float32_t b_prev = __builtin_shufflevector(
+                *(float32_t*)(b + i - 1),
+                *(float32_t*)(b + i + 3),
+                0, 1, 2, 3
+            );
+            // Actually we need b[i-1], b[i], b[i+1], b[i+2] but b[i] is being written
+            // So we load b[i-1..i+2] from original b (before update)
+            float32_t b_orig = *(float32_t*)(b + i - 1);
+            
+            // Load c[i..i+3]
+            float32_t c_vec = *(float32_t*)(c + i);
+            
+            // Compute a[i..i+3] = b[i-1..i+2] + c[i..i+3]
+            float32_t a_new = b_orig + c_vec;
+            *(float32_t*)(a + i) = a_new;
+            
+            // Now compute b[i..i+3] = a[i+1..i+4] * d[i..i+3]
+            // Load a[i+1..i+4]
+            float32_t a_next = *(float32_t*)(a + i + 1);
+            
+            // Load d[i..i+3]
+            float32_t d_vec = *(float32_t*)(d + i);
+            
+            // Compute b[i..i+3] = a[i+1..i+4] * d[i..i+3]
+            float32_t b_new = a_next * d_vec;
+            *(float32_t*)(b + i) = b_new;
+        }
+        
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D - 1; i++) {
+            a[i] = b[i-1] + c[i];
+            b[i] = a[i+1] * d[i];
+        }
+    }
+}
+```
+
+External compile/test report:
+Compile succeeded for round 1.
+Exit code: 2
+stderr:
+Mismatch in parameter a on trial 0 at index 0

@@ -1,0 +1,57 @@
+```c
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s116(int iterations, int LEN_1D, float* a) {
+    int outer_iterations = iterations * 10;
+    int limit = LEN_1D - 5;
+    
+    for (int nl = 0; nl < outer_iterations; nl++) {
+        // Compute safe vectorizable length ensuring i+5 < LEN_1D
+        int vectorizable_len = ((limit - 0) / 4) * 4;
+        
+        // Position 0: a[i] = a[i+1] * a[i]
+        for (int i = 0; i < vectorizable_len; i += 4) {
+            float4 current = *(float4*)&a[i];
+            float4 next = *(float4*)&a[i + 1];
+            *(float4*)&a[i] = current * next;
+        }
+        
+        // Position 1: a[i+1] = a[i+2] * a[i+1]
+        for (int i = 0; i < vectorizable_len; i += 4) {
+            float4 current = *(float4*)&a[i + 1];
+            float4 next = *(float4*)&a[i + 2];
+            *(float4*)&a[i + 1] = current * next;
+        }
+        
+        // Position 2: a[i+2] = a[i+3] * a[i+2]
+        for (int i = 0; i < vectorizable_len; i += 4) {
+            float4 current = *(float4*)&a[i + 2];
+            float4 next = *(float4*)&a[i + 3];
+            *(float4*)&a[i + 2] = current * next;
+        }
+        
+        // Position 3: a[i+3] = a[i+4] * a[i+3]
+        for (int i = 0; i < vectorizable_len; i += 4) {
+            float4 current = *(float4*)&a[i + 3];
+            float4 next = *(float4*)&a[i + 4];
+            *(float4*)&a[i + 3] = current * next;
+        }
+        
+        // Position 4: a[i+4] = a[i+5] * a[i+4]
+        for (int i = 0; i < vectorizable_len; i += 4) {
+            float4 current = *(float4*)&a[i + 4];
+            float4 next = *(float4*)&a[i + 5];
+            *(float4*)&a[i + 4] = current * next;
+        }
+        
+        // Scalar cleanup for remaining elements (sequential, not strided)
+        for (int i = vectorizable_len; i < limit; i++) {
+            a[i] = a[i + 1] * a[i];
+            a[i + 1] = a[i + 2] * a[i + 1];
+            a[i + 2] = a[i + 3] * a[i + 2];
+            a[i + 3] = a[i + 4] * a[i + 3];
+            a[i + 4] = a[i + 5] * a[i + 4];
+        }
+    }
+}
+```

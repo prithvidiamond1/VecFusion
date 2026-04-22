@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s258_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\ntypedef float float32_t;\n\nvoid vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])\n{\n    if (iterations <= 0) return;\n\n    for (int nl = 0; nl < iterations; nl++) {\n        float s = 0.0f;\n        for (int i = 0; i < 256; i += 4) {\n            float32_t a_vec[4] = {a[i], a[i+1], a[i+2], a[i+3]};\n            float32_t d_vec[4] = {d[i], d[i+1], d[i+2], d[i+3]};\n            float32_t c_vec[4] = {c[i], c[i+1], c[i+2], c[i+3]};\n            float32_t aa0_vec[4] = {aa[0][i], aa[0][i+1], aa[0][i+2], aa[0][i+3]};\n\n            float32_t s_vec[4];\n            float cur_s = s;\n            for (int j = 0; j < 4; j++) {\n                if (a_vec[j] > 0.0f) {\n                    cur_s = d_vec[j] * d_vec[j];\n                }\n                s_vec[j] = cur_s;\n            }\n\n            for (int j = 0; j < 4; j++) {\n                b[i + j] = s_vec[j] * c_vec[j] + d_vec[j];\n                e[i + j] = (s_vec[j] + 1.0f) * aa0_vec[j];\n            }\n\n            // Update s for next chunk: find last positive a in this chunk\n            int found = 0;\n            for (int j = 3; j >= 0; j--) {\n                if (a_vec[j] > 0.0f) {\n                    s = d_vec[j] * d_vec[j];\n                    found = 1;\n                    break;\n                }\n            }\n            if (!found) {\n                s = cur_s;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s258_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s258",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s258_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s258_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s258_opt(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        float s = 0.0f;\n        float s_values[256];\n        \n        // First loop: compute s for each iteration (reduction pattern)\n        for (int i = 0; i < 256; ++i) {\n            if (a[i] > 0.0f) {\n                s = d[i] * d[i];\n            }\n            s_values[i] = s;\n        }\n        \n        // Second loop: use computed s values (vectorizable)\n        for (int i = 0; i < 256; ++i) {\n            b[i] = s_values[i] * c[i] + d[i];\n            e[i] = (s_values[i] + 1.0f) * aa[0][i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s258_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s258_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline1_20260422_044515/s258_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

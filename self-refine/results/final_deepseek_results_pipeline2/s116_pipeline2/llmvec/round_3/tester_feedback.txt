@@ -1,0 +1,8 @@
+- The scalar cleanup loop only handles position 0 (a[i] = a[i+1] * a[i]), but the vector loops process positions 0–4. This leaves positions 1–4 unprocessed for elements i >= vectorizable_len.
+- For indices where i < vectorizable_len, all five positions are updated; for the tail, only position 0 is updated, causing mismatch.
+- The vectorizable_len calculation uses `limit - 0` but should ensure i+5 < LEN_1D for the last vectorized position (position 4 accesses a[i+5]).
+- The tail loop should iterate over the full `limit` range but process all five positions sequentially, or the vectorization must be restructured to avoid cross‑iteration dependencies.
+- The loop carries a dependency: each position’s update uses a[i+offset] which may have been overwritten by a previous position’s update in the same iteration, changing semantics.
+- The original scalar loop likely performed all five updates per i before incrementing i, but the candidate splits them into separate passes, which is not equivalent due to the dependency.
+- To fix, either fuse the five position updates per i into a single vectorized iteration (if possible) or replicate the full scalar semantics in the tail.
+- Since the tail only does position 0, the mismatch at index 0 suggests the first element’s later positions (1–4) were not updated, breaking the pattern.

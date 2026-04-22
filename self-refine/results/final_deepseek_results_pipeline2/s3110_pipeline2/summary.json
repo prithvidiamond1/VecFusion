@@ -1,0 +1,41 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s3110_pipeline2/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s3110_opt(int iterations, float aa[256][256]) {\n    int xindex, yindex;\n    float max, chksum;\n    int outer_loop_count = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < outer_loop_count; nl++) {\n        max = aa[0][0];\n        xindex = 0;\n        yindex = 0;\n        \n        // Process each row independently\n        for (int i = 0; i < 256; i++) {\n            float row_max = aa[i][0];\n            int row_yindex = 0;\n            \n            // Single pass: find maximum value and its last occurrence in row\n            for (int j = 1; j < 256; j++) {\n                float current = aa[i][j];\n                // Update maximum and track last occurrence\n                if (current >= row_max) {\n                    row_max = current;\n                    row_yindex = j;\n                }\n            }\n            \n            // Update global maximum with correct indices\n            if (row_max > max) {\n                max = row_max;\n                xindex = i;\n                yindex = row_yindex;\n            }\n        }\n        \n        chksum = max + (float)xindex + (float)yindex;\n    }\n    \n    return max + xindex + 1 + yindex + 1;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s3110_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s3110_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s3110_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: VecTrans-preprocessed input is not a single full function; cannot safely normalize handoff.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s3110_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "s3110",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s3110_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s315_pipeline2/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s315_opt(int iterations, int LEN_1D, float* a)\n{\n    for (int i = 0; i < LEN_1D; i++)\n        a[i] = (i * 7) % LEN_1D;\n\n    float x, chksum;\n    int index;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        x = a[0];\n        index = 0;\n        \n        // Vectorizable max reduction\n        for (int i = 0; i < LEN_1D; ++i) {\n            if (a[i] > x) {\n                x = a[i];\n            }\n        }\n        \n        // Find last index of max value\n        for (int i = 0; i < LEN_1D; ++i) {\n            // Use exact equality for semantic equivalence\n            // Compiler can still vectorize this comparison\n            if (a[i] == x) {\n                index = i;\n            }\n        }\n        \n        chksum = x + (float) index;\n    }\n    \n    return index + x + 1;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s315_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s315_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s315_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: VecTrans-preprocessed input is not a single full function; cannot safely normalize handoff.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s315_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "s315",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s315_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    }
+  ]
+}

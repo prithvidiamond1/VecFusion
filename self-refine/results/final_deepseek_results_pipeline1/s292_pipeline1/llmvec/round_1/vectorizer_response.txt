@@ -1,0 +1,44 @@
+```c
+#include <stddef.h>
+
+void vectorized_s292(int iterations, int LEN_1D, float* a, float* b) {
+    if (LEN_1D < 3) {
+        // Handle small arrays with scalar code
+        for (int nl = 0; nl < iterations; nl++) {
+            int im1 = LEN_1D - 1;
+            int im2 = LEN_1D - 2;
+            for (int i = 0; i < LEN_1D; i++) {
+                a[i] = (b[i] + b[im1] + b[im2]) * 0.333f;
+                im2 = im1;
+                im1 = i;
+            }
+        }
+        return;
+    }
+    
+    for (int nl = 0; nl < iterations; nl++) {
+        // First two iterations handled separately due to wrap-around
+        int im1 = LEN_1D - 1;
+        int im2 = LEN_1D - 2;
+        
+        // i = 0
+        a[0] = (b[0] + b[im1] + b[im2]) * 0.333f;
+        im2 = im1;
+        im1 = 0;
+        
+        // i = 1
+        a[1] = (b[1] + b[im1] + b[im2]) * 0.333f;
+        im2 = im1;
+        im1 = 1;
+        
+        // Main vectorizable loop: i from 2 to LEN_1D-1
+        // At this point im1 = 1, im2 = 0, and for i >= 2:
+        // im1 = i-1, im2 = i-2
+        int i = 2;
+        #pragma clang loop vectorize(enable)
+        for (; i < LEN_1D; i++) {
+            a[i] = (b[i] + b[i-1] + b[i-2]) * 0.333f;
+        }
+    }
+}
+```

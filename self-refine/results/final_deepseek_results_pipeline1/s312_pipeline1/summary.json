@@ -1,0 +1,28 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s312_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n\ntypedef float v4sf __attribute__((__vector_size__(16)));\n\nfloat vectorized_s312(int iterations, int LEN_1D, float* a) {\n    float prod = 1.0f;\n    int total_outer = 10 * iterations;\n    \n    for (int nl = 0; nl < total_outer; nl++) {\n        v4sf vprod = {1.0f, 1.0f, 1.0f, 1.0f};\n        int i = 0;\n        \n        if (LEN_1D >= 4) {\n            for (; i <= LEN_1D - 4; i += 4) {\n                v4sf va;\n                __builtin_memcpy(&va, &a[i], sizeof(v4sf));\n                vprod = va * vprod;\n            }\n        }\n        \n        float prod_scalar = 1.0f;\n        for (; i < LEN_1D; i++) {\n            prod_scalar *= a[i];\n        }\n        \n        prod = prod_scalar * vprod[0] * vprod[1] * vprod[2] * vprod[3];\n    }\n    \n    return prod;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 6.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s312_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s312",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s312_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s312_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_pipeline1_20260422_044515/s312_pipeline1/llmvec/candidate_round_6.c",
+        "binary_path": "results/all_tests_pipeline1_20260422_044515/s312_pipeline1/llmvec/candidate_round_6"
+      }
+    }
+  ]
+}

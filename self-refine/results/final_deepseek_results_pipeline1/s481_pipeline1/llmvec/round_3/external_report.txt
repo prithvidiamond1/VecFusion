@@ -1,0 +1,16 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_3.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_3
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_3.c:32:29: error: initializing 'float32x4_t' (vector of 4 'float' values) with an expression of incompatible type 'void *'
+   32 |                 float32x4_t d_vec = __builtin_assume_aligned(d + i, 16);
+      |                             ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_3.c:44:29: error: initializing 'float32x4_t' (vector of 4 'float' values) with an expression of incompatible type 'void *'
+   44 |                 float32x4_t a_vec = __builtin_assume_aligned(a + i, 16);
+      |                             ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_3.c:45:29: error: initializing 'float32x4_t' (vector of 4 'float' values) with an expression of incompatible type 'void *'
+   45 |                 float32x4_t b_vec = __builtin_assume_aligned(b + i, 16);
+      |                             ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_3.c:46:29: error: initializing 'float32x4_t' (vector of 4 'float' values) with an expression of incompatible type 'void *'
+   46 |                 float32x4_t c_vec = __builtin_assume_aligned(c + i, 16);
+      |                             ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 errors generated.

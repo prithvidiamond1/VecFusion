@@ -1,0 +1,15 @@
+The candidate compiles but produces incorrect results (exit code 2, mismatch on trial 0). The issue is in the vectorized reduction logic.
+
+**Fixes needed:**
+
+- The horizontal sum `dot_vec[0] + dot_vec[1] + dot_vec[2] + dot_vec[3]` is computed inside the outer loop but the vector accumulator `dot_vec` is re-initialized each iteration — this is correct. However, the mismatch suggests the vectorized loop body or bounds are wrong.
+
+- Check the vector loop bound: `vec_end = LEN_1D & ~3` is correct for 4-element vectors, but ensure `LEN_1D` is non-negative and that the scalar tail loop correctly handles remaining elements.
+
+- The most likely cause: the vector load `*(v4sf*)(a + i)` assumes 16-byte alignment, but `a` and `b` may not be aligned. Use unaligned loads or add alignment hints.
+
+- Verify that `dot_vec` accumulation uses correct floating-point addition semantics (no associative reordering issues causing mismatch).
+
+- Ensure the tail loop's `i` starts at `vec_end` (not 0) — currently correct, but double-check that `vec_end` is computed before the vector loop guard.
+
+- Add alignment-safe loads: replace `*(v4sf*)(a + i)` with `__builtin_ia32_loadups(a + i)` or use `__attribute__((aligned(16)))` on pointers if alignment is guaranteed.

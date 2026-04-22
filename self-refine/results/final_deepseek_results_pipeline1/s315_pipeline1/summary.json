@@ -1,0 +1,28 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s315_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\ntypedef float v4sf __attribute__((__vector_size__(16)));\n\nfloat vectorized_s315(int iterations, int LEN_1D, float* a) {\n    // First loop: initialize a[i] = (i * 7) % LEN_1D\n    for (int i = 0; i < LEN_1D; i++) {\n        a[i] = (float)((i * 7) % LEN_1D);\n    }\n\n    float x, chksum;\n    int index;\n    for (int nl = 0; nl < iterations; nl++) {\n        x = a[0];\n        index = 0;\n        \n        // Vectorized max-finding loop\n        int i = 0;\n        if (LEN_1D >= 4) {\n            v4sf vmax = {a[0], a[0], a[0], a[0]};\n            int vindex[4] = {0, 0, 0, 0};\n            for (; i <= LEN_1D - 4; i += 4) {\n                v4sf va = *(v4sf*)(a + i);\n                v4sf cmp = va > vmax;\n                // Update max values\n                vmax = __builtin_shufflevector(vmax, va, 0, 1, 2, 3);\n                // Update indices\n                for (int j = 0; j < 4; j++) {\n                    if (va[j] > vmax[j]) {\n                        vmax[j] = va[j];\n                        vindex[j] = i + j;\n                    }\n                }\n            }\n            // Reduce vector to scalar\n            for (int j = 0; j < 4; j++) {\n                if (vmax[j] > x) {\n                    x = vmax[j];\n                    index = vindex[j];\n                }\n            }\n        }\n        // Scalar cleanup\n        for (; i < LEN_1D; ++i) {\n            if (a[i] > x) {\n                x = a[i];\n                index = i;\n            }\n        }\n        chksum = x + (float)index;\n    }\n    return index + x + 1;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s315_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s315",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s315_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s315_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_pipeline1_20260422_044515/s315_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline1_20260422_044515/s315_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

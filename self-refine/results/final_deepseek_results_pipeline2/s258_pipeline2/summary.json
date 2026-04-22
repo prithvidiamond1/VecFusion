@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s258_pipeline2/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s258_opt(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {\n    float s;\n    for (int nl = 0; nl < iterations; nl++) {\n        s = 0.;\n        \n        // First loop: compute s values and store them in a temporary array\n        float s_vals[256];\n        for (int i = 0; i < 256; ++i) {\n            if (a[i] > 0.) {\n                s = d[i] * d[i];\n            }\n            s_vals[i] = s;\n        }\n        \n        // Second loop: compute b[i] using precomputed s_vals\n        for (int i = 0; i < 256; ++i) {\n            b[i] = s_vals[i] * c[i] + d[i];\n        }\n        \n        // Third loop: compute e[i] using precomputed s_vals\n        for (int i = 0; i < 256; ++i) {\n            e[i] = (s_vals[i] + 1.0f) * aa[0][i];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s258_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s258_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s258_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "typedef float float4 __attribute__((ext_vector_type(4)));\n\nvoid vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {\n    const int N = 256;\n    const int VEC_SIZE = 4;\n    const int VEC_ITERS = N / VEC_SIZE;\n    const int REMAINDER = N % VEC_SIZE;\n\n    for (int nl = 0; nl < iterations; nl++) {\n        float s = 0.0f;\n        float s_vals[N];\n\n        // First loop: compute s values with sequential dependency\n        // Process entire loop sequentially to maintain correct dependency\n        for (int i = 0; i < N; i++) {\n            if (a[i] > 0.0f) {\n                s = d[i] * d[i];\n            }\n            s_vals[i] = s;\n        }\n\n        // Second loop: vectorizable - b[i] = s_vals[i] * c[i] + d[i]\n        for (int i = 0; i < VEC_ITERS; i++) {\n            int base = i * VEC_SIZE;\n            float4 s_vec = *(float4*)&s_vals[base];\n            float4 c_vec = *(float4*)&c[base];\n            float4 d_vec = *(float4*)&d[base];\n\n            float4 b_vec = s_vec * c_vec + d_vec;\n            *(float4*)&b[base] = b_vec;\n        }\n\n        // Handle remainder in second loop\n        int base = VEC_ITERS * VEC_SIZE;\n        for (int i = 0; i < REMAINDER; i++) {\n            int idx = base + i;\n            b[idx] = s_vals[idx] * c[idx] + d[idx];\n        }\n\n        // Third loop: vectorizable - e[i] = (s_vals[i] + 1.0f) * aa[0][i]\n        for (int i = 0; i < VEC_ITERS; i++) {\n            int base = i * VEC_SIZE;\n            float4 s_vec = *(float4*)&s_vals[base];\n            float4 aa_vec = *(float4*)&aa[0][base];\n\n            float4 e_vec = (s_vec + (float4){1.0f, 1.0f, 1.0f, 1.0f}) * aa_vec;\n            *(float4*)&e[base] = e_vec;\n        }\n\n        // Handle remainder in third loop\n        base = VEC_ITERS * VEC_SIZE;\n        for (int i = 0; i < REMAINDER; i++) {\n            int idx = base + i;\n            e[idx] = (s_vals[idx] + 1.0f) * aa[0][idx];\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s258_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s258",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s258_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s258_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    }
+  ]
+}

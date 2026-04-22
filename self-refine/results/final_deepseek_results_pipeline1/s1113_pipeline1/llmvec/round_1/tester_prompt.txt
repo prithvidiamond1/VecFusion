@@ -1,0 +1,34 @@
+Candidate code:
+```c
+#include <stddef.h>
+
+typedef float float32_t __attribute__((__vector_size__(16))); // 4 floats per vector
+
+void vectorized_s1113(int iterations, int LEN_1D, float* a, float* b) {
+    int total_iters = 2 * iterations;
+    int half = LEN_1D / 2;
+    
+    for (int nl = 0; nl < total_iters; nl++) {
+        float a_half = a[half];
+        float32_t a_half_vec = (float32_t){a_half, a_half, a_half, a_half};
+        
+        int i = 0;
+        // Vectorized main loop
+        for (; i + 4 <= LEN_1D; i += 4) {
+            float32_t b_vec = *(float32_t*)(b + i);
+            float32_t result = a_half_vec + b_vec;
+            *(float32_t*)(a + i) = result;
+        }
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            a[i] = a_half + b[i];
+        }
+    }
+}
+```
+
+External compile/test report:
+Compile succeeded for round 1.
+Exit code: 2
+stderr:
+Mismatch in parameter a on trial 0 at index 65

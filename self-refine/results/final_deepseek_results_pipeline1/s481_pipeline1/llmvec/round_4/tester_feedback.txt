@@ -1,0 +1,13 @@
+- The test reports a mismatch in parameter `a` at index 0, indicating the vectorized code produces incorrect results for the first element of array `a`. This suggests the early-exit logic or loop restructuring is flawed.
+
+- The vectorized loop uses `__builtin_reduce_or(cmp)` to detect any negative `d` values in a 4-element chunk, then breaks out of the vector loop. However, the scalar fallback loop (`if (!early_exit)`) only runs if no early exit occurred, but the vector loop may have partially processed elements before the break, leading to missed or double-processed iterations.
+
+- Specifically, when `early_exit` is triggered inside the vector loop (after the `for (int j = 0; j < 4; j++)` inner loop), the vector loop breaks, but the scalar tail loop is skipped because `early_exit` is set. This means elements before the break point (i.e., `i` to `i+j-1`) were not processed by the vector body (since the vector body is after the early-exit check), and the scalar loop doesn't run, so those elements are skipped entirely.
+
+- Fix: After the vector loop, if `early_exit` is true, the scalar loop should still process the remaining elements from the current `i` up to `LEN_1D`, but only those that were not already processed. Alternatively, restructure so that the vector loop processes elements only if no early exit is detected in the chunk, and if early exit occurs, the scalar loop handles the rest from the current `i`.
+
+- The current logic incorrectly assumes that breaking from the vector loop with `early_exit` means no further processing is needed, but the vector loop's body (the `a += b * c` part) is only executed if the early-exit check passes (i.e., no negative `d` in the chunk). When early exit is triggered, the vector body is skipped for that chunk, so those elements must be processed by the scalar loop.
+
+- To fix: Remove the `if (!early_exit)` guard on the scalar tail loop, or change it to always run for the remaining elements from `i` to `LEN_1D`, regardless of `early_exit`. The scalar loop already has its own early-exit check, so it will stop if a negative `d` is found.
+
+- Additionally, ensure the scalar loop starts at the correct `i` value after the vector loop, which it does, but the condition `if (!early_exit)` prevents it from running when needed. Remove that condition.

@@ -1,0 +1,52 @@
+#include <stdlib.h>
+#include <string.h>
+
+void vectorized_s244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    int len = LEN_1D - 1;
+    
+    for (int nl = 0; nl < iterations; nl++) {
+        // Store original a[i+1] values
+        float* a_next = (float*)malloc(len * sizeof(float));
+        for (int i = 0; i < len; ++i) {
+            a_next[i] = a[i+1];
+        }
+
+        // Vector-friendly loop for a[i] = b[i] + c[i] * d[i]
+        int i = 0;
+        for (; i + 3 < len; i += 4) {
+            a[i] = b[i] + c[i] * d[i];
+            a[i+1] = b[i+1] + c[i+1] * d[i+1];
+            a[i+2] = b[i+2] + c[i+2] * d[i+2];
+            a[i+3] = b[i+3] + c[i+3] * d[i+3];
+        }
+        for (; i < len; ++i) {
+            a[i] = b[i] + c[i] * d[i];
+        }
+
+        // Vector-friendly loop for b[i] = c[i] + b[i]
+        i = 0;
+        for (; i + 3 < len; i += 4) {
+            b[i] = c[i] + b[i];
+            b[i+1] = c[i+1] + b[i+1];
+            b[i+2] = c[i+2] + b[i+2];
+            b[i+3] = c[i+3] + b[i+3];
+        }
+        for (; i < len; ++i) {
+            b[i] = c[i] + b[i];
+        }
+
+        // Vector-friendly loop for a[i+1] = b[i] + a_next[i] * d[i]
+        i = 0;
+        for (; i + 3 < len; i += 4) {
+            a[i+1] = b[i] + a_next[i] * d[i];
+            a[i+2] = b[i+1] + a_next[i+1] * d[i+1];
+            a[i+3] = b[i+2] + a_next[i+2] * d[i+2];
+            a[i+4] = b[i+3] + a_next[i+3] * d[i+3];
+        }
+        for (; i < len; ++i) {
+            a[i+1] = b[i] + a_next[i] * d[i];
+        }
+
+        free(a_next);
+    }
+}

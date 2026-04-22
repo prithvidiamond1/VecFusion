@@ -1,0 +1,9 @@
+The vectorizer has a correctness bug: the vectorized loop body incorrectly computes `a[i+1]` using `d[i]` from the same iteration, but the scalar reference pattern uses `d[i]` from the *previous* iteration for the `a[i+1]` update.
+
+Specifically:
+- In the scalar loop, `a[i+1] = b[i] + a[i+1] * d[i]` uses `d[i]` from the current `i`, which is correct.
+- But in the vectorized version, `va_next = vb + va_next * vd` uses `vd` (which is `d[i..i+3]`) for all four lanes, while the scalar semantics require `d[i]` for `a[i+1]`, `d[i+1]` for `a[i+2]`, etc. This is actually correct because `vd` contains `d[i], d[i+1], d[i+2], d[i+3]` and `va_next` loads `a[i+1..i+4]`, so the elementwise multiplication is correct.
+
+The real issue is at index 2: the vectorized loop processes `i=1` and writes `a[2]` using `b[1]` and `d[1]`, but the scalar loop would have computed `a[2]` using `b[1]` and `d[1]` as well. The mismatch suggests the scalar cleanup or the first-element handling is wrong.
+
+**Fix**: The first-element handling writes `a[1] = b[0] + a[1] * d[0]`, but the vector loop starting at `i=1` also writes `a[1]` (as `a[i]` for `i=1`). This double-writes `a[1]` with different values. Move the vector loop start to `i=2` or adjust the first-element handling to not write `a[1]`.

@@ -1,0 +1,39 @@
+Candidate code:
+```c
+#include <stdint.h>
+typedef float v4f __attribute__((ext_vector_type(4)));
+
+float vectorized_s314(int iterations, int LEN_1D, float* a) {
+    float x;
+    int total_outer = iterations * 5;
+    for (int nl = 0; nl < total_outer; nl++) {
+        x = a[0];
+        int i = 0;
+        v4f vmax = (v4f){x, x, x, x};
+        for (; i + 4 <= LEN_1D; i += 4) {
+            v4f va = __builtin_ia32_loadups(a + i);
+            vmax = (va > vmax) ? va : vmax;
+        }
+        float hmax = vmax[0];
+        if (vmax[1] > hmax) hmax = vmax[1];
+        if (vmax[2] > hmax) hmax = vmax[2];
+        if (vmax[3] > hmax) hmax = vmax[3];
+        for (; i < LEN_1D; i++) {
+            if (a[i] > hmax) {
+                hmax = a[i];
+            }
+        }
+        x = hmax;
+    }
+    return x;
+}
+```
+
+External compile/test report:
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_2
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s314_pipeline1/llmvec/candidate_round_2.c:33:22: error: use of unknown builtin '__builtin_ia32_loadups' [-Wimplicit-function-declaration]
+   33 |             v4f va = __builtin_ia32_loadups(a + i);
+      |                      ^
+1 error generated.

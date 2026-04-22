@@ -1,0 +1,7 @@
+- The vectorized loop incorrectly uses `c[i-1]` from a vector load that includes `c[i]`, but the recurrence requires `c[i-1]` to be the value *before* the current iteration's update. This causes a data dependency violation at index 3 (the fourth element of the first vector chunk).
+
+- The prologue only handles `i=1`, but the vector loop starts at `i=2` and loads `c[i-1]` as a vector. For `i=2`, `c[1]` was updated in the prologue, but the vector load of `c[i-1]` (i.e., `c[1..4]`) includes `c[2]` and `c[3]` which have not yet been updated—this is correct. However, the store to `c[i]` overwrites values that are needed as `c[i-1]` in the next vector iteration, causing the mismatch.
+
+- Fix: restructure the vector loop to use a scalar recurrence for `c[i-1]` or shift the vector loop to start one element later so that `c[i-1]` is always from a prior scalar or vector chunk that is fully computed before use. For example, start the vector loop at `i=3` and ensure the prologue computes `c[1]` and `c[2]` scalarly.
+
+- Alternatively, use a vector shift or rotate to bring the previous `c` values into the current iteration without overlapping updates, but the simplest fix is to adjust the loop bounds to avoid the dependency.

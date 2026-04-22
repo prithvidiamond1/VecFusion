@@ -1,0 +1,109 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+Previous refinement rounds did not succeed.
+You may now aggressively restructure the transformed code if needed.
+You may rewrite control flow, split or peel loops, isolate switch/case behavior, derive trip counts explicitly,
+and perform larger semantic-preserving rewrites if that improves correctness or vectorization potential.
+At this stage, do not stay conservative just to preserve the prior shape.
+
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b)
+{
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = 0.0f;
+
+        // Create multiple partial sums to break dependency chain
+        float dot0 = 0.0f, dot1 = 0.0f, dot2 = 0.0f, dot3 = 0.0f, dot4 = 0.0f;
+
+        // Process groups of 5 elements with 5 independent accumulators
+        int i;
+        for (i = 0; i + 4 < LEN_1D; i += 5) {
+            // Each accumulator handles one element from the group
+            dot0 += a[i] * b[i];
+            dot1 += a[i + 1] * b[i + 1];
+            dot2 += a[i + 2] * b[i + 2];
+            dot3 += a[i + 3] * b[i + 3];
+            dot4 += a[i + 4] * b[i + 4];
+        }
+
+        // Combine partial sums
+        dot = dot0 + dot1 + dot2 + dot3 + dot4;
+
+        // Handle remaining elements (if any)
+        for (; i < LEN_1D; i++) {
+            dot += a[i] * b[i];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        float vectorized_s352(int iterations, int LEN_1D, float* a, float *b) {
+    float dot = 0.0f;
+
+    for (int nl = 0; nl < 8 * iterations; nl++) {
+        float partial_dot = 0.0f;
+
+        // Ensure main_len is non-negative
+        int main_len = LEN_1D >= 0 ? LEN_1D - (LEN_1D % 8) : 0;
+        if (main_len < 0) main_len = 0;
+
+        // Vectorized processing with explicit unaligned loads
+        int i = 0;
+        for (; i < main_len; i += 8) {
+            typedef float v8f __attribute__((vector_size(32), aligned(1)));
+
+            // Use memcpy for safe unaligned loads
+            v8f va, vb;
+            __builtin_memcpy(&va, &a[i], sizeof(v8f));
+            __builtin_memcpy(&vb, &b[i], sizeof(v8f));
+
+            v8f vprod = va * vb;
+
+            // Safe horizontal sum using union to avoid aliasing issues
+            union {
+                v8f vec;
+                float arr[8];
+            } u;
+            u.vec = vprod;
+
+            partial_dot += u.arr[0] + u.arr[1] + u.arr[2] + u.arr[3] +
+                          u.arr[4] + u.arr[5] + u.arr[6] + u.arr[7];
+        }
+
+        // Scalar tail for remaining elements
+        for (; i < LEN_1D; i++) {
+            partial_dot += a[i] * b[i];
+        }
+
+        // Accumulate across outer iterations
+        dot += partial_dot;
+    }
+
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The function returns a `float` but the test expects a specific value; exit code 2 indicates a result mismatch, likely due to floating-point accumulation order differences between vectorized and scalar versions.
+- The vectorized horizontal sum adds elements sequentially (`u.arr[0] + u.arr[1] + ...`), which matches scalar order, but the partial sum accumulation across the vector loop (`partial_dot += ...`) may still cause rounding differences compared to the original scalar dot product.
+- The outer loop multiplies `iterations` by 8 (`nl < 8 * iterations`), but the original scalar benchmark may have a different outer iteration count; verify the outer loop trip count matches the reference implementation.
+- The `main_len` calculation uses `LEN_1D - (LEN_1D % 8)`; if `LEN_1D` is negative, it sets `main_len = 0`, but the scalar tail loop uses `i < LEN_1D`, which would not execute for negative `LEN_1D`, so behavior is consistent.
+- The union-based horizontal sum is safe, but ensure the vectorized loop’s partial sum (`partial_dot`) is initialized to zero in each outer iteration (it is).
+- The mismatch may stem from the vectorized loop processing 8 elements per iteration while the scalar original processes sequentially; floating-point non-associativity can cause different results even with mathematically identical operations.
+- To match the reference output, consider using a compensated summation (e.g., Kahan) in both vectorized and scalar paths, or allow a small tolerance in the test; but the vectorizer must reproduce the scalar result exactly if required.
+- Check if the test expects the same floating-point result as the scalar code; if exact match is required, the vectorization may need to be disabled or the accumulation pattern must be strictly preserved.
+
+        Return a corrected candidate function named `vectorized_s352`.

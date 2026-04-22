@@ -1,0 +1,15 @@
+- The test failure indicates a mismatch in array `a` after the first iteration, meaning the vectorized loop incorrectly modified `a` or its dependent computations changed the output.
+
+- The first loop uses `a` only for the mask condition `a[i] > 0`, but the original scalar code likely updates `s` based on `d[i]` only when `a[i] > 0`, then stores `s` into `s_vals[i]`. The vectorized version incorrectly recomputes `s` per element inside the VEC_SIZE inner loop, losing the cumulative scalar dependency across iterations.
+
+- The scalar `s` must be carried across all `N` elements sequentially, not reset per vector chunk. The vectorized loop splits the iteration space into VEC_ITERS chunks, but the inner `j` loop recalculates `s` incorrectly: it should use the previous iteration’s `s` value, not recompute from `d[base+j] * d[base+j]`.
+
+- Fix by maintaining a scalar `s` across the whole `i` loop, updating it inside the inner `j` loop when `mask[j]` is true, then assigning `s_vals[base+j] = s`. This preserves the cross-iteration dependency.
+
+- Additionally, ensure the loop bounds cover exactly `N` elements; `VEC_ITERS = N / VEC_SIZE` works only if `N` is a multiple of VEC_SIZE (256 is multiple of 4). No cleanup needed.
+
+- The second and third loops are independent and vectorized correctly, but the first loop’s semantics must match the original: `s` is a running scalar updated conditionally, stored to `s_vals[i]` every iteration.
+
+- Rewrite the first loop as a scalar loop with vectorized load and mask generation, but scalar update of `s` and store to `s_vals`. Alternatively, use vector predication to update `s` only for true mask lanes, but still sequential across lanes.
+
+- Since the dependency is sequential, full vectorization of the first loop is unsafe; keep it scalar or use masked vector operations with sequential reduction across lanes.

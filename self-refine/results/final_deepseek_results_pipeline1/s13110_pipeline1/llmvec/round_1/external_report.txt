@@ -1,0 +1,41 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:11:16: warning: variable 'chksum' set but not used [-Wunused-but-set-variable]
+   11 |     float max, chksum;
+      |                ^
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:44:24: error: initializing 'float4' (vector of 4 'float' values) with an expression of incompatible type 'int __attribute__((ext_vector_type(4)))' (vector of 4 'int' values)
+   44 |                 float4 mask = current > max_vec;
+      |                        ^      ~~~~~~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:45:62: error: unknown type name 'int4'; did you mean 'int'?
+   45 |                 int mask_int = __builtin_convertvector(mask, int4);
+      |                                                              ^~~~
+      |                                                              int
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:45:32: error: second argument to __builtin_convertvector must be of vector type
+   45 |                 int mask_int = __builtin_convertvector(mask, int4);
+      |                                ^
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:49:30: error: subscripted value is not an array, pointer, or vector
+   49 |                     (mask_int[0] ? 4 : 0),
+      |                      ~~~~~~~~^~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:50:30: error: subscripted value is not an array, pointer, or vector
+   50 |                     (mask_int[1] ? 5 : 1),
+      |                      ~~~~~~~~^~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:51:30: error: subscripted value is not an array, pointer, or vector
+   51 |                     (mask_int[2] ? 6 : 2),
+      |                      ~~~~~~~~^~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:52:30: error: subscripted value is not an array, pointer, or vector
+   52 |                     (mask_int[3] ? 7 : 3));
+      |                      ~~~~~~~~^~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:114:49: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  114 |                 ret_scalar = s13110(iterations, aa_scalar); ret_vector = vectorized_s13110(iterations, aa_vector); if (fabsf(ret_scalar - ret_vector) > 1e-5f) {
+      |                                                 ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:8:43: note: passing argument to parameter 'aa' here
+    8 |         float s13110(int iterations,float aa[256][256])
+      |                                           ^
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:114:104: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  114 |                 ret_scalar = s13110(iterations, aa_scalar); ret_vector = vectorized_s13110(iterations, aa_vector); if (fabsf(ret_scalar - ret_vector) > 1e-5f) {
+      |                                                                                                        ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_1.c:32:47: note: passing argument to parameter 'aa' here
+   32 | float vectorized_s13110(int iterations, float aa[256][256]) {
+      |                                               ^
+3 warnings and 7 errors generated.

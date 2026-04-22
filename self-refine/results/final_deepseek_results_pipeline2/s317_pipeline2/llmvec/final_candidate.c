@@ -1,0 +1,34 @@
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+float vectorized_s317(int iterations, int LEN_1D) {
+    float q;
+    int half_len = LEN_1D / 2;
+    float factor = (float)0.99;
+    
+    for (int nl = 0; nl < 5 * iterations; nl++) {
+        q = (float)1.0;
+        float temp = q;
+        
+        // Vectorized multiplication
+        int i = 0;
+        float4 v_factor = (float4){factor, factor, factor, factor};
+        float4 v_temp = (float4){temp, temp, temp, temp};
+        
+        // Process 4 elements at a time
+        for (; i + 3 < half_len; i += 4) {
+            v_temp *= v_factor;
+        }
+        
+        // Horizontal reduction of vector accumulator
+        temp = v_temp.x * v_temp.y * v_temp.z * v_temp.w;
+        
+        // Scalar tail
+        for (; i < half_len; i++) {
+            temp *= factor;
+        }
+        
+        q = temp;
+    }
+    
+    return q;
+}

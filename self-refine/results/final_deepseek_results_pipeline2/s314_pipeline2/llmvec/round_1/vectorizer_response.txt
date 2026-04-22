@@ -1,0 +1,42 @@
+```c
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+float vectorized_s314(int iterations, int LEN_1D, float* a)
+{
+    float x;
+    for (int nl = 0; nl < iterations*5; nl++) {
+        x = a[0];
+        
+        // Vectorized main loop
+        int i = 0;
+        if (LEN_1D >= 4) {
+            float4 vmax = (float4){x, x, x, x};
+            for (; i <= LEN_1D - 4; i += 4) {
+                float4 vcurrent = *(float4*)&a[i];
+                
+                // Component-wise maximum
+                vmax = (float4){
+                    vcurrent.x > vmax.x ? vcurrent.x : vmax.x,
+                    vcurrent.y > vmax.y ? vcurrent.y : vmax.y,
+                    vcurrent.z > vmax.z ? vcurrent.z : vmax.z,
+                    vcurrent.w > vmax.w ? vcurrent.w : vmax.w
+                };
+            }
+            
+            // Reduce vector maximum to scalar
+            float vmax_reduced = vmax.x;
+            if (vmax.y > vmax_reduced) vmax_reduced = vmax.y;
+            if (vmax.z > vmax_reduced) vmax_reduced = vmax.z;
+            if (vmax.w > vmax_reduced) vmax_reduced = vmax.w;
+            x = vmax_reduced;
+        }
+        
+        // Scalar tail cleanup
+        for (; i < LEN_1D; i++) {
+            float current = a[i];
+            x = (current > x) ? current : x;
+        }
+    }
+    return x;
+}
+```

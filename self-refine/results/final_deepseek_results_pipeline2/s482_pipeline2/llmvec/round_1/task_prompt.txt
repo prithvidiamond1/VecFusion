@@ -1,0 +1,37 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Vectorize the scalar C function `s482` below.
+
+        Scalar source:
+        ```c
+        void s482(int iterations, int LEN_1D, float* a, float *b, float *c) {
+    for (int nl = 0; nl < iterations; nl++) {
+        // First, find where the break condition occurs
+        int break_idx = LEN_1D;
+        #pragma clang loop vectorize(disable)
+        for (int i = 0; i < LEN_1D; i++) {
+            if (c[i] > b[i]) {
+                break_idx = i;
+                break;
+            }
+        }
+
+        // Process all iterations before the break point (these can be vectorized)
+        // Note: break_idx iteration is included because the break happens AFTER the update
+        for (int i = 0; i <= break_idx && i < LEN_1D; i++) {
+            a[i] += b[i] * c[i];
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s482`.

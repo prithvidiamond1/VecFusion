@@ -1,0 +1,48 @@
+#include <stdbool.h>
+#include <stdint.h>
+
+typedef int32_t v4si __attribute__((vector_size(16), aligned(1)));
+
+bool vectorized_AllPointsEq(const int pts[], int count) {
+    if (count <= 1) return true;
+    
+    int first = pts[0];
+    int i = 1;
+    
+    // Vectorized main loop
+    int remaining = count - 1;
+    int vectorizable_iters = remaining / 4;
+    int vectorized_end = vectorizable_iters * 4 + 1;
+    
+    // Load first value into all lanes of vector
+    v4si first_vec = (v4si){first, first, first, first};
+    
+    for (; i < vectorized_end; i += 4) {
+        // Load 4 consecutive integers
+        v4si chunk;
+        // Use memcpy to avoid strict aliasing issues
+        __builtin_memcpy(&chunk, &pts[i], sizeof(v4si));
+        
+        // Compare all 4 values with first
+        v4si cmp_result = (chunk == first_vec);
+        
+        // Check if all comparisons are true (all bits set)
+        // Extract comparison results
+        int cmp0 = cmp_result[0];
+        int cmp1 = cmp_result[1];
+        int cmp2 = cmp_result[2];
+        int cmp3 = cmp_result[3];
+        
+        // Early exit if any comparison fails
+        if (!(cmp0 && cmp1 && cmp2 && cmp3)) {
+            return false;
+        }
+    }
+    
+    // Scalar cleanup for remaining elements
+    for (; i < count; ++i) {
+        if (first != pts[i]) return false;
+    }
+    
+    return true;
+}

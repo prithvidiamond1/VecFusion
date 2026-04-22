@@ -1,0 +1,7 @@
+- The vectorizer incorrectly assumed that loading `a[i+1]` before storing `a[i]` is safe for all vector lanes. In the scalar loop, `a[k+1]` is read *after* `a[k]` is written, creating a loop-carried dependence. The vectorized version breaks this by reading all `a_next` values before any `a` stores, which changes the semantics when the original `a[i+1]` was just computed in the previous iteration.
+
+- Fix: The vectorizer must either (a) prove that the dependence does not exist (e.g., `a` and `b` do not alias, or the loop is actually independent), or (b) restructure the loop to preserve the original order, for example by using a scalar epilogue for the overlapping region or by rotating the loop to separate the read and write phases.
+
+- The mismatch at index 2 confirms that the dependence is real: the value of `a[2]` used in `b[1] = a[2] * d[1]` should be the *new* `a[2]` computed from `a[2] = b[1] + c[2]`, but the vectorized code uses the old `a[2]` because it was loaded before the store.
+
+- The vectorizer should add a dependence analysis pass that detects this pattern (read of `a[i+1]` after write to `a[i]`) and either reject vectorization or apply a transformation like loop peeling or versioning to handle the dependence correctly.

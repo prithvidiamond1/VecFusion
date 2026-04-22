@@ -1,0 +1,17 @@
+```c
+#include <math.h>
+
+float vectorized_s317(int iterations, int LEN_1D) {
+    float q = 1.0f;
+    int total_outer = 5 * iterations;
+    int inner_len = LEN_1D / 2;
+    
+    float inner_product = powf(0.99f, (float)inner_len);
+    
+    for (int nl = 0; nl < total_outer; nl++) {
+        q *= inner_product;
+    }
+    
+    return q;
+}
+```

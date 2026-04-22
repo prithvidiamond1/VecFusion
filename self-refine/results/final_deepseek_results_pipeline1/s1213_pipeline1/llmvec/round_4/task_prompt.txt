@@ -1,0 +1,72 @@
+
+Revise your candidate for `s1213` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s1213(int iterations, int LEN_1D, float* a,float* b,float* c,float* d)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 1; i < LEN_1D-1; i++) {
+            a[i] = b[i-1]+c[i];
+            b[i] = a[i+1]*d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32x4_t __attribute__((__vector_size__(16)));
+
+void vectorized_s1213(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    if (LEN_1D < 3) return;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        // Process first element separately to handle the dependency
+        int i = 1;
+        if (i < LEN_1D - 1) {
+            a[i] = b[i-1] + c[i];
+            b[i] = a[i+1] * d[i];
+            i++;
+        }
+
+        // Vectorize remaining elements: process a and b in separate passes
+        // First pass: compute all a values using original b values
+        for (; i <= LEN_1D - 5; i += 4) {
+            float32x4_t b_orig = *(float32x4_t*)(b + i - 1);
+            float32x4_t c_vec = *(float32x4_t*)(c + i);
+            float32x4_t a_new = b_orig + c_vec;
+            *(float32x4_t*)(a + i) = a_new;
+        }
+
+        // Second pass: compute all b values using updated a values
+        for (int j = 1; j < i; j += 4) {
+            float32x4_t a_next = *(float32x4_t*)(a + j + 1);
+            float32x4_t d_vec = *(float32x4_t*)(d + j);
+            float32x4_t b_new = a_next * d_vec;
+            *(float32x4_t*)(b + j) = b_new;
+        }
+
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D - 1; i++) {
+            a[i] = b[i-1] + c[i];
+            b[i] = a[i+1] * d[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a correctness bug in the second pass loop bounds.
+
+- **Second pass loop uses wrong upper bound**: `for (int j = 1; j < i; j += 4)` uses `i` which was advanced by the first vector loop, but the second pass should cover all elements from index 1 up to `LEN_1D - 2` (the last valid `b[j]` index). This causes `b[3]` to be computed with stale `a[4]` values when `i` hasn't advanced far enough.
+
+- **Fix the second pass bound**: Change to `for (int j = 1; j <= LEN_1D - 5; j += 4)` to match the same range as the first vector pass, ensuring both passes cover the same vector-length chunks.
+
+- **Scalar cleanup loop also has wrong bound**: The scalar loop `for (; i < LEN_1D - 1; i++)` uses `i` which may already be past the valid range. Change to `for (int k = i; k < LEN_1D - 1; k++)` with a fresh variable, or reset `i` before the scalar loop.
+
+- **First element handling is incomplete**: The initial `if (i < LEN_1D - 1)` block only processes one element but doesn't handle the case where `LEN_1D` is exactly 3 (only one valid iteration). The scalar cleanup should cover this.
+
+        Return a corrected candidate function named `vectorized_s1213`.

@@ -1,0 +1,40 @@
+#include <stddef.h>
+
+typedef float float_vec __attribute__((ext_vector_type(4)));
+
+void vectorized_s141(int iterations, float * flat_2d_array, float bb[256][256])
+{
+    int k;
+    int nl_limit = 200 * (iterations / 256);
+    for (int nl = 0; nl < nl_limit; nl++) {
+        for (int i = 0; i < 256; i++) {
+            k = (i+1) * ((i+1) - 1) / 2 + (i+1)-1;
+            int j = i;
+            // Vectorized main loop: process 4 elements at a time
+            for (; j + 3 < 256; j += 4) {
+                float_vec v_bb;
+                v_bb[0] = bb[j][i];
+                v_bb[1] = bb[j+1][i];
+                v_bb[2] = bb[j+2][i];
+                v_bb[3] = bb[j+3][i];
+                float_vec v_arr;
+                v_arr[0] = flat_2d_array[k];
+                v_arr[1] = flat_2d_array[k + (j+1)];
+                v_arr[2] = flat_2d_array[k + (j+1) + (j+2)];
+                v_arr[3] = flat_2d_array[k + (j+1) + (j+2) + (j+3)];
+                v_arr += v_bb;
+                flat_2d_array[k] = v_arr[0];
+                flat_2d_array[k + (j+1)] = v_arr[1];
+                flat_2d_array[k + (j+1) + (j+2)] = v_arr[2];
+                flat_2d_array[k + (j+1) + (j+2) + (j+3)] = v_arr[3];
+                // Update k for next iteration
+                k += (j+1) + (j+2) + (j+3) + (j+4);
+            }
+            // Scalar cleanup for remaining elements
+            for (; j < 256; j++) {
+                flat_2d_array[k] += bb[j][i];
+                k += j+1;
+            }
+        }
+    }
+}

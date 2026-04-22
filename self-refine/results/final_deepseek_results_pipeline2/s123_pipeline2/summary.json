@@ -1,0 +1,41 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s123_pipeline2/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s123_opt(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)\n{\n    int half_len = LEN_1D / 2;\n    \n    for (int nl = 0; nl < iterations; nl++) {\n        int j = -1;\n        \n        // First pass: compute all d[i]*e[i] and b[i] + d[i]*e[i]\n        for (int i = 0; i < half_len; i++) {\n            float de = d[i] * e[i];\n            float b_val = b[i] + de;\n            \n            // Store b_val in a temporary location (we'll move it later)\n            // Use a as temporary storage for b_val at position i*2\n            a[i*2] = b_val;\n            \n            // Also compute and store c[i] + d[i]*e[i] if needed\n            if (c[i] > (float)0.) {\n                float c_val = c[i] + de;\n                // Store c_val in next temporary position\n                a[i*2 + 1] = c_val;\n            }\n        }\n        \n        // Second pass: compact the values into correct positions\n        j = -1;\n        for (int i = 0; i < half_len; i++) {\n            j++;\n            // Write the b_val that was stored at i*2\n            a[j] = a[i*2];\n            \n            if (c[i] > (float)0.) {\n                j++;\n                // Write the c_val that was stored at i*2+1\n                a[j] = a[i*2 + 1];\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s123_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s123_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s123_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: VecTrans-preprocessed input is not a single full function; cannot safely normalize handoff.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s123_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "s123",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s123_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    }
+  ]
+}

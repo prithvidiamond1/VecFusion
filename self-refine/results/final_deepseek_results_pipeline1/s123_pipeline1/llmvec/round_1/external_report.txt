@@ -1,0 +1,14 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s123_pipeline1/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s123_pipeline1/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s123_pipeline1/llmvec/candidate_round_1.c:51:13: error: unknown type name 'v4si'; did you mean 'v4sf'?
+   51 |             v4si mask = (v4si)(c_vec > zero);
+      |             ^~~~
+      |             v4sf
+results/all_tests_pipeline1_20260422_044515/s123_pipeline1/llmvec/candidate_round_1.c:26:15: note: 'v4sf' declared here
+   26 | typedef float v4sf __attribute__((ext_vector_type(4)));
+      |               ^
+results/all_tests_pipeline1_20260422_044515/s123_pipeline1/llmvec/candidate_round_1.c:51:26: error: use of undeclared identifier 'v4si'
+   51 |             v4si mask = (v4si)(c_vec > zero);
+      |                          ^
+2 errors generated.

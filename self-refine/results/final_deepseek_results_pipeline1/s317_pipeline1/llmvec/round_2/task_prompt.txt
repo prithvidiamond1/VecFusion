@@ -1,0 +1,66 @@
+
+Revise your candidate for `s317` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s317(int iterations,int LEN_1D)
+{
+    float q;
+    for (int nl = 0; nl < 5*iterations; nl++) {
+        q = (float)1.;
+        for (int i = 0; i < LEN_1D/2; i++) {
+            q *= (float).99;
+        }
+    }
+    return q;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float float32 __attribute__((ext_vector_type(4)));
+
+float vectorized_s317(int iterations, int LEN_1D) {
+    float q = 1.0f;
+    int total_outer = 5 * iterations;
+    int inner_len = LEN_1D / 2;
+
+    // Vectorized inner loop: process 4 iterations at a time
+    float32 vq = {1.0f, 1.0f, 1.0f, 1.0f};
+    float32 vfactor = {0.99f, 0.99f, 0.99f, 0.99f};
+    int i = 0;
+    for (; i + 4 <= inner_len; i += 4) {
+        vq *= vfactor;
+        vq *= vfactor;
+        vq *= vfactor;
+        vq *= vfactor;
+    }
+    // Scalar cleanup for remaining inner iterations
+    float scalar_q = vq[0] * vq[1] * vq[2] * vq[3];
+    for (; i < inner_len; i++) {
+        scalar_q *= 0.99f;
+    }
+
+    // Outer loop: multiply q by scalar_q for each outer iteration
+    for (int nl = 0; nl < total_outer; nl++) {
+        q *= scalar_q;
+    }
+
+    return q;
+}
+        ```
+
+        Tester feedback:
+        The candidate has a **semantic error** in the vectorized inner loop.  
+
+- The vectorized loop incorrectly applies `vq *= vfactor` **four times per iteration**, effectively multiplying by `0.99^4` per vector step.  
+- The scalar cleanup then multiplies the four lane values together, which is **not equivalent** to the original scalar loop that multiplies `q` by `0.99` once per inner iteration.  
+- The derived trip count `inner_len = LEN_1D / 2` is suspicious — the original loop likely iterated `LEN_1D` times, not half.  
+- The outer loop multiplies `q` by `scalar_q` (a product of four lane values) instead of by the per-iteration factor, causing exponential divergence.  
+
+**Fix:**  
+- Restructure the inner loop to apply `vq *= vfactor` **once per vector iteration**, not four times.  
+- Remove the cross-lane product in the cleanup; instead, reduce `vq` to a single scalar by multiplying all lanes together only once after the loop, or keep `q` as a scalar throughout.  
+- Verify that `inner_len` should be `LEN_1D`, not `LEN_1D / 2`, unless the original loop had a stride of 2.
+
+        Return a corrected candidate function named `vectorized_s317`.

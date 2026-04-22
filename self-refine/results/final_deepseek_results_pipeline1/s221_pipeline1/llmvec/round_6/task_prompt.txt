@@ -1,0 +1,43 @@
+
+Revise your candidate for `s221` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s221(int iterations, int LEN_1D, float*a,float*b,float*c,float*d)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] += c[i] * d[i];
+            b[i] = b[i - 1] + a[i] + d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+void vectorized_s221(int iterations, int LEN_1D, float *a, float *b, float *c, float *d) {
+    int total_iters = iterations;
+    for (int nl = 0; nl < total_iters; nl++) {
+        // Scalar loop due to loop-carried dependency on b[i-1]
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] += c[i] * d[i];
+            b[i] = b[i - 1] + a[i] + d[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate is **incorrect** — the test reveals a mismatch in array `a` at index 1.
+
+**Fixes needed:**
+
+- The loop has a **loop-carried dependency** on `b[i-1]`, which prevents vectorization. The current scalar version is correct in structure, but the mismatch indicates the **trip count or iteration count** (`iterations` vs `LEN_1D`) is being misapplied — likely the outer `nl` loop is running the inner loop more times than expected, corrupting `b` and then `a`.
+- Ensure the **outer loop** (`nl`) correctly repeats the inner loop `iterations` times **without** reusing stale `b` values from previous outer iterations — the dependency chain `b[i-1]` carries across outer iterations, which is likely the source of the mismatch.
+- Make the **loop bounds explicit**: the inner loop should run from `i=1` to `i < LEN_1D`, and the outer loop should reset or reinitialize `b[0]` before each outer iteration if the test expects independent trials.
+- If the test expects **independent trials**, add `b[0] = 0.0f;` (or the correct initial value) before the inner loop each outer iteration to break the cross-trial dependency.
+
+        Return a corrected candidate function named `vectorized_s221`.

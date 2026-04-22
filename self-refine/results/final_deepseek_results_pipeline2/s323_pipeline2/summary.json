@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s323_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s323_opt(int iterations,int LEN_1D, float* a, float *b, float* c, float* d, float* e)\n{\n    for (int nl = 0; nl < iterations/2; nl++) {\n        // Store original b values for this iteration to break dependency\n        float b_prev = b[0];\n        \n        // First compute all c*d and c*e products (independent computations)\n        for (int i = 1; i < LEN_1D; i++) {\n            a[i] = c[i] * d[i];  // Temporarily store c*d in a[i]\n        }\n        \n        // Now compute the recurrence using stored products\n        for (int i = 1; i < LEN_1D; i++) {\n            float cd = a[i];  // Retrieve c[i]*d[i]\n            float ce = c[i] * e[i];\n            float a_new = b_prev + cd;\n            b_prev = a_new + ce;  // This becomes b[i] for next iteration\n            b[i] = b_prev;\n            a[i] = a_new;\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s323_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s323_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s323_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "typedef float float4 __attribute__((ext_vector_type(4)));\n\nvoid vectorized_s323(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e) {\n    int outer_iters = iterations / 2;\n    \n    for (int nl = 0; nl < outer_iters; nl++) {\n        // Store original b[0] value for this iteration\n        float b_prev = b[0];\n        \n        // First compute all c*d products (independent computations)\n        int i = 1;\n        int len_minus_1 = LEN_1D - 1;\n        \n        // Vectorized computation of c*d\n        for (; i + 3 < LEN_1D; i += 4) {\n            float4 c_vec = *(float4*)&c[i];\n            float4 d_vec = *(float4*)&d[i];\n            float4 cd_vec = c_vec * d_vec;\n            *(float4*)&a[i] = cd_vec;\n        }\n        \n        // Scalar tail for c*d computation\n        for (; i < LEN_1D; i++) {\n            a[i] = c[i] * d[i];\n        }\n        \n        // Now compute the recurrence using stored products\n        i = 1;\n        \n        // Main vectorized recurrence loop\n        for (; i + 3 < LEN_1D; i += 4) {\n            // Load c*d products (stored in a[i])\n            float4 cd_vec = *(float4*)&a[i];\n            \n            // Load c and e values\n            float4 c_vec = *(float4*)&c[i];\n            float4 e_vec = *(float4*)&e[i];\n            \n            // Compute c*e products\n            float4 ce_vec = c_vec * e_vec;\n            \n            // Process 4 elements sequentially to maintain recurrence\n            float b0 = b_prev + cd_vec.x;\n            float b1 = b0 + ce_vec.x;\n            b[i] = b1;\n            a[i] = b0;\n            \n            float b2 = b1 + cd_vec.y;\n            float b3 = b2 + ce_vec.y;\n            b[i + 1] = b3;\n            a[i + 1] = b2;\n            \n            float b4 = b3 + cd_vec.z;\n            float b5 = b4 + ce_vec.z;\n            b[i + 2] = b5;\n            a[i + 2] = b4;\n            \n            float b6 = b5 + cd_vec.w;\n            float b7 = b6 + ce_vec.w;\n            b[i + 3] = b7;\n            a[i + 3] = b6;\n            \n            b_prev = b7;\n        }\n        \n        // Scalar tail for recurrence computation\n        for (; i < LEN_1D; i++) {\n            float cd = a[i];\n            float ce = c[i] * e[i];\n            float a_new = b_prev + cd;\n            b_prev = a_new + ce;\n            b[i] = b_prev;\n            a[i] = a_new;\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s323_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s323",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s323_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s323_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s323_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s323_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

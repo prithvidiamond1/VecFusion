@@ -1,0 +1,24 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:11:16: warning: variable 'chksum' set but not used [-Wunused-but-set-variable]
+   11 |     float max, chksum;
+      |                ^
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:48:27: error: index for __builtin_shufflevector must be a constant integer
+   48 |                 max_vec = __builtin_shufflevector(max_vec, current, 
+      |                           ^
+   49 |                     mask[0] ? 4 : 0,
+      |                     ~~~~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:123:49: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  123 |                 ret_scalar = s13110(iterations, aa_scalar); ret_vector = vectorized_s13110(iterations, aa_vector); if (fabsf(ret_scalar - ret_vector) > 1e-5f) {
+      |                                                 ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:8:43: note: passing argument to parameter 'aa' here
+    8 |         float s13110(int iterations,float aa[256][256])
+      |                                           ^
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:123:104: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+  123 |                 ret_scalar = s13110(iterations, aa_scalar); ret_vector = vectorized_s13110(iterations, aa_vector); if (fabsf(ret_scalar - ret_vector) > 1e-5f) {
+      |                                                                                                        ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s13110_pipeline1/llmvec/candidate_round_2.c:33:47: note: passing argument to parameter 'aa' here
+   33 | float vectorized_s13110(int iterations, float aa[256][256]) {
+      |                                               ^
+3 warnings and 1 error generated.

@@ -1,0 +1,99 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Revise your candidate for `s316` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s316(int iterations, int LEN_1D, float* a) {
+    float x;
+    for (int nl = 0; nl < iterations*5; nl++) {
+        x = a[0];
+        float temp_x = x;
+        for (int i = 1; i < LEN_1D; ++i) {
+            float current = a[i];
+            if (current < temp_x) {
+                temp_x = current;
+            }
+        }
+        x = temp_x;
+    }
+    return x;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float v8f32 __attribute__((__vector_size__(32), __aligned__(32)));
+
+float vectorized_s316(int iterations, int LEN_1D, float* a) {
+    float x = 0.0f;
+    int outer_iterations = iterations * 5;
+
+    for (int nl = 0; nl < outer_iterations; nl++) {
+        float min_val = a[0];
+
+        // Vectorized reduction
+        int i = 1;
+        int vec_limit = ((LEN_1D - 1) / 8) * 8 + 1;
+
+        if (vec_limit > 1) {
+            v8f32 min_vec = (v8f32){min_val, min_val, min_val, min_val, 
+                                   min_val, min_val, min_val, min_val};
+
+            for (; i < vec_limit; i += 8) {
+                v8f32 current_vec = *(v8f32*)&a[i];
+                v8f32 mask = current_vec < min_vec;
+                min_vec = (mask ? current_vec : min_vec);
+            }
+
+            // Horizontal reduction
+            float temp_min = min_val;
+            float* min_arr = (float*)&min_vec;
+            for (int j = 0; j < 8; j++) {
+                if (min_arr[j] < temp_min) {
+                    temp_min = min_arr[j];
+                }
+            }
+            min_val = temp_min;
+        }
+
+        // Scalar tail
+        for (; i < LEN_1D; i++) {
+            float current = a[i];
+            if (current < min_val) {
+                min_val = current;
+            }
+        }
+
+        x = min_val;
+    }
+
+    return x;
+}
+        ```
+
+        Tester feedback:
+        - The ternary operator `? :` cannot be used directly with vector types in C; need to replace it with a conditional select using bitwise operations.
+- Change line `min_vec = (mask ? current_vec : min_vec);` to `min_vec = (mask & current_vec) | (~mask & min_vec);` or equivalent vector blend.
+- Ensure the mask is cast to an appropriate integer vector type for bitwise operations if necessary, but since `mask` is already a vector of floats from the comparison, convert it to an integer vector for bitwise AND.
+- Specifically, use `__builtin_convertvector(mask, v8i32)` or cast via `(v8i32)mask` before bitwise operations, then cast back to `v8f32` after blending.
+- Alternatively, use `__builtin_shufflevector` or manual element selection, but the simplest fix is to use `min_vec = __builtin_shufflevector(current_vec, min_vec, ...)` which is complex; better to use explicit bitwise blend.
+- Since the comparison `current_vec < min_vec` yields a vector of `int` (or `bool` in GCC vectors), in Clang it's a vector of `int`, so bitwise operations with `v8f32` are invalid; cast mask to `v8i32` and operands to `v8i32` for bitwise ops, then back to `v8f32`.
+- Example fix:  
+  `v8i32 mask_i = (v8i32)mask;`  
+  `v8i32 current_i = (v8i32)current_vec;`  
+  `v8i32 min_i = (v8i32)min_vec;`  
+  `v8i32 blended_i = (mask_i & current_i) | (~mask_i & min_i);`  
+  `min_vec = (v8f32)blended_i;`
+- This ensures the ternary is replaced with a vector-safe bitwise blend.
+
+        Return a corrected candidate function named `vectorized_s316`.

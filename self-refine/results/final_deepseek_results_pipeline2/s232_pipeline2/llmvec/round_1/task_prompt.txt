@@ -1,0 +1,37 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Vectorize the scalar C function `s232` below.
+
+        Scalar source:
+        ```c
+        void s232(int iterations, float aa[256][256], float bb[256][256])
+{
+    int loop_count = 100 * (iterations / 256);
+
+    for (int nl = 0; nl < loop_count; nl++) {
+        for (int j = 1; j < 256; j++) {
+            // Store the previous value to break dependency chain
+            float prev = aa[j][0];
+
+            for (int i = 1; i <= j; i++) {
+                // Compute using stored previous value
+                float current = prev * prev + bb[j][i];
+                // Update array and store for next iteration
+                aa[j][i] = current;
+                prev = current;
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s232`.

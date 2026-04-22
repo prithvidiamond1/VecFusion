@@ -1,0 +1,74 @@
+
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a,float* b,float* c, float* d,float* e, float aa[256][256])
+{
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > 0.) {
+                s = d[i] * d[i];
+            }
+            b[i] = s * c[i] + d[i];
+            e[i] = (s + (float)1.) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+typedef float float32_t;
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256])
+{
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.0f;
+        for (int i = 0; i < 256; i += 4) {
+            float32_t a_vec[4] = {a[i], a[i+1], a[i+2], a[i+3]};
+            float32_t d_vec[4] = {d[i], d[i+1], d[i+2], d[i+3]};
+            float32_t c_vec[4] = {c[i], c[i+1], c[i+2], c[i+3]};
+            float32_t aa0_vec[4] = {aa[0][i], aa[0][i+1], aa[0][i+2], aa[0][i+3]};
+
+            float32_t s_vec[4];
+            float32_t prev_s = s;
+            for (int j = 0; j < 4; j++) {
+                s_vec[j] = (a_vec[j] > 0.0f) ? (d_vec[j] * d_vec[j]) : prev_s;
+                prev_s = s_vec[j];
+            }
+
+            for (int j = 0; j < 4; j++) {
+                b[i + j] = s_vec[j] * c_vec[j] + d_vec[j];
+                e[i + j] = (s_vec[j] + 1.0f) * aa0_vec[j];
+            }
+
+            for (int j = 0; j < 4; j++) {
+                if (a[i + j] > 0.0f) {
+                    s = d[i + j] * d[i + j];
+                }
+            }
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The outer loop `for (int nl = 0; nl < iterations; nl++)` is missing a trip count check: if `iterations` is 0 or negative, the loop body should not execute, but the current code will still run the inner loops with undefined behavior for negative counts. Add a guard: `if (iterations <= 0) return;` at the start.
+
+- The inner loop `for (int i = 0; i < 256; i += 4)` assumes `256` is divisible by 4, which is true, but the vectorized loads/stores at indices `i+1`, `i+2`, `i+3` are unsafe if the arrays are smaller than 256 elements. The test report shows a mismatch at index 0, suggesting the arrays may be shorter. Add a bounds check or ensure the caller provides arrays of at least 256 elements.
+
+- The scalar reduction `s` is updated inside the inner loop with `s = d[i + j] * d[i + j]` only when `a[i+j] > 0.0f`. The vectorized version uses `prev_s` to carry the previous `s` across the 4-element chunk, but this is incorrect because `s` is a scalar that persists across the entire `i` loop, not just within a chunk. The vectorized code should accumulate `s` correctly by updating it after the inner `j` loops, not by chaining within the chunk.
+
+- The mismatch at index 0 in parameter `a` suggests the output array `a` is being modified incorrectly. The code reads from `a` but never writes to it, so the mismatch may be due to incorrect indexing or aliasing. Ensure no unintended writes to `a` occur.
+
+- The vectorized code uses `float32_t` (which is `float`) but the original scalar code likely used `float`. This is fine, but verify that the `aa` array is accessed correctly: `aa[0][i]` assumes `aa` has at least 1 row and 256 columns. If `aa` is smaller, this causes out-of-bounds access.
+
+- The loop `for (int j = 0; j < 4; j++)` that updates `s` uses `d[i + j] * d[i + j]` but the vectorized version in the first inner loop uses `d_vec[j] * d_vec[j]`. This is consistent, but the scalar `s` update should happen after all `j` iterations, not inside the loop. Move the `s` update outside the inner `j` loop to match scalar semantics.
+
+        Return a corrected candidate function named `vectorized_s258`.

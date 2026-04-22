@@ -1,0 +1,8 @@
+- The test fails with a return mismatch, indicating the vectorized loop's computed dot product differs from the reference scalar version.
+- The candidate code incorrectly accumulates `partial_dot` across the inner loop but overwrites `dot = partial_dot` each outer iteration, discarding previous results.
+- The reference scalar version likely accumulates `dot` across all outer iterations, not just the last inner loop's result.
+- Fix by changing `dot = partial_dot;` to `dot += partial_dot;` to sum contributions from each outer iteration.
+- Ensure the outer loop's trip count `8 * iterations` is correct; the mismatch may also stem from an incorrect outer iteration multiplier.
+- Verify the inner loop bound `LEN_1D` is constant and positive to allow safe vectorization; if not, add a guard condition.
+- Confirm no floating-point associativity differences cause mismatch; if strict compliance is required, disable vectorization or use `-ffast-math` carefully.
+- After fixing accumulation, re-run tests to ensure the result matches within acceptable tolerance.

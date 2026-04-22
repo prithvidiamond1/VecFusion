@@ -1,0 +1,28 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s3113_pipeline1/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stddef.h>\n#include <math.h>\n\ntypedef float float32_t;\n\nfloat vectorized_s3113(int iterations, int LEN_1D, float* a) {\n    float max = 0.0f;\n    int total_iters = iterations * 4;\n    \n    for (int nl = 0; nl < total_iters; nl++) {\n        float current_max = fabsf(a[0]);\n        int i = 1;\n        \n        // Vectorized main loop (process 4 elements at a time)\n        for (; i <= LEN_1D - 4; i += 4) {\n            float v0 = fabsf(a[i]);\n            float v1 = fabsf(a[i+1]);\n            float v2 = fabsf(a[i+2]);\n            float v3 = fabsf(a[i+3]);\n            \n            // Find max among the 4 values\n            float m01 = (v0 > v1) ? v0 : v1;\n            float m23 = (v2 > v3) ? v2 : v3;\n            float m = (m01 > m23) ? m01 : m23;\n            \n            if (m > current_max) {\n                current_max = m;\n            }\n        }\n        \n        // Scalar cleanup for remaining elements\n        for (; i < LEN_1D; i++) {\n            float val = fabsf(a[i]);\n            if (val > current_max) {\n                current_max = val;\n            }\n        }\n        \n        max = current_max;\n    }\n    \n    return max;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s3113_pipeline1/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s3113",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s3113_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s3113_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source",
+        "harness_path": "results/all_tests_pipeline1_20260422_044515/s3113_pipeline1/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline1_20260422_044515/s3113_pipeline1/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

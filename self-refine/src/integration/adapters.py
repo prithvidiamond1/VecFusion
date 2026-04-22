@@ -58,12 +58,10 @@ class VecTransAdapter:
         return module
 
     def _extract_final_code(self, text: str) -> str:
-        # Prefer explicit FINAL CODE blocks first.
         matches = re.findall(r"# FINAL CODE\s*```c\s*(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
         if matches:
             return matches[-1].strip()
 
-        # Fallback: last fenced C block.
         fenced = re.findall(r"```c\s*(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
         if fenced:
             return fenced[-1].strip()
@@ -74,12 +72,8 @@ class VecTransAdapter:
         code = code.strip()
         if not code:
             return False
-
-        # Must contain at least one apparent function definition.
         if not _FUNC_DEF_RE.search(code):
             return False
-
-        # Quick brace sanity check.
         return code.count("{") >= 1 and code.count("}") >= 1
 
     def run(self, source_code: str, outdir: Path, max_rounds: int = 6) -> TransformResult:
@@ -218,11 +212,7 @@ class LLMVectorizerAdapter:
 
         preferred = llmvec_root / "llm_vectorizer.py"
         legacy = llmvec_root / "llmVectorizer.py"
-
-        if preferred.exists():
-            self.module_path = preferred
-        else:
-            self.module_path = legacy
+        self.module_path = preferred if preferred.exists() else legacy
 
     def _load_module(self) -> ModuleType:
         if not self.module_path.exists():
@@ -237,7 +227,14 @@ class LLMVectorizerAdapter:
         spec.loader.exec_module(module)
         return module
 
-    def _build_config(self, module: ModuleType, source_file: Path, scalar_function: str, outdir: Path, max_rounds: int):
+    def _build_config(
+        self,
+        module: ModuleType,
+        source_file: Path,
+        scalar_function: str,
+        outdir: Path,
+        max_rounds: int,
+    ):
         compiler_flags_env = os.environ.get("LLM_VECTORIZER_COMPILER_FLAGS", "").strip()
         compiler_flags = compiler_flags_env.split() if compiler_flags_env else []
         return module.RunConfig(
@@ -260,23 +257,36 @@ class LLMVectorizerAdapter:
             api_timeout=int(os.environ.get("LLM_VECTORIZER_API_TIMEOUT", "120")),
         )
 
-    def _pipeline_context_prefix(self, pipeline_context: str) -> str:
-        if pipeline_context == "vectrans_preprocessed":
+    def _pipeline_context_prefix(self, pipeline_context: str, round_idx: int, max_rounds: int) -> str:
+        if pipeline_context != "vectrans_preprocessed":
+            return ""
+
+        base = (
+            "This input code has already been processed by an earlier VecTrans stage.\n"
+            "Assume dependency-breaking and preliminary restructuring may already have been attempted.\n"
+            "Preserve the current transformed structure as much as possible.\n"
+            "Focus on cleanup, canonicalization, correctness, and final vectorization.\n"
+            "Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,\n"
+            "and loops whose trip counts are not immediately explicit.\n"
+            "If a loop bound is implicit, derive it explicitly before rewriting the loop.\n"
+            "Prefer canonical counted loops with clear bounds and step sizes.\n"
+        )
+
+        if round_idx <= 4:
             return (
-                "This input code has already been processed by an earlier VecTrans stage.\n"
-                "Assume dependency-breaking and preliminary restructuring may already have been attempted.\n"
-                "Do not aggressively rewrite the code from scratch unless a clear blocker remains.\n"
-                "Preserve the current transformed structure as much as possible.\n"
-                "Focus on cleanup, canonicalization, correctness, and final vectorization.\n"
-                "Avoid introducing unnecessary new dependency-breaking transformations.\n"
-                "Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,\n"
-                "and loops whose trip counts are not immediately explicit.\n"
-                "If a loop bound is implicit, derive it explicitly before rewriting the loop.\n"
-                "Prefer canonical counted loops with clear bounds and step sizes.\n"
-                "If control flow blocks vectorization, first simplify or split the control flow into guarded,\n"
-                "semantically equivalent loops before attempting SIMD-style rewrites.\n"
+                base
+                + "For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.\n"
+                + "Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.\n"
             )
-        return ""
+
+        return (
+            base
+            + "Previous refinement rounds did not succeed.\n"
+            + "You may now aggressively restructure the transformed code if needed.\n"
+            + "You may rewrite control flow, split or peel loops, isolate switch/case behavior, derive trip counts explicitly,\n"
+            + "and perform larger semantic-preserving rewrites if that improves correctness or vectorization potential.\n"
+            + "At this stage, do not stay conservative just to preserve the prior shape.\n"
+        )
 
     def _contains_function_named(self, code: str, scalar_function: str) -> bool:
         return bool(re.search(rf"\b{re.escape(scalar_function)}\s*\(", code))
@@ -315,7 +325,7 @@ class LLMVectorizerAdapter:
         source_file: Path,
         scalar_function: str,
         outdir: Path,
-        max_rounds: int = 4,
+        max_rounds: int = 6,
         pipeline_context: str = "raw_source",
     ) -> TransformResult:
         outdir.mkdir(parents=True, exist_ok=True)
@@ -338,21 +348,18 @@ class LLMVectorizerAdapter:
             os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
 
             prepared_text = self._prepare_source_text(raw_text, scalar_function, pipeline_context)
-
-            prepared_text = self._prepare_source_text(raw_text, scalar_function, pipeline_context)
             prepared_source = outdir / "llm_vectorizer_prepared_input.c"
             prepared_source.write_text(prepared_text)
 
             config = self._build_config(module, prepared_source, scalar_function, outdir, max_rounds)
             scalar_source = module.read_source(config.source_path).strip()
 
-            context_prefix = self._pipeline_context_prefix(pipeline_context)
-            vectorizer_prompt = context_prefix + "\n" + module.make_vectorizer_prompt(config)
-
             try:
                 api_key = module.get_api_key()
             except SystemExit as exc:
                 prompts_path = outdir / "debug_prompts.txt"
+                context_prefix = self._pipeline_context_prefix(pipeline_context, 1, max_rounds)
+                vectorizer_prompt = context_prefix + "\n" + module.make_vectorizer_prompt(config)
                 initial_task = context_prefix + "\n" + module.make_initial_task(config, scalar_source)
                 prompts_path.write_text(
                     "== Vectorizer system prompt ==\n"
@@ -381,7 +388,6 @@ class LLMVectorizerAdapter:
                     },
                 )
 
-            vectorizer = module.new_agent("Vectorizer", vectorizer_prompt, config, api_key)
             tester = module.new_agent("Tester", module.make_tester_prompt(), config, api_key)
 
             last_feedback = ""
@@ -392,6 +398,10 @@ class LLMVectorizerAdapter:
                 round_dir = outdir / f"round_{round_idx}"
                 round_dir.mkdir(parents=True, exist_ok=True)
 
+                context_prefix = self._pipeline_context_prefix(pipeline_context, round_idx, config.max_rounds)
+                vectorizer_prompt = context_prefix + "\n" + module.make_vectorizer_prompt(config)
+                vectorizer = module.new_agent("Vectorizer", vectorizer_prompt, config, api_key)
+
                 if round_idx == 1:
                     task = context_prefix + "\n" + module.make_initial_task(config, scalar_source)
                 else:
@@ -401,6 +411,8 @@ class LLMVectorizerAdapter:
                         scalar_source,
                         config,
                     )
+
+                (round_dir / "system_prompt.txt").write_text(vectorizer_prompt)
                 (round_dir / "task_prompt.txt").write_text(task)
 
                 response_text = module.ask_agent(vectorizer, task)
@@ -447,10 +459,7 @@ class LLMVectorizerAdapter:
                 last_candidate = candidate_code
 
             last_candidate_path = outdir / "last_candidate.c"
-            if last_candidate:
-                last_candidate_path.write_text(last_candidate + "\n")
-            else:
-                last_candidate_path.write_text("")
+            last_candidate_path.write_text((last_candidate + "\n") if last_candidate else "")
 
             last_report = final_result.report if final_result is not None else "No candidate was produced."
             return TransformResult(
@@ -497,7 +506,7 @@ class CompilerBaselineAdapter:
             stage="compiler_baseline",
             ok=True,
             candidate_code=baseline_path.read_text(),
-            summary="Fallback selected: keep the original scalar code and rely on compiler autovectorization.",
+            summary="Fallback selected: keep the source unchanged and rely on compiler autovectorization.",
             artifact_path=str(baseline_path),
         )
 
@@ -513,7 +522,7 @@ class CompilerBaselineAdapter:
     ) -> TransformResult:
         outdir.mkdir(parents=True, exist_ok=True)
         candidate_path = outdir / f"{final_stage}_input.c"
-        candidate_path.write_text(candidate_code)
+        candidate_path.write_text(candidate_code if candidate_code.endswith("\n") else candidate_code + "\n")
         return TransformResult(
             stage=final_stage,
             ok=True,

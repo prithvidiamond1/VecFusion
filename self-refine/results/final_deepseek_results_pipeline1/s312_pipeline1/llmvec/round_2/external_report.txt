@@ -1,0 +1,10 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s312_pipeline1/llmvec/candidate_round_2.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s312_pipeline1/llmvec/candidate_round_2
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s312_pipeline1/llmvec/candidate_round_2.c:32:23: error: use of unknown builtin '__builtin_ia32_loadups' [-Wimplicit-function-declaration]
+   32 |             v4sf va = __builtin_ia32_loadups(&a[i]);
+      |                       ^
+results/all_tests_pipeline1_20260422_044515/s312_pipeline1/llmvec/candidate_round_2.c:32:18: error: initializing 'v4sf' (vector of 4 'float' values) with an expression of incompatible type 'int'
+   32 |             v4sf va = __builtin_ia32_loadups(&a[i]);
+      |                  ^    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2 errors generated.

@@ -1,0 +1,115 @@
+```c
+typedef float float4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {
+    const int N = 256;
+    const int VEC_SIZE = 4;
+    const int VEC_ITERS = N / VEC_SIZE;
+    const int REMAINDER = N % VEC_SIZE;
+    
+    // Conservative alias detection: if b or e might alias any input array, use scalar code
+    int any_alias = 0;
+    
+    // Check if b or e overlap with a, c, d, or aa
+    for (int i = 0; i < N; i++) {
+        if (&b[i] == &a[i] || &b[i] == &c[i] || &b[i] == &d[i] || &b[i] == &aa[0][i]) {
+            any_alias = 1;
+            break;
+        }
+        if (&e[i] == &a[i] || &e[i] == &c[i] || &e[i] == &d[i] || &e[i] == &aa[0][i]) {
+            any_alias = 1;
+            break;
+        }
+    }
+    
+    // If any aliasing detected, use original scalar code for entire function
+    if (any_alias) {
+        for (int nl = 0; nl < iterations; nl++) {
+            float s = 0.0f;
+            float s_vals[N];
+            
+            for (int i = 0; i < N; i++) {
+                if (a[i] > 0.0f) {
+                    s = d[i] * d[i];
+                }
+                s_vals[i] = s;
+            }
+            
+            for (int i = 0; i < N; i++) {
+                b[i] = s_vals[i] * c[i] + d[i];
+            }
+            
+            for (int i = 0; i < N; i++) {
+                e[i] = (s_vals[i] + 1.0f) * aa[0][i];
+            }
+        }
+        return;
+    }
+    
+    // No aliasing - safe to vectorize
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = 0.0f;
+        float s_vals[N];
+        
+        // First loop: compute s values with cross-element dependency
+        // Process in chunks but maintain sequential dependency within each chunk
+        for (int i = 0; i < VEC_ITERS; i++) {
+            int base = i * VEC_SIZE;
+            float4 a_vec = *(float4*)&a[base];
+            
+            // Process elements sequentially to maintain correct dependency
+            for (int j = 0; j < VEC_SIZE; j++) {
+                if (a[base + j] > 0.0f) {
+                    s = d[base + j] * d[base + j];
+                }
+                s_vals[base + j] = s;
+            }
+        }
+        
+        // Handle remainder in first loop
+        int base = VEC_ITERS * VEC_SIZE;
+        for (int i = 0; i < REMAINDER; i++) {
+            int idx = base + i;
+            if (a[idx] > 0.0f) {
+                s = d[idx] * d[idx];
+            }
+            s_vals[idx] = s;
+        }
+        
+        // Second loop: vectorizable - b[i] = s_vals[i] * c[i] + d[i]
+        for (int i = 0; i < VEC_ITERS; i++) {
+            int base = i * VEC_SIZE;
+            float4 s_vec = *(float4*)&s_vals[base];
+            float4 c_vec = *(float4*)&c[base];
+            float4 d_vec = *(float4*)&d[base];
+            
+            float4 b_vec = s_vec * c_vec + d_vec;
+            *(float4*)&b[base] = b_vec;
+        }
+        
+        // Handle remainder in second loop
+        base = VEC_ITERS * VEC_SIZE;
+        for (int i = 0; i < REMAINDER; i++) {
+            int idx = base + i;
+            b[idx] = s_vals[idx] * c[idx] + d[idx];
+        }
+        
+        // Third loop: vectorizable - e[i] = (s_vals[i] + 1.0f) * aa[0][i]
+        for (int i = 0; i < VEC_ITERS; i++) {
+            int base = i * VEC_SIZE;
+            float4 s_vec = *(float4*)&s_vals[base];
+            float4 aa_vec = *(float4*)&aa[0][base];
+            
+            float4 e_vec = (s_vec + (float4){1.0f, 1.0f, 1.0f, 1.0f}) * aa_vec;
+            *(float4*)&e[base] = e_vec;
+        }
+        
+        // Handle remainder in third loop
+        base = VEC_ITERS * VEC_SIZE;
+        for (int i = 0; i < REMAINDER; i++) {
+            int idx = base + i;
+            e[idx] = (s_vals[idx] + 1.0f) * aa[0][idx];
+        }
+    }
+}
+```

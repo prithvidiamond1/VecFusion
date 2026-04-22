@@ -1,0 +1,7 @@
+The vectorized code has a correctness bug in the tail handling logic.
+
+- **Incorrect tail handling semantics**: The original scalar loop computes `b[i] = scalar_sum` where `scalar_sum` is the running sum *including* `a[i]`. In the vectorized version, the tail loop computes `scalar_sum += a[i]; b[i] = scalar_sum;` which is correct for the tail, but the initial `scalar_sum` is set to `vec_sum[0] + vec_sum[1] + vec_sum[2] + vec_sum[3]` — this is the sum of all elements processed in the vector loop, not the running sum at the last vector iteration's boundary.
+
+- **Fix**: The tail loop must continue the running sum from the last element written in the vector loop. After the vector loop, `scalar_sum` should be set to `b[i-4]` (the last value written) rather than recomputing from `vec_sum`. Alternatively, track the running sum through the vector loop and pass it to the tail.
+
+- **Alternative fix**: Change the vector loop to maintain a scalar `running_sum` that gets updated each iteration, then use that as the starting point for the tail loop instead of recomputing from `vec_sum`.

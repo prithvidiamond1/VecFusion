@@ -1,0 +1,47 @@
+```c
+#include <stddef.h>
+
+typedef float float_vec __attribute__((ext_vector_type(4)));
+
+void vectorized_s244(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    int n = LEN_1D - 1;
+    if (n <= 0) return;
+    
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        // Vectorize with 4-wide SIMD, but note the loop-carried dependency on a[i+1]
+        // We can vectorize by processing 4 elements at a time, handling the dependency carefully
+        for (; i <= n - 4; i += 4) {
+            float_vec vb = *(float_vec*)(b + i);
+            float_vec vc = *(float_vec*)(c + i);
+            float_vec vd = *(float_vec*)(d + i);
+            
+            // a[i] = b[i] + c[i] * d[i]
+            float_vec va = vb + vc * vd;
+            *(float_vec*)(a + i) = va;
+            
+            // b[i] = c[i] + b[i]
+            vb = vc + vb;
+            *(float_vec*)(b + i) = vb;
+            
+            // a[i+1] = b[i] + a[i+1] * d[i]
+            // This has a dependency: a[i+1] is read then written
+            // We need to handle the shift carefully
+            float_vec va_next = *(float_vec*)(a + i + 1);
+            float_vec vd_shift = vd; // d[i] for each element
+            // For each lane j: a[i+1+j] = b[i+j] + a[i+1+j] * d[i+j]
+            // But note: a[i+1] uses b[i], a[i+2] uses b[i+1], etc.
+            // This is actually independent per lane when vectorized
+            va_next = vb + va_next * vd_shift;
+            *(float_vec*)(a + i + 1) = va_next;
+        }
+        
+        // Scalar cleanup for remaining elements
+        for (; i < n; i++) {
+            a[i] = b[i] + c[i] * d[i];
+            b[i] = c[i] + b[i];
+            a[i+1] = b[i] + a[i+1] * d[i];
+        }
+    }
+}
+```

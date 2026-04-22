@@ -1,0 +1,44 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Vectorize the scalar C function `s141` below.
+
+        Scalar source:
+        ```c
+        void s141(int iterations, float * flat_2d_array, float bb[256][256]) {
+    int nl_iter = 200 * (iterations / 256);
+
+    for (int nl = 0; nl < nl_iter; nl++) {
+        // Precompute all k values for each i (starting point for each row)
+        int k_start[256];
+        for (int i = 0; i < 256; i++) {
+            k_start[i] = (i+1) * i / 2 + i;
+        }
+
+        // Process by j first to enable vectorization on i
+        // This creates regular access pattern: bb[j][i] for i=0..j
+        for (int j = 0; j < 256; j++) {
+            // For each j, process all i <= j
+            // Compute k incrementally for each i
+            int k = k_start[0] + j;  // k for i=0, j=j
+            for (int i = 0; i <= j; i++) {
+                flat_2d_array[k] += bb[j][i];
+                // Update k for next i: k(i+1,j) = k(i,j) + (j+1) - (i+1)
+                if (i < j) {
+                    k += (j - i);
+                }
+            }
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s141`.

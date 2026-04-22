@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s2111_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s2111_opt(int iterations, float aa[256][256]) {\n    int loop_bound = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < loop_bound; nl++) {\n        // Process first row (j=1) separately\n        float prev_val = aa[1][0];\n        for (int i = 1; i < 256; i++) {\n            float new_val = (prev_val + aa[0][i]) / 1.9f;\n            aa[1][i] = new_val;\n            prev_val = new_val;\n        }\n        \n        // Process remaining rows (j=2 to 255)\n        for (int j = 2; j < 256; j++) {\n            // Copy previous row to break vertical dependency\n            float prev_row[256];\n            for (int i = 0; i < 256; i++) {\n                prev_row[i] = aa[j-1][i];\n            }\n            \n            // Process current row with only horizontal dependency\n            float current_val = (aa[j][0] + prev_row[1]) / 1.9f;\n            aa[j][1] = current_val;\n            \n            for (int i = 2; i < 256; i++) {\n                current_val = (current_val + prev_row[i]) / 1.9f;\n                aa[j][i] = current_val;\n            }\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s2111_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s2111_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s2111_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "#include <stdint.h>\n#include <string.h>\n\nvoid vectorized_s2111(int iterations, float aa[256][256]) {\n    int loop_bound = 100 * (iterations / 256);\n    \n    for (int nl = 0; nl < loop_bound; nl++) {\n        // Process first row (j=1) separately\n        float prev_val = aa[1][0];\n        for (int i = 1; i < 256; i++) {\n            float new_val = (prev_val + aa[0][i]) / 1.9f;\n            aa[1][i] = new_val;\n            prev_val = new_val;\n        }\n\n        // Process remaining rows (j=2 to 255)\n        for (int j = 2; j < 256; j++) {\n            // Copy previous row to break vertical dependency\n            float prev_row[256];\n            for (int i = 0; i < 256; i++) {\n                prev_row[i] = aa[j-1][i];\n            }\n\n            // Process current row with only horizontal dependency\n            float current_val = (aa[j][0] + prev_row[1]) / 1.9f;\n            aa[j][1] = current_val;\n\n            // Vectorized inner loop\n            int i;\n            for (i = 2; i <= 253; i += 4) {\n                // Process 4 elements at a time\n                float vals[4];\n                vals[0] = (current_val + prev_row[i]) / 1.9f;\n                current_val = vals[0];\n                aa[j][i] = vals[0];\n                \n                vals[1] = (current_val + prev_row[i+1]) / 1.9f;\n                current_val = vals[1];\n                aa[j][i+1] = vals[1];\n                \n                vals[2] = (current_val + prev_row[i+2]) / 1.9f;\n                current_val = vals[2];\n                aa[j][i+2] = vals[2];\n                \n                vals[3] = (current_val + prev_row[i+3]) / 1.9f;\n                current_val = vals[3];\n                aa[j][i+3] = vals[3];\n            }\n            \n            // Scalar cleanup for remaining elements\n            for (; i < 256; i++) {\n                current_val = (current_val + prev_row[i]) / 1.9f;\n                aa[j][i] = current_val;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s2111_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s2111",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s2111_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s2111_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s2111_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s2111_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

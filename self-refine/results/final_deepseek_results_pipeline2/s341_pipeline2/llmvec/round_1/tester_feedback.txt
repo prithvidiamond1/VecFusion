@@ -1,0 +1,5 @@
+- The `__builtin_convertvector` is incorrectly converting `mask_vec` (v8f32) to v8f32 again, which yields a vector, not an integer mask.
+- Replace the mask extraction with a proper integer mask generation, e.g., using `__builtin_convertvector(mask_vec, v8i32)` and then a horizontal reduction, or use `__builtin_ia32_movmskps` for SSE-like intrinsics if targeting x86.
+- Since the candidate uses generic vector extensions, consider storing the comparison result to an integer vector and extracting bits manually, or restructure to avoid an integer mask.
+- Alternatively, keep the vectorized loop but process the mask inside the inner `j` loop by checking each vector element directly: `if (mask_vec[j] > 0.0f)`.
+- The inner `j` loop should iterate over `VEC_SIZE` and conditionally store based on `mask_vec[j]`, eliminating the incorrect integer mask.

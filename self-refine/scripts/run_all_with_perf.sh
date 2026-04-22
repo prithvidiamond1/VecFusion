@@ -3,7 +3,7 @@ set -u
 
 ROOT="/Users/torence/VecTrans/self-refine"
 PERF_REPEATS="${PERF_REPEATS:-5}"
-PIPELINE="pipeline2"
+PIPELINE="pipeline1"
 
 cd "$ROOT" || exit 1
 source .venv/bin/activate

@@ -1,0 +1,35 @@
+```c
+#include <stddef.h>
+
+void vectorized_s161(int iterations, int LEN_1D, float* a, float* b, float* c, float* d, float* e)
+{
+    int loop_bound = iterations / 2;
+    
+    for (int nl = 0; nl < loop_bound; nl++) {
+        // Allocate temporary arrays
+        float* a_orig = (float*)__builtin_alloca(LEN_1D * sizeof(float));
+        float* c_orig = (float*)__builtin_alloca(LEN_1D * sizeof(float));
+        
+        // Copy original values
+        for (int i = 0; i < LEN_1D; i++) {
+            a_orig[i] = a[i];
+            c_orig[i] = c[i];
+        }
+        
+        // First loop: compute a[i] updates
+        int i = 0;
+        for (; i <= LEN_1D - 2; i++) {
+            if (b[i] >= 0.0f) {
+                a[i] = c_orig[i] + d[i] * e[i];
+            }
+        }
+        
+        // Second loop: compute c[i+1] updates
+        for (i = 0; i <= LEN_1D - 2; i++) {
+            if (b[i] < 0.0f) {
+                c[i + 1] = a[i] + d[i] * d[i];
+            }
+        }
+    }
+}
+```

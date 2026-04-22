@@ -1,0 +1,37 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "compiler_baseline",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s211_pipeline2/compiler/compiler_baseline_input.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": false,
+      "candidate_code": "for (int i = 1; i < LEN_1D-1; i++) {\n    a[i] = b[i - 1] + c[i] * d[i];\n    b[i] = b[i + 1] - e[i] * d[i];\n}",
+      "summary": "VecTrans emitted a C snippet, not a full function. Rejecting it as a pipeline handoff candidate.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s211_pipeline2/vectrans/vectrans_non_function_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s211_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s211_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "compiler_baseline",
+      "ok": true,
+      "candidate_code": "void s211(int iterations, int LEN_1D, float*a, float*b,float*c,float*d,float*e)\n{\n    for (int nl = 0; nl < iterations; nl++) {\n        for (int i = 1; i < LEN_1D-1; i++) {\n            a[i] = b[i - 1] + c[i] * d[i];\n            b[i] = b[i + 1] - e[i] * d[i];\n        }\n    }\n}",
+      "summary": "Fallback selected: keep the source unchanged and rely on compiler autovectorization.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s211_pipeline2/compiler/compiler_baseline_input.c",
+      "metadata": {}
+    }
+  ]
+}

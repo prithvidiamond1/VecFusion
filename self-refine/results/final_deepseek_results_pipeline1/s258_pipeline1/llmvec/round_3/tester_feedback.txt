@@ -1,0 +1,11 @@
+- The outer loop `for (int nl = 0; nl < iterations; nl++)` is missing a trip count check: if `iterations` is 0 or negative, the loop body should not execute, but the current code will still run the inner loops with undefined behavior for negative counts. Add a guard: `if (iterations <= 0) return;` at the start.
+
+- The inner loop `for (int i = 0; i < 256; i += 4)` assumes `256` is divisible by 4, which is true, but the vectorized loads/stores at indices `i+1`, `i+2`, `i+3` are unsafe if the arrays are smaller than 256 elements. The test report shows a mismatch at index 0, suggesting the arrays may be shorter. Add a bounds check or ensure the caller provides arrays of at least 256 elements.
+
+- The scalar reduction `s` is updated inside the inner loop with `s = d[i + j] * d[i + j]` only when `a[i+j] > 0.0f`. The vectorized version uses `prev_s` to carry the previous `s` across the 4-element chunk, but this is incorrect because `s` is a scalar that persists across the entire `i` loop, not just within a chunk. The vectorized code should accumulate `s` correctly by updating it after the inner `j` loops, not by chaining within the chunk.
+
+- The mismatch at index 0 in parameter `a` suggests the output array `a` is being modified incorrectly. The code reads from `a` but never writes to it, so the mismatch may be due to incorrect indexing or aliasing. Ensure no unintended writes to `a` occur.
+
+- The vectorized code uses `float32_t` (which is `float`) but the original scalar code likely used `float`. This is fine, but verify that the `aa` array is accessed correctly: `aa[0][i]` assumes `aa` has at least 1 row and 256 columns. If `aa` is smaller, this causes out-of-bounds access.
+
+- The loop `for (int j = 0; j < 4; j++)` that updates `s` uses `d[i + j] * d[i + j]` but the vectorized version in the first inner loop uses `d_vec[j] * d_vec[j]`. This is consistent, but the scalar `s` update should happen after all `j` iterations, not inside the loop. Move the `s` update outside the inner `j` loop to match scalar semantics.

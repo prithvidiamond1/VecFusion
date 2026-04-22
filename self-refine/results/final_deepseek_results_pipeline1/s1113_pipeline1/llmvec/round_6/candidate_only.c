@@ -1,0 +1,29 @@
+#include <stddef.h>
+
+typedef float float32_t __attribute__((__vector_size__(16)));
+
+void vectorized_s1113(int iterations, int LEN_1D, float* a, float* b) {
+    int total_iters = 2 * iterations;
+    int half = LEN_1D / 2;
+    int vec_iters = LEN_1D / 4;
+    int rem_start = vec_iters * 4;
+
+    for (int nl = 0; nl < total_iters; nl++) {
+        int i = 0;
+        // Process vector chunks that do not include the half index
+        for (; i + 3 < half; i += 4) {
+            float32_t a_half_vec = (float32_t){a[half], a[half], a[half], a[half]};
+            float32_t b_vec = *(float32_t*)(b + i);
+            float32_t result = a_half_vec + b_vec;
+            *(float32_t*)(a + i) = result;
+        }
+        // Process remaining elements up to and including half
+        for (; i <= half; i++) {
+            a[i] = a[half] + b[i];
+        }
+        // Process elements after half
+        for (; i < LEN_1D; i++) {
+            a[i] = a[half] + b[i];
+        }
+    }
+}

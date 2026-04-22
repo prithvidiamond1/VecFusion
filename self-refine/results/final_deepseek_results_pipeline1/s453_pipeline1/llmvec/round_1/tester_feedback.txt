@@ -1,0 +1,7 @@
+The vectorizer has a **semantic error** in the scalar cleanup tail:
+
+- **Incorrect scalar tail recurrence**: The main loop increments `s` by `4.0f` per iteration, but the scalar tail increments `s` by `2.0f` per iteration. This breaks the sequential dependency — the tail should continue the same stride as the vector loop (`+4.0f` per element, i.e., `+4.0f` per scalar iteration) to match the original scalar semantics.
+
+- **Fix**: Change `s += 2.0f;` to `s += 4.0f;` in the scalar cleanup loop.
+
+- **No other issues**: Loop bounds, trip counts, and control flow are otherwise sound.

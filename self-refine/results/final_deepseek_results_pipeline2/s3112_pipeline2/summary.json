@@ -1,0 +1,41 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s3112_pipeline2/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s3112_opt(int iterations, int LEN_1D, float* a, float* b)\n{\n    float sum;\n    for (int nl = 0; nl < iterations; nl++) {\n        sum = (float)0.0;\n        \n        // Loop distribution: separate reduction from prefix sum\n        // First compute prefix sum into b\n        if (LEN_1D > 0) {\n            b[0] = a[0];\n        }\n        for (int i = 1; i < LEN_1D; i++) {\n            b[i] = b[i-1] + a[i];\n        }\n        \n        // Then compute total sum via vectorizable reduction\n        float temp_sum = (float)0.0;\n        for (int i = 0; i < LEN_1D; i++) {\n            temp_sum += a[i];\n        }\n        sum = temp_sum;\n    }\n    return sum;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s3112_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s3112_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s3112_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "",
+      "summary": "LLM-Vectorizer adapter failed before producing a candidate: ValueError: VecTrans-preprocessed input is not a single full function; cannot safely normalize handoff.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 0,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s3112_pipeline2/llmvec/adapter_failure.txt",
+      "metadata": {
+        "scalar_function": "s3112",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s3112_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    }
+  ]
+}

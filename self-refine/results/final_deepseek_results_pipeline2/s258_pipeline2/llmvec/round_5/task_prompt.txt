@@ -1,0 +1,166 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+Previous refinement rounds did not succeed.
+You may now aggressively restructure the transformed code if needed.
+You may rewrite control flow, split or peel loops, isolate switch/case behavior, derive trip counts explicitly,
+and perform larger semantic-preserving rewrites if that improves correctness or vectorization potential.
+At this stage, do not stay conservative just to preserve the prior shape.
+
+Revise your candidate for `s258` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {
+    float s;
+    for (int nl = 0; nl < iterations; nl++) {
+        s = 0.;
+
+        // First loop: compute s values and store them in a temporary array
+        float s_vals[256];
+        for (int i = 0; i < 256; ++i) {
+            if (a[i] > 0.) {
+                s = d[i] * d[i];
+            }
+            s_vals[i] = s;
+        }
+
+        // Second loop: compute b[i] using precomputed s_vals
+        for (int i = 0; i < 256; ++i) {
+            b[i] = s_vals[i] * c[i] + d[i];
+        }
+
+        // Third loop: compute e[i] using precomputed s_vals
+        for (int i = 0; i < 256; ++i) {
+            e[i] = (s_vals[i] + 1.0f) * aa[0][i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float float4 __attribute__((ext_vector_type(4)));
+typedef int int4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s258(int iterations, float* a, float* b, float* c, float* d, float* e, float aa[256][256]) {
+    const int N = 256;
+    const int VEC_SIZE = 4;
+    const int VEC_ITERS = N / VEC_SIZE;
+    const int REMAINDER = N % VEC_SIZE;
+
+    // Runtime alias detection
+    int b_may_alias_a = (b >= a && b < a + N) || (a >= b && a < b + N);
+    int b_may_alias_c = (b >= c && b < c + N) || (c >= b && c < b + N);
+    int b_may_alias_d = (b >= d && b < d + N) || (d >= b && d < b + N);
+    int b_may_alias_aa = (b >= &aa[0][0] && b < &aa[0][0] + N) || (&aa[0][0] >= b && &aa[0][0] < b + N);
+    int b_has_alias = b_may_alias_a || b_may_alias_c || b_may_alias_d || b_may_alias_aa;
+
+    int e_may_alias_a = (e >= a && e < a + N) || (a >= e && a < e + N);
+    int e_may_alias_c = (e >= c && e < c + N) || (c >= e && c < e + N);
+    int e_may_alias_d = (e >= d && e < d + N) || (d >= e && d < e + N);
+    int e_may_alias_aa = (e >= &aa[0][0] && e < &aa[0][0] + N) || (&aa[0][0] >= e && &aa[0][0] < e + N);
+    int e_has_alias = e_may_alias_a || e_may_alias_c || e_may_alias_d || e_may_alias_aa;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        float s = 0.0f;
+        float s_vals[N];
+
+        // First loop: compute s values with cross-chunk dependency
+        for (int i = 0; i < VEC_ITERS; i++) {
+            int base = i * VEC_SIZE;
+            float4 a_vec = *(float4*)&a[base];
+            float4 d_vec = *(float4*)&d[base];
+
+            // Vector comparison: a[i] > 0
+            int4 mask = a_vec > (float4){0.0f, 0.0f, 0.0f, 0.0f};
+
+            // Process elements sequentially to maintain dependency
+            for (int j = 0; j < VEC_SIZE; j++) {
+                if (mask[j]) {
+                    s = d[base + j] * d[base + j];
+                }
+                s_vals[base + j] = s;
+            }
+        }
+
+        // Handle remainder in first loop
+        int base = VEC_ITERS * VEC_SIZE;
+        for (int i = 0; i < REMAINDER; i++) {
+            int idx = base + i;
+            if (a[idx] > 0.0f) {
+                s = d[idx] * d[idx];
+            }
+            s_vals[idx] = s;
+        }
+
+        // Second loop: alias-safe computation b[i] = s_vals[i] * c[i] + d[i]
+        if (!b_has_alias) {
+            // Vectorized version when no aliasing
+            for (int i = 0; i < VEC_ITERS; i++) {
+                int base = i * VEC_SIZE;
+                float4 s_vec = *(float4*)&s_vals[base];
+                float4 c_vec = *(float4*)&c[base];
+                float4 d_vec = *(float4*)&d[base];
+
+                float4 b_vec = s_vec * c_vec + d_vec;
+                *(float4*)&b[base] = b_vec;
+            }
+
+            // Handle remainder in second loop
+            base = VEC_ITERS * VEC_SIZE;
+            for (int i = 0; i < REMAINDER; i++) {
+                int idx = base + i;
+                b[idx] = s_vals[idx] * c[idx] + d[idx];
+            }
+        } else {
+            // Scalar fallback when aliasing detected
+            for (int i = 0; i < N; i++) {
+                b[i] = s_vals[i] * c[i] + d[i];
+            }
+        }
+
+        // Third loop: alias-safe computation e[i] = (s_vals[i] + 1.0f) * aa[0][i]
+        if (!e_has_alias) {
+            // Vectorized version when no aliasing
+            for (int i = 0; i < VEC_ITERS; i++) {
+                int base = i * VEC_SIZE;
+                float4 s_vec = *(float4*)&s_vals[base];
+                float4 aa_vec = *(float4*)&aa[0][base];
+
+                float4 e_vec = (s_vec + (float4){1.0f, 1.0f, 1.0f, 1.0f}) * aa_vec;
+                *(float4*)&e[base] = e_vec;
+            }
+
+            // Handle remainder in third loop
+            base = VEC_ITERS * VEC_SIZE;
+            for (int i = 0; i < REMAINDER; i++) {
+                int idx = base + i;
+                e[idx] = (s_vals[idx] + 1.0f) * aa[0][idx];
+            }
+        } else {
+            // Scalar fallback when aliasing detected
+            for (int i = 0; i < N; i++) {
+                e[i] = (s_vals[i] + 1.0f) * aa[0][i];
+            }
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The test failure indicates a mismatch in array `a`, but the candidate code never writes to `a`. This suggests the vectorizer incorrectly assumed `a` is read-only and may have reordered or transformed operations that affect `a` through aliasing.
+- The alias detection logic only checks `b` and `e` against `a`, but not `a` against other arrays. Since `a` is an input parameter, writes to `b` or `e` that alias `a` could corrupt `a`'s values, causing a mismatch.
+- Specifically, the alias detection for `b` and `e` is used to guard vectorization, but if `b` or `e` aliases `a`, the scalar fallback loops still write to `a` indirectly (through `b` or `e` pointers), which may violate the original loop's memory semantics.
+- The candidate must ensure that when `b_has_alias` or `e_has_alias` is true, the writes to `b` or `e` do not modify `a`'s data in a way that changes subsequent reads of `a`. The original scalar code would have the same aliasing behavior, so the vectorizer must preserve that.
+- The fix: In the scalar fallback loops (when aliasing is detected), use the original pointer dereferences exactly as in the scalar code, but ensure no vector loads/stores are used. The candidate already does this, but the alias detection may be flawed.
+- Check the alias detection ranges: `N` is 256, but the loops iterate over `N` elements. The detection uses `N` as the array size, but the actual allocated size may be larger. This could cause false negatives, allowing vectorization when aliasing exists.
+- The mismatch in `a` at index 0 suggests the very first element is wrong, which could occur if an aliased write to `b` or `e` at index 0 corrupts `a[0]` before it is read in the first loop's dependency chain.
+- To correct: Strengthen alias detection to consider all possible write targets (`b` and `e`) against all read-only arrays (`a`, `c`, `d`, `aa`). If any write target aliases a read-only array, the entire loop nest must use scalar code to preserve original memory order.
+
+        Return a corrected candidate function named `vectorized_s258`.

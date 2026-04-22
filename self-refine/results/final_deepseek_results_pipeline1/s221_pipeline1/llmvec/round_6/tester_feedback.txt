@@ -1,0 +1,7 @@
+The vectorizer candidate **fails correctness** due to an unsound transformation of the recurrence in `b[i] = b[i-1] + a[i] + d[i]`.
+
+- **Incorrect handling of loop-carried dependency**: The inner loop has a true dependency on `b[i-1]` that prevents safe vectorization. The candidate vectorized this recurrence without inserting proper scalar remainder or reduction logic, producing wrong results for `a` (which depends on the updated `b` values).
+- **Fix**: Do not vectorize the inner loop as-is. Either:
+  - Keep the inner loop scalar (no vectorization), or
+  - Apply a prefix-sum (scan) transformation to the recurrence `b[i] = b[i-1] + ...` before vectorizing, ensuring the dependency is honored.
+- **Trip count is correct** (`i` from 1 to `LEN_1D-1`), but the vectorizer must not assume independence across iterations of the `b` recurrence.

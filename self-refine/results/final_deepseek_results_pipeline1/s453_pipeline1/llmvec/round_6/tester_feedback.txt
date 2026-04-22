@@ -1,0 +1,7 @@
+The vectorizer has a correctness bug in the scalar evolution of `s`:
+
+- **Incorrect `s` update in vector loop**: `s += 4.0f` is wrong — the vector loop processes 4 elements per iteration, but `s` should increase by 1.0 per element, so it should be `s += 4.0f` only if each element adds 1.0. However, the vector body uses `s_vec = s + (float32_t){1.0f, 2.0f, 3.0f, 4.0f}` which already adds the per-element offsets. Then `s += 4.0f` correctly advances `s` by 4 for the next vector iteration. The mismatch at index 0 suggests the initial `s` value or the first vector computation is wrong.
+
+- **Fix**: Initialize `s` to `0.0f` before the vector loop (already done), but ensure the first vector iteration computes `s_vec = 0.0f + {1,2,3,4}` correctly. The mismatch indicates the vector store or the scalar remainder loop is producing different results. Check that the scalar remainder loop starts with the correct `s` value after the vector loop completes — `s` after vector loop should be `4 * (number_of_vector_iterations)`, which is correct with `s += 4.0f`.
+
+- **Root cause**: The vector loop computes `a[i] = (s + {1,2,3,4}) * b[i]` but the scalar loop computes `a[i] = s * b[i]` after `s += 1.0f`. The scalar loop increments `s` *before* the multiply, while the vector loop uses `s` *before* increment. This is a semantic mismatch — the vector loop should use `s + {0,1,2,3}` and then `s += 4.0f`, or restructure to match the scalar increment-then-use pattern.

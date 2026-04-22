@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s212_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s212_opt(int n, float *a, float *b, float *c, float *d) {\n    // Store original a[i+1] values before they are modified\n    for (int i = 0; i < n - 1; i++) {\n        float a_next_original = a[i + 1];\n        a[i] *= c[i];\n        b[i] += a_next_original * d[i];\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s212_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s212_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s212_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "typedef float float4 __attribute__((ext_vector_type(4)));\n\nvoid vectorized_s212(int n, float *a, float *b, float *c, float *d) {\n    if (n < 2) return;\n    \n    int limit = n - 1;\n    int i = 0;\n    \n    // Vectorized main loop\n    for (; i + 4 <= limit; i += 4) {\n        // Load current and next a values\n        float4 a_curr = {a[i], a[i+1], a[i+2], a[i+3]};\n        float4 a_next = {a[i+1], a[i+2], a[i+3], a[i+4]};\n        \n        // Load c and d values\n        float4 c_vec = {c[i], c[i+1], c[i+2], c[i+3]};\n        float4 d_vec = {d[i], d[i+1], d[i+2], d[i+3]};\n        \n        // Compute: a[i] *= c[i]\n        a_curr = a_curr * c_vec;\n        \n        // Store updated a values\n        a[i] = a_curr[0];\n        a[i+1] = a_curr[1];\n        a[i+2] = a_curr[2];\n        a[i+3] = a_curr[3];\n        \n        // Compute: b[i] += a_next_original * d[i]\n        float4 b_vec = {b[i], b[i+1], b[i+2], b[i+3]};\n        b_vec = b_vec + (a_next * d_vec);\n        \n        // Store updated b values\n        b[i] = b_vec[0];\n        b[i+1] = b_vec[1];\n        b[i+2] = b_vec[2];\n        b[i+3] = b_vec[3];\n    }\n    \n    // Scalar cleanup for remaining iterations\n    for (; i < limit; i++) {\n        float a_next_original = a[i + 1];\n        a[i] *= c[i];\n        b[i] += a_next_original * d[i];\n    }\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s212_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s212",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s212_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s212_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s212_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s212_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

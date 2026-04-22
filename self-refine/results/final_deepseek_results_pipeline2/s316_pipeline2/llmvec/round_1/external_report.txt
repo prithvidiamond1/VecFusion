@@ -1,0 +1,7 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline2_20260421_230113/s316_pipeline2/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline2_20260421_230113/s316_pipeline2/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline2_20260421_230113/s316_pipeline2/llmvec/candidate_round_1.c:44:33: error: used type 'v8f32' (vector of 8 'float' values) where arithmetic or pointer type is required
+   44 |                 min_vec = (mask ? current_vec : min_vec);
+      |                            ~~~~ ^
+1 error generated.

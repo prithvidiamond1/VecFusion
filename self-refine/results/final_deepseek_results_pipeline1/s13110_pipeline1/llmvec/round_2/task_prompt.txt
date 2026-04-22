@@ -1,0 +1,101 @@
+
+Revise your candidate for `s13110` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s13110(int iterations,float aa[256][256])
+{
+    int xindex, yindex;
+    float max, chksum;
+    for (int nl = 0; nl < 100*(iterations/(256)); nl++) {
+        max = aa[(0)][0];
+        xindex = 0;
+        yindex = 0;
+        for (int i = 0; i < 256; i++) {
+            for (int j = 0; j < 256; j++) {
+                if (aa[i][j] > max) {
+                    max = aa[i][j];
+                    xindex = i;
+                    yindex = j;
+                }
+            }
+        }
+        chksum = max + (float) xindex + (float) yindex;
+    }
+    return max + xindex+1 + yindex+1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float __attribute__((ext_vector_type(4))) float4;
+
+float vectorized_s13110(int iterations, float aa[256][256]) {
+    int xindex, yindex;
+    float max, chksum;
+    int nl_limit = 100 * (iterations / 256);
+    for (int nl = 0; nl < nl_limit; nl++) {
+        float4 max_vec = {aa[0][0], aa[0][0], aa[0][0], aa[0][0]};
+        int xindex_vec[4] = {0, 0, 0, 0};
+        int yindex_vec[4] = {0, 0, 0, 0};
+
+        for (int i = 0; i < 256; i++) {
+            for (int j = 0; j < 256; j += 4) {
+                float4 current = *(float4*)&aa[i][j];
+                float4 mask = current > max_vec;
+                int mask_int = __builtin_convertvector(mask, int4);
+
+                // Update max where current > max
+                max_vec = __builtin_shufflevector(max_vec, current, 
+                    (mask_int[0] ? 4 : 0),
+                    (mask_int[1] ? 5 : 1),
+                    (mask_int[2] ? 6 : 2),
+                    (mask_int[3] ? 7 : 3));
+
+                // Update xindex where current > max
+                for (int k = 0; k < 4; k++) {
+                    if (mask_int & (1 << k)) {
+                        xindex_vec[k] = i;
+                        yindex_vec[k] = j + k;
+                    }
+                }
+            }
+        }
+
+        // Reduce across vector lanes
+        float max_val = max_vec[0];
+        int xindex_val = xindex_vec[0];
+        int yindex_val = yindex_vec[0];
+        for (int k = 1; k < 4; k++) {
+            if (max_vec[k] > max_val) {
+                max_val = max_vec[k];
+                xindex_val = xindex_vec[k];
+                yindex_val = yindex_vec[k];
+            }
+        }
+
+        max = max_val;
+        xindex = xindex_val;
+        yindex = yindex_val;
+        chksum = max + (float)xindex + (float)yindex;
+    }
+    return max + xindex + 1 + yindex + 1;
+}
+        ```
+
+        Tester feedback:
+        - **Fix type mismatch for `mask`**: `current > max_vec` produces a vector of `int` (or `bool`), not `float4`. Change `float4 mask = ...` to `int4 mask = ...` and declare `int4` as `typedef int __attribute__((ext_vector_type(4))) int4;` at the top.
+
+- **Fix `mask_int` declaration**: `mask_int` should be `int4`, not `int`. Change `int mask_int` to `int4 mask_int`.
+
+- **Fix `mask_int` subscript usage**: Since `mask_int` is now a vector, `mask_int[0]` etc. are valid. No change needed there, but ensure the `__builtin_shufflevector` indices are integer constants (they are).
+
+- **Fix `__builtin_convertvector` call**: Remove the erroneous `__builtin_convertvector` line entirely; `mask` is already `int4` from the comparison, so just assign directly: `int4 mask_int = current > max_vec;`.
+
+- **Fix `mask_int & (1 << k)`**: This bitwise AND is invalid on a vector. Replace the inner `for (int k = 0; k < 4; k++)` loop with explicit per-lane checks: `if (mask_int[0]) { ... }` etc., or use a scalar loop over `mask_int[k]`.
+
+- **Fix unused variable `chksum`**: Remove `chksum` or add `(void)chksum;` to suppress the warning.
+
+- **Fix incompatible pointer types in test harness**: Ensure `aa_scalar` and `aa_vector` are declared as `float[256][256]`, not `float[128]`.
+
+        Return a corrected candidate function named `vectorized_s13110`.

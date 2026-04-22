@@ -1,0 +1,8 @@
+Based on the test failure, here are the specific issues to fix:
+
+- The outer loop `outer_iters = iterations / 2` is incorrect - this halves the iteration count, causing only half the required outer iterations to execute
+- The original loop likely iterated `iterations` times, not `iterations/2` times - change to `int outer_iters = iterations;`
+- The vectorized inner loop's trip count `i + 3 < LEN_1D` may be incorrect if the original loop had different bounds or stride patterns
+- The switch/case restructuring into if-else chains is semantically correct but the index-based selection depends on `indx` values being 1, 2, or 3 - verify this assumption matches the original
+- The scalar cleanup loop correctly handles remaining elements but the outer iteration count bug means the cleanup never runs for the second half of iterations
+- Fix the outer loop bound first: change `outer_iters = iterations / 2` to `outer_iters = iterations`

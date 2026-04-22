@@ -1,8 +1,10 @@
+from __future__ import annotations
+
+import os
 from pathlib import Path
 
 from .adapters import CompilerBaselineAdapter, LLMVectorizerAdapter, VecTransAdapter
-from .types import PipelineResult
-from .vectrans_only_adapter import VecTransOnlyAdapter
+from .types import PipelineResult, TransformResult
 
 
 class PipelineOrchestrator:
@@ -10,7 +12,6 @@ class PipelineOrchestrator:
 
     def __init__(self, vectrans_root: Path, llmvec_root: Path) -> None:
         self.vectrans = VecTransAdapter(vectrans_root)
-        self.vectrans_only = VecTransOnlyAdapter(vectrans_root)
         self.llmvec = LLMVectorizerAdapter(llmvec_root)
         self.compiler = CompilerBaselineAdapter()
 
@@ -19,72 +20,91 @@ class PipelineOrchestrator:
             return self.run_pipeline1(source_file, scalar_function, outdir)
         if pipeline == "pipeline2":
             return self.run_pipeline2(source_file, scalar_function, outdir)
-        if pipeline == "vectrans_only":
-            return self.run_vectrans_only(source_file, scalar_function, outdir)
         raise ValueError(f"Unknown pipeline: {pipeline}")
 
-    def run_vectrans_only(self, source_file: Path, scalar_function: str, outdir: Path) -> PipelineResult:
-        import json
-
-        outdir.mkdir(parents=True, exist_ok=True)
-
-        vectrans_result = self.vectrans_only.run(
-            source_file=source_file,
-            outdir=outdir / "vectrans_only",
-        )
-
-        steps = [
-            {
-                "stage": "vectrans_only",
-                "ok": vectrans_result.ok,
-                "candidate_code": vectrans_result.candidate_code,
-                "summary": getattr(vectrans_result, "summary", ""),
-                "artifact_path": getattr(vectrans_result, "artifact_path", ""),
-                "error": getattr(vectrans_result, "error", None),
-            }
-        ]
-
-        if vectrans_result.ok and vectrans_result.candidate_code:
-            final_transform = self.compiler.evaluate_candidate(
-                source_file=source_file,
-                scalar_function=scalar_function,
-                candidate_code=vectrans_result.candidate_code,
-                outdir=outdir,
-                pipeline_name="vectrans_only",
-                steps=steps,
-                final_stage="vectrans_only",
-            )
-        else:
-            final_transform = self.compiler.run(
-                source_file=source_file,
-                outdir=outdir,
-            )
-            steps.append(
-                {
-                    "stage": final_transform.stage,
-                    "ok": final_transform.ok,
-                    "candidate_code": final_transform.candidate_code,
-                    "summary": getattr(final_transform, "summary", ""),
-                    "artifact_path": getattr(final_transform, "artifact_path", ""),
-                    "error": None,
-                }
-            )
-
-        summary_path = outdir / "summary.json"
-        summary_payload = {
-            "pipeline": "vectrans_only",
-            "success": final_transform.ok,
-            "final_stage": final_transform.stage,
-            "final_code_path": final_transform.artifact_path,
-            "steps": steps,
-        }
-        summary_path.write_text(json.dumps(summary_payload, indent=2))
-
-        return PipelineResult(
-            pipeline="vectrans_only",
+    def _finalize(
+        self,
+        pipeline: str,
+        outdir: Path,
+        final_transform: TransformResult,
+        steps: list[TransformResult],
+    ) -> PipelineResult:
+        result = PipelineResult(
+            pipeline=pipeline,
             success=final_transform.ok,
             final_stage=final_transform.stage,
             final_code_path=final_transform.artifact_path,
-            summary_path=str(summary_path),
+            summary_path="",
             steps=steps,
         )
+        summary_path = result.write_summary(outdir)
+        result.summary_path = str(summary_path)
+        return result
+
+    def run_pipeline1(self, source_file: Path, scalar_function: str, outdir: Path) -> PipelineResult:
+        outdir.mkdir(parents=True, exist_ok=True)
+
+        steps: list[TransformResult] = []
+
+        llmvec_result = self.llmvec.run(
+            source_file=source_file,
+            scalar_function=scalar_function,
+            outdir=outdir / "llmvec",
+            max_rounds=int(os.environ.get("LLM_VECTORIZER_MAX_ROUNDS", "6")),
+            pipeline_context="raw_source",
+        )
+        steps.append(llmvec_result)
+
+        if llmvec_result.ok and llmvec_result.candidate_code:
+            return self._finalize("pipeline1", outdir, llmvec_result, steps)
+
+        source_code = source_file.read_text()
+        vectrans_result = self.vectrans.run(
+            source_code=source_code,
+            outdir=outdir / "vectrans",
+            max_rounds=int(os.environ.get("VECTRANS_MAX_ROUNDS", "6")),
+        )
+        steps.append(vectrans_result)
+
+        if vectrans_result.ok and vectrans_result.candidate_code:
+            return self._finalize("pipeline1", outdir, vectrans_result, steps)
+
+        compiler_result = self.compiler.run(source_file=source_file, outdir=outdir / "compiler")
+        steps.append(compiler_result)
+        return self._finalize("pipeline1", outdir, compiler_result, steps)
+
+    def run_pipeline2(self, source_file: Path, scalar_function: str, outdir: Path) -> PipelineResult:
+        outdir.mkdir(parents=True, exist_ok=True)
+
+        source_code = source_file.read_text()
+        steps: list[TransformResult] = []
+
+        vectrans_result = self.vectrans.run(
+            source_code=source_code,
+            outdir=outdir / "vectrans",
+            max_rounds=int(os.environ.get("VECTRANS_MAX_ROUNDS", "6")),
+        )
+        steps.append(vectrans_result)
+
+        if not vectrans_result.ok or not vectrans_result.candidate_code:
+            compiler_result = self.compiler.run(source_file=source_file, outdir=outdir / "compiler")
+            steps.append(compiler_result)
+            return self._finalize("pipeline2", outdir, compiler_result, steps)
+
+        llmvec_input = outdir / "llmvec" / "vectrans_preprocessed_input.c"
+        llmvec_input.parent.mkdir(parents=True, exist_ok=True)
+        llmvec_input.write_text(vectrans_result.candidate_code + "\n")
+
+        llmvec_result = self.llmvec.run(
+            source_file=llmvec_input,
+            scalar_function=scalar_function,
+            outdir=outdir / "llmvec",
+            max_rounds=int(os.environ.get("LLM_VECTORIZER_MAX_ROUNDS", "6")),
+            pipeline_context="vectrans_preprocessed",
+        )
+        steps.append(llmvec_result)
+
+        if llmvec_result.ok and llmvec_result.candidate_code:
+            return self._finalize("pipeline2", outdir, llmvec_result, steps)
+
+        return self._finalize("pipeline2", outdir, vectrans_result, steps)

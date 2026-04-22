@@ -1,0 +1,56 @@
+
+Revise your candidate for `s312` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s312(int iterations,int LEN_1D, float* a)
+{
+
+    float prod;
+    for (int nl = 0; nl < 10*iterations; nl++) {
+        prod = (float)1.;
+        for (int i = 0; i < LEN_1D; i++) {
+            prod *= a[i];
+        }
+    }
+    return prod;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+
+typedef float v4sf __attribute__((__vector_size__(16)));
+
+float vectorized_s312(int iterations, int LEN_1D, float* a) {
+    float prod;
+    int total_outer = 10 * iterations;
+    for (int nl = 0; nl < total_outer; nl++) {
+        v4sf vprod = {1.0f, 1.0f, 1.0f, 1.0f};
+        int i = 0;
+        if (LEN_1D >= 4) {
+            for (; i <= LEN_1D - 4; i += 4) {
+                v4sf va = __builtin_loadu_ps(&a[i]);
+                vprod = va * vprod;
+            }
+        }
+        float prod_scalar = 1.0f;
+        for (; i < LEN_1D; i++) {
+            prod_scalar *= a[i];
+        }
+        prod = prod_scalar * vprod[0] * vprod[1] * vprod[2] * vprod[3];
+    }
+    return prod;
+}
+        ```
+
+        Tester feedback:
+        - **Fix builtin name**: Replace `__builtin_loadu_ps` with `__builtin_ia32_loadups` (or use `__builtin_nontemporal_load` / `__builtin_memcpy` with vector type) to match Clang’s available intrinsics for unaligned vector loads.
+- **Correct type mismatch**: Ensure the load returns `v4sf` directly; the current call returns `int` implicitly. Use `(v4sf)__builtin_ia32_loadups(&a[i])` or `__builtin_ia32_loadups((const float*)&a[i])`.
+- **Add missing intrinsic header**: Include `<x86intrin.h>` or `<immintrin.h>` to make `__builtin_ia32_loadups` available, or use `__builtin_memcpy` with a vector temporary.
+- **Check loop bound safety**: The vector loop condition `i <= LEN_1D - 4` is correct only if `LEN_1D` is non-negative; add a guard for `LEN_1D < 4` to skip the vector loop entirely (already present, but ensure `LEN_1D` is signed to avoid underflow).
+- **Trip count correctness**: The scalar remainder loop `for (; i < LEN_1D; i++)` correctly handles leftover elements after vector steps; no change needed.
+- **Initialization of `prod`**: `prod` is used uninitialized if `total_outer` is 0; initialize `prod = 1.0f` before the outer loop.
+
+        Return a corrected candidate function named `vectorized_s312`.

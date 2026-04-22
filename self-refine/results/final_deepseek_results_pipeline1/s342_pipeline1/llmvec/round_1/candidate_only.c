@@ -1,0 +1,49 @@
+#include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s342(int iterations, int LEN_1D, float* a, float *b)
+{
+    for (int nl = 0; nl < iterations; nl++) {
+        int j = -1;
+        int i = 0;
+        
+        // Vectorized main loop: process 4 elements at a time
+        for (; i + 4 <= LEN_1D; i += 4) {
+            float32_t a_vec = *(float32_t*)(a + i);
+            float32_t b_vec;
+            
+            // Compare each element with 0
+            int mask0 = (a_vec[0] > 0.0f) ? 1 : 0;
+            int mask1 = (a_vec[1] > 0.0f) ? 1 : 0;
+            int mask2 = (a_vec[2] > 0.0f) ? 1 : 0;
+            int mask3 = (a_vec[3] > 0.0f) ? 1 : 0;
+            
+            // Process each element sequentially to maintain j ordering
+            if (mask0) {
+                j++;
+                a[i] = b[j];
+            }
+            if (mask1) {
+                j++;
+                a[i+1] = b[j];
+            }
+            if (mask2) {
+                j++;
+                a[i+2] = b[j];
+            }
+            if (mask3) {
+                j++;
+                a[i+3] = b[j];
+            }
+        }
+        
+        // Scalar cleanup for remaining elements
+        for (; i < LEN_1D; i++) {
+            if (a[i] > 0.0f) {
+                j++;
+                a[i] = b[j];
+            }
+        }
+    }
+}

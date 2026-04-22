@@ -1,0 +1,11 @@
+The vectorizer candidate compiles but produces incorrect results. The issue is in the loop-carried dependency on `b[i] = b[i - 1] + a[i] + d[i]`.
+
+**Fix:** The vectorizer must not vectorize this loop as-is because:
+- `b[i]` depends on `b[i-1]` from the previous iteration (true dependency)
+- This creates a sequential recurrence that cannot be safely vectorized without special handling (e.g., prefix sum transformation)
+
+**Specific correction:** Either:
+1. Mark this loop as non-vectorizable (scalar only) due to the `b[i-1]` dependency
+2. Or apply a prefix-sum transformation to `b` before vectorizing the rest
+
+The mismatch at index 1 confirms the recurrence is being computed incorrectly when vectorized.

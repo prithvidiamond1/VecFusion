@@ -1,0 +1,64 @@
+Candidate code:
+```c
+#include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s481(int iterations, int LEN_1D, float* a, float *b, float *c, float* d) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 0;
+        // Vectorized loop
+        for (; i <= LEN_1D - 4; i += 4) {
+            float32_t d_vec = *(float32_t*)(d + i);
+            // Check if any element is negative
+            float32_t zero = (float32_t){0.0f, 0.0f, 0.0f, 0.0f};
+            float32_t cmp = d_vec < zero;
+            int mask = __builtin_convertvector(cmp, int32_t __attribute__((ext_vector_type(4))));
+            if (mask[0] || mask[1] || mask[2] || mask[3]) {
+                // Find first negative element
+                for (int j = 0; j < 4; j++) {
+                    if (d[i + j] < 0.0f) {
+                        return;
+                    }
+                }
+            }
+            float32_t a_vec = *(float32_t*)(a + i);
+            float32_t b_vec = *(float32_t*)(b + i);
+            float32_t c_vec = *(float32_t*)(c + i);
+            a_vec += b_vec * c_vec;
+            *(float32_t*)(a + i) = a_vec;
+        }
+        // Scalar cleanup
+        for (; i < LEN_1D; i++) {
+            if (d[i] < 0.0f) {
+                return;
+            }
+            a[i] += b[i] * c[i];
+        }
+    }
+}
+```
+
+External compile/test report:
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:32:23: error: initializing 'float32_t' (vector of 4 'float' values) with an expression of incompatible type 'int __attribute__((ext_vector_type(4)))' (vector of 4 'int' values)
+   32 |             float32_t cmp = d_vec < zero;
+      |                       ^     ~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:33:17: error: initializing 'int' with an expression of incompatible type 'int32_t __attribute__((ext_vector_type(4)))' (vector of 4 'int32_t' values)
+   33 |             int mask = __builtin_convertvector(cmp, int32_t __attribute__((ext_vector_type(4))));
+      |                 ^      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:34:21: error: subscripted value is not an array, pointer, or vector
+   34 |             if (mask[0] || mask[1] || mask[2] || mask[3]) {
+      |                 ~~~~^~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:34:32: error: subscripted value is not an array, pointer, or vector
+   34 |             if (mask[0] || mask[1] || mask[2] || mask[3]) {
+      |                            ~~~~^~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:34:43: error: subscripted value is not an array, pointer, or vector
+   34 |             if (mask[0] || mask[1] || mask[2] || mask[3]) {
+      |                                       ~~~~^~
+results/all_tests_pipeline1_20260422_044515/s481_pipeline1/llmvec/candidate_round_1.c:34:54: error: subscripted value is not an array, pointer, or vector
+   34 |             if (mask[0] || mask[1] || mask[2] || mask[3]) {
+      |                                                  ~~~~^~
+6 errors generated.

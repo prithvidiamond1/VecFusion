@@ -1,0 +1,6 @@
+- The vectorizer correctly handles the main loop with vector operations and a scalar remainder loop, and the compile succeeded.  
+- The exit code 2 and "Return mismatch on trial 0" indicate a runtime correctness issue, not a compilation failure.  
+- The mismatch likely stems from the vectorized reduction: `local_sum` accumulates vector elements via `a_vec[0] + a_vec[1] + ...` but the order of accumulation differs from the scalar version, which may cause floating-point non-associativity differences.  
+- To fix, ensure the reduction order matches the scalar loop exactly, or use `-ffast-math` or `-funsafe-math-optimizations` if acceptable, or restructure to accumulate in the same sequential order.  
+- No loop bound or trip count issues are present; the `vec_end` calculation and remainder loop are correct.  
+- No unsafe control-flow motion or branch-dependent semantics are introduced.

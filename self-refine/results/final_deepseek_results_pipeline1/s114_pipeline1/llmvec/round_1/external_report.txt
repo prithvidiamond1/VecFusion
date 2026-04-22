@@ -1,0 +1,31 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1.c:19:9: error: expected identifier or '('
+   19 |         ```c
+      |         ^
+results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1.c:78:34: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+   78 |                 s114(iterations, aa_scalar, bb_scalar); vectorized_s114(iterations, aa_vector, bb_vector);
+      |                                  ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1.c:8:41: note: passing argument to parameter 'aa' here
+    8 |         void s114(int iterations, float aa[256][256], float bb[256][256])
+      |                                         ^
+results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1.c:78:45: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+   78 |                 s114(iterations, aa_scalar, bb_scalar); vectorized_s114(iterations, aa_vector, bb_vector);
+      |                                             ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1.c:8:61: note: passing argument to parameter 'bb' here
+    8 |         void s114(int iterations, float aa[256][256], float bb[256][256])
+      |                                                             ^
+results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1.c:78:85: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+   78 |                 s114(iterations, aa_scalar, bb_scalar); vectorized_s114(iterations, aa_vector, bb_vector);
+      |                                                                                     ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1.c:24:44: note: passing argument to parameter 'aa' here
+   24 | void vectorized_s114(int iterations, float aa[256][256], float bb[256][256])
+      |                                            ^
+results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1.c:78:96: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+   78 |                 s114(iterations, aa_scalar, bb_scalar); vectorized_s114(iterations, aa_vector, bb_vector);
+      |                                                                                                ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s114_pipeline1/llmvec/candidate_round_1.c:24:64: note: passing argument to parameter 'bb' here
+   24 | void vectorized_s114(int iterations, float aa[256][256], float bb[256][256])
+      |                                                                ^
+4 warnings and 1 error generated.

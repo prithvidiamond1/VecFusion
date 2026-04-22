@@ -120,6 +120,11 @@ def parse_args() -> RunConfig:
         required=True,
         help="Name of the scalar function to vectorize.",
     )
+    parser.add_argument(
+        "--model",
+        default=os.environ.get("LLM_VECTORIZER_MODEL", "deepseek-chat"),
+        help="Model name for the Anthropic-compatible provider.",
+    )
     parser.add_argument("--max-rounds", type=int, default=4, help="Maximum vectorization attempts.")
     parser.add_argument("--num-trials", type=int, default=64, help="Number of randomized tests.")
     parser.add_argument("--array-len", type=int, default=128, help="Array length used in tests.")
@@ -157,11 +162,6 @@ def parse_args() -> RunConfig:
         type=int,
         default=120,
         help="HTTP timeout in seconds for model calls.",
-    )
-    parser.add_argument(
-        "--model",
-        default=os.environ.get("LLM_VECTORIZER_MODEL", "deepseek-chat"),
-        help="Model name for the Anthropic-compatible provider.",
     )
 
     args = parser.parse_args()

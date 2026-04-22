@@ -1,0 +1,51 @@
+
+Revise your candidate for `s222` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s222(int iterations, int LEN_1D, float*a,float*b,float*c, float* e)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] += b[i] * c[i];
+            e[i] = e[i - 1] * e[i - 1];
+            a[i] -= b[i] * c[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float_vec __attribute__((__vector_size__(16)));
+
+void vectorized_s222(int iterations, int LEN_1D, float *a, float *b, float *c, float *e) {
+    int total_iters = iterations / 2;
+    if (total_iters <= 0 || LEN_1D <= 1) return;
+
+    for (int nl = 0; nl < total_iters; nl++) {
+        int i = 1;
+        // Handle first element separately due to e[i-1] dependency
+        float e_prev = e[0];
+        for (; i < LEN_1D; i++) {
+            float bc = b[i] * c[i];
+            a[i] += bc;
+            float e_sq = e_prev * e_prev;
+            e[i] = e_sq;
+            a[i] -= bc;
+            e_prev = e_sq;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a correctness bug in the inner loop body.
+
+- **Incorrect operation order**: The original scalar code likely computed `a[i] += bc; e[i] = e_prev * e_prev; a[i] -= bc;` but the candidate reorders to `a[i] += bc; e_sq = e_prev * e_prev; e[i] = e_sq; a[i] -= bc;` — this is fine, but the mismatch at index 1 suggests the **initial value of `e_prev`** is wrong.
+- **Fix `e_prev` initialization**: The candidate sets `e_prev = e[0]` before the inner loop, but the original scalar code likely used `e[i-1]` from the *previous iteration* of the outer `nl` loop. After the first outer iteration, `e[0]` may have been updated. Set `e_prev = e[0]` only on the first outer iteration (`nl == 0`), then reuse the last `e_sq` from the previous outer iteration.
+- **Alternative fix**: Move `e_prev` initialization inside the outer loop but before the inner loop, using `e[0]` from the *current* state of `e` (which may have been modified by the previous outer iteration).
+
+        Return a corrected candidate function named `vectorized_s222`.

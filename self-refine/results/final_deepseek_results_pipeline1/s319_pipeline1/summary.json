@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s319_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\n\ntypedef float float32_t __attribute__((ext_vector_type(4)));\n\nfloat vectorized_s319(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e) {\n    float sum = 0.0f;\n    int vec_end = (LEN_1D / 4) * 4;\n\n    for (int nl = 0; nl < 2 * iterations; nl++) {\n        float local_sum = 0.0f;\n        int i = 0;\n\n        for (; i < vec_end; i += 4) {\n            float32_t c_vec = *(float32_t *)(c + i);\n            float32_t d_vec = *(float32_t *)(d + i);\n            float32_t e_vec = *(float32_t *)(e + i);\n\n            float32_t a_vec = c_vec + d_vec;\n            float32_t b_vec = c_vec + e_vec;\n\n            *(float32_t *)(a + i) = a_vec;\n            *(float32_t *)(b + i) = b_vec;\n\n            local_sum += a_vec[0] + a_vec[1] + a_vec[2] + a_vec[3] + b_vec[0] + b_vec[1] + b_vec[2] + b_vec[3];\n        }\n\n        for (; i < LEN_1D; i++) {\n            a[i] = c[i] + d[i];\n            local_sum += a[i];\n            b[i] = c[i] + e[i];\n            local_sum += b[i];\n        }\n\n        sum += local_sum;\n    }\n    return sum;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nReturn mismatch on trial 0",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s319_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s319",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s319_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s319_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s319_opt(int iterations, int LEN_1D, float *a, float *b, float *c, float *d, float *e)\n{\n    float sum = 0.f;\n    \n    // First loop: compute a[i] and accumulate sum\n    for (int i = 0; i < LEN_1D; i++) {\n        a[i] = c[i] + d[i];\n        sum += a[i];\n    }\n    \n    // Second loop: compute b[i] and accumulate sum\n    for (int i = 0; i < LEN_1D; i++) {\n        b[i] = c[i] + e[i];\n        sum += b[i];\n    }\n    \n    return sum;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s319_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s319_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline1_20260422_044515/s319_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+
+Revise your candidate for `s221` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s221(int iterations, int LEN_1D, float*a,float*b,float*c,float*d)
+{
+    for (int nl = 0; nl < iterations/2; nl++) {
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] += c[i] * d[i];
+            b[i] = b[i - 1] + a[i] + d[i];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+void vectorized_s221(int iterations, int LEN_1D, float *a, float *b, float *c, float *d) {
+    int total_iters = iterations;
+    for (int nl = 0; nl < total_iters; nl++) {
+        for (int i = 1; i < LEN_1D; i++) {
+            a[i] += c[i] * d[i];
+            b[i] = b[i - 1] + a[i] + d[i];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate compiles but produces incorrect results. The issue is in the loop-carried dependency on `b[i] = b[i - 1] + a[i] + d[i]`.
+
+**Fix:** The vectorizer must not vectorize this loop as-is because:
+- `b[i]` depends on `b[i-1]` from the previous iteration (true dependency)
+- This creates a sequential recurrence that cannot be safely vectorized without special handling (e.g., prefix sum transformation)
+
+**Specific correction:** Either:
+1. Mark this loop as non-vectorizable (scalar only) due to the `b[i-1]` dependency
+2. Or apply a prefix-sum transformation to `b` before vectorizing the rest
+
+The mismatch at index 1 confirms the recurrence is being computed incorrectly when vectorized.
+
+        Return a corrected candidate function named `vectorized_s221`.

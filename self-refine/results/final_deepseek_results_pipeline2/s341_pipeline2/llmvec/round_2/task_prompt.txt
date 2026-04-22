@@ -1,0 +1,77 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Revise your candidate for `s341` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s341(int iterations, int LEN_1D, float* a, float* b) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int write_idx = 0;
+        for (int i = 0; i < LEN_1D; i++) {
+            float temp_b = b[i];
+            int mask = temp_b > (float)0.;
+            if (mask) {
+                a[write_idx] = temp_b;
+                write_idx += 1;
+            }
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float v8f32 __attribute__((__vector_size__(32), __aligned__(4)));
+
+void vectorized_s341(int iterations, int LEN_1D, float* a, float* b) {
+    const int VEC_SIZE = 8;
+
+    for (int nl = 0; nl < iterations; nl++) {
+        int write_idx = 0;
+        int i = 0;
+
+        // Vectorized main loop
+        for (; i + VEC_SIZE <= LEN_1D; i += VEC_SIZE) {
+            v8f32 b_vec = *(v8f32*)&b[i];
+            v8f32 mask_vec = b_vec > (v8f32){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+            // Extract mask bits
+            int mask = __builtin_convertvector(mask_vec, v8f32) != (v8f32){0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+            // Process each element based on mask
+            for (int j = 0; j < VEC_SIZE; j++) {
+                if (mask & (1 << j)) {
+                    a[write_idx++] = b[i + j];
+                }
+            }
+        }
+
+        // Scalar cleanup tail
+        for (; i < LEN_1D; i++) {
+            float temp_b = b[i];
+            if (temp_b > 0.0f) {
+                a[write_idx] = temp_b;
+                write_idx += 1;
+            }
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The `__builtin_convertvector` is incorrectly converting `mask_vec` (v8f32) to v8f32 again, which yields a vector, not an integer mask.
+- Replace the mask extraction with a proper integer mask generation, e.g., using `__builtin_convertvector(mask_vec, v8i32)` and then a horizontal reduction, or use `__builtin_ia32_movmskps` for SSE-like intrinsics if targeting x86.
+- Since the candidate uses generic vector extensions, consider storing the comparison result to an integer vector and extracting bits manually, or restructure to avoid an integer mask.
+- Alternatively, keep the vectorized loop but process the mask inside the inner `j` loop by checking each vector element directly: `if (mask_vec[j] > 0.0f)`.
+- The inner `j` loop should iterate over `VEC_SIZE` and conditionally store based on `mask_vec[j]`, eliminating the incorrect integer mask.
+
+        Return a corrected candidate function named `vectorized_s341`.

@@ -1,0 +1,5 @@
+The vectorized candidate has a correctness bug:
+
+- **Incorrect loop bound for vectorized loop**: The main loop uses `i < LEN_1D - 3` as the vectorized bound, but the original scalar loop iterates over all `LEN_1D` elements. This causes the vectorized loop to skip the last 3 elements when `LEN_1D` is not a multiple of 4, and the remainder loop may not correctly handle them if the vectorized loop's bound is off by one.
+
+- **Fix**: Change the vectorized loop bound from `i < LEN_1D - 3` to `i <= LEN_1D - 4` (or equivalently `i + 3 < LEN_1D`) to ensure exactly `LEN_1D - (LEN_1D % 4)` iterations are vectorized, and the remainder loop handles the leftover elements correctly.

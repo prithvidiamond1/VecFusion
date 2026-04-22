@@ -1,0 +1,44 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "llm_vectorizer",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s312_pipeline2/llmvec/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s312_opt(int iterations,int LEN_1D, float* a)\n{\n    float prod = (float)1.;\n    for (int nl = 0; nl < 10*iterations; nl++) {\n        float temp_prod = (float)1.;\n        for (int i = 0; i < LEN_1D; i++) {\n            temp_prod *= a[i];\n        }\n        prod = temp_prod;\n    }\n    return prod;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s312_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s312_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s312_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": true,
+      "candidate_code": "typedef float v8f32 __attribute__((__vector_size__(32), __aligned__(32)));\n\nfloat vectorized_s312(int iterations, int LEN_1D, float* a) {\n    float prod = (float)1.;\n    int outer_loop_count = 10 * iterations;\n    \n    for (int nl = 0; nl < outer_loop_count; nl++) {\n        float temp_prod = (float)1.;\n        int i = 0;\n        \n        // Vectorized inner loop\n        if (LEN_1D >= 8) {\n            v8f32 vec_prod = (v8f32){1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};\n            int vector_limit = LEN_1D - (LEN_1D % 8);\n            \n            for (; i < vector_limit; i += 8) {\n                v8f32 vec_a = *(v8f32*)&a[i];\n                vec_prod *= vec_a;\n            }\n            \n            // Horizontal reduction of vector product\n            float* prod_elements = (float*)&vec_prod;\n            for (int j = 0; j < 8; j++) {\n                temp_prod *= prod_elements[j];\n            }\n        }\n        \n        // Scalar cleanup for remaining elements\n        for (; i < LEN_1D; i++) {\n            temp_prod *= a[i];\n        }\n        \n        prod = temp_prod;\n    }\n    \n    return prod;\n}",
+      "summary": "LLM-Vectorizer produced a candidate that compiled and passed randomized tests in round 1.",
+      "compile_feedback": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_output": "Compile succeeded for round 1.\nExit code: 0\nstdout:\nPASS trials=64",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 1,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s312_pipeline2/llmvec/final_candidate.c",
+      "metadata": {
+        "scalar_function": "s312",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s312_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s312_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed",
+        "harness_path": "results/all_tests_pipeline2_20260421_230113/s312_pipeline2/llmvec/candidate_round_1.c",
+        "binary_path": "results/all_tests_pipeline2_20260421_230113/s312_pipeline2/llmvec/candidate_round_1"
+      }
+    }
+  ]
+}

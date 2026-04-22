@@ -1,0 +1,52 @@
+
+Revise your candidate for `s352` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s352(int iterations,int LEN_1D, float* a, float *b)
+{
+    float dot;
+    for (int nl = 0; nl < 8*iterations; nl++) {
+        dot = (float)0.;
+        for (int i = 0; i < LEN_1D; i += 5) {
+            dot = dot + a[i] * b[i] + a[i + 1] * b[i + 1] + a[i + 2]
+                * b[i + 2] + a[i + 3] * b[i + 3] + a[i + 4] * b[i + 4];
+        }
+    }
+    return dot;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+typedef float v4sf __attribute__((__vector_size__(16)));
+
+float vectorized_s352(int iterations, int LEN_1D, float* a, float *b) {
+    float dot = 0.0f;
+    for (int nl = 0; nl < iterations; nl++) {
+        v4sf dot_vec = {0.0f, 0.0f, 0.0f, 0.0f};
+        int i;
+        for (i = 0; i < LEN_1D - 3; i += 4) {
+            v4sf a_vec = *(v4sf*)(a + i);
+            v4sf b_vec = *(v4sf*)(b + i);
+            dot_vec += a_vec * b_vec;
+        }
+        float tail_dot = 0.0f;
+        for (; i < LEN_1D; i++) {
+            tail_dot += a[i] * b[i];
+        }
+        dot += dot_vec[0] + dot_vec[1] + dot_vec[2] + dot_vec[3] + tail_dot;
+    }
+    return dot;
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop uses `i < LEN_1D - 3` as the main loop bound, but this is only safe if `LEN_1D >= 4`. When `LEN_1D` is 0, 1, 2, or 3, the subtraction underflows (since `LEN_1D` is signed `int`), causing the main loop to run with a huge trip count and corrupt memory.
+- Fix: guard the vectorized loop with `if (LEN_1D >= 4)` or use an unsigned comparison to avoid negative trip counts.
+- The tail loop correctly handles remaining elements, but the main loop bound must be clamped to `LEN_1D & ~3` (or `LEN_1D - (LEN_1D % 4)`) to ensure it never exceeds the array length.
+- The reduction `dot_vec[0] + dot_vec[1] + dot_vec[2] + dot_vec[3]` is correct for a full 4-element vector, but when `LEN_1D < 4`, the main loop should not execute at all, so the tail loop must handle all elements.
+- The test failure (exit code 2, return mismatch) indicates that for small `LEN_1D` values, the computed `dot` is wrong due to the unsafe main loop bound.
+
+        Return a corrected candidate function named `vectorized_s352`.

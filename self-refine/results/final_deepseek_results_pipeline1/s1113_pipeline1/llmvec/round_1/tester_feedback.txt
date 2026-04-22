@@ -1,0 +1,6 @@
+The vectorizer candidate has a correctness bug in the loop bounds and trip count derivation.
+
+- The original scalar loop likely iterated over `LEN_1D` elements per outer iteration, but the vectorized version uses `half = LEN_1D / 2` and reads `a[half]` once per outer loop — this is a semantic mismatch if the original intended `a[half]` to be recomputed or if `half` was meant to be a different index.
+- The mismatch at index 65 suggests the vectorized loop is writing to wrong positions or using an incorrect `half` value. The `half` computation truncates integer division; if `LEN_1D` is odd, the middle index is ambiguous.
+- The outer loop runs `2 * iterations` times, but the inner loop bounds are based on `LEN_1D` — ensure the original scalar loop also had this exact nesting and that `half` was indeed `LEN_1D / 2` in the original.
+- Fix: verify the original scalar loop's `half` index and inner loop bounds. If `half` should be `LEN_1D / 2` and the inner loop should cover all `LEN_1D` elements, then the vectorized code is correct in structure but the mismatch indicates the original scalar loop had different semantics (e.g., `half` was a different variable or the inner loop had different bounds). Adjust `half` and/or inner loop bounds to match the original scalar loop exactly.

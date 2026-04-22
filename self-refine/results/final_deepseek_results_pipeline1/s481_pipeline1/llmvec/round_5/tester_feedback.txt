@@ -1,0 +1,6 @@
+The vectorizer candidate has a correctness bug in the early-exit logic.
+
+- The vectorized loop checks `d_vec < zero` and then, if any element is negative, enters a scalar sub-loop that iterates over the same 4 elements. This duplicates the check and can cause the early-exit flag to be set for an element that was already processed in the vector path, leading to incorrect results.
+- The scalar sub-loop inside the vector loop should not exist. Instead, the vector loop should directly break when any element of `d_vec` is negative, without re-checking individual elements.
+- The fix: remove the inner `for (int j = 0; j < 4; j++)` loop and the associated `if (d[i + j] < 0.0f)` check. Replace it with a simple `early_exit = 1; break;` when `__builtin_reduce_or(cmp)` is true.
+- Additionally, ensure that when the vector loop breaks early, the scalar remainder loop correctly handles the remaining elements starting from the current `i` (which is already the case, but the duplicate check corrupts the state).

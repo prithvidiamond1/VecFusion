@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline2",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline2_20260421_230113/s116_pipeline2/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "void s116_opt(int iterations, int LEN_1D, float* a) {\n    for (int nl = 0; nl < iterations * 10; nl++) {\n        // Loop distribution: process each position in the 5-element pattern separately\n        // This creates uniform operations within each loop for better vectorization\n        \n        // Position 0: a[i] = a[i+1] * a[i]\n        for (int i = 0; i < LEN_1D - 5; i += 5) {\n            a[i] = a[i + 1] * a[i];\n        }\n        \n        // Position 1: a[i+1] = a[i+2] * a[i+1]\n        for (int i = 0; i < LEN_1D - 5; i += 5) {\n            a[i + 1] = a[i + 2] * a[i + 1];\n        }\n        \n        // Position 2: a[i+2] = a[i+3] * a[i+2]\n        for (int i = 0; i < LEN_1D - 5; i += 5) {\n            a[i + 2] = a[i + 3] * a[i + 2];\n        }\n        \n        // Position 3: a[i+3] = a[i+4] * a[i+3]\n        for (int i = 0; i < LEN_1D - 5; i += 5) {\n            a[i + 3] = a[i + 4] * a[i + 3];\n        }\n        \n        // Position 4: a[i+4] = a[i+5] * a[i+4]\n        for (int i = 0; i < LEN_1D - 5; i += 5) {\n            a[i + 4] = a[i + 5] * a[i + 4];\n        }\n    }\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s116_pipeline2/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s116_pipeline2/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline2_20260421_230113/s116_pipeline2/vectrans/vectrans_output.md"
+      }
+    },
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "typedef float float4 __attribute__((ext_vector_type(4)));\n\nvoid vectorized_s116(int iterations, int LEN_1D, float* a) {\n    int outer_iterations = iterations * 10;\n    int limit = LEN_1D - 5;\n    \n    for (int nl = 0; nl < outer_iterations; nl++) {\n        // Process complete groups of 4 patterns where we can safely load 4 consecutive patterns\n        // Each pattern needs elements i through i+5, so for 4 patterns we need i through i+8\n        // Therefore i must satisfy i+8 < LEN_1D => i < LEN_1D - 8\n        int vector_limit = LEN_1D - 8;\n        if (vector_limit > 0) {\n            int vectorizable_len = (vector_limit / 4) * 4;\n            \n            // Load all original values needed for the vectorized computation\n            for (int i = 0; i < vectorizable_len; i += 4) {\n                // Load all needed data for 4 consecutive patterns\n                float4 pos0 = *(float4*)&a[i];        // a[i]..a[i+3]\n                float4 pos1 = *(float4*)&a[i + 1];    // a[i+1]..a[i+4]\n                float4 pos2 = *(float4*)&a[i + 2];    // a[i+2]..a[i+5]\n                float4 pos3 = *(float4*)&a[i + 3];    // a[i+3]..a[i+6]\n                float4 pos4 = *(float4*)&a[i + 4];    // a[i+4]..a[i+7]\n                float4 pos5 = *(float4*)&a[i + 5];    // a[i+5]..a[i+8]\n                \n                // Compute all updates using original values\n                float4 new_pos0 = pos0 * pos1;        // a[i] = a[i] * a[i+1]\n                float4 new_pos1 = pos1 * pos2;        // a[i+1] = a[i+1] * a[i+2]\n                float4 new_pos2 = pos2 * pos3;        // a[i+2] = a[i+2] * a[i+3]\n                float4 new_pos3 = pos3 * pos4;        // a[i+3] = a[i+3] * a[i+4]\n                float4 new_pos4 = pos4 * pos5;        // a[i+4] = a[i+4] * a[i+5]\n                \n                // Store results - each store writes 4 consecutive elements\n                // This correctly implements the 4 consecutive patterns\n                *(float4*)&a[i] = new_pos0;\n                *(float4*)&a[i + 1] = new_pos1;\n                *(float4*)&a[i + 2] = new_pos2;\n                *(float4*)&a[i + 3] = new_pos3;\n                *(float4*)&a[i + 4] = new_pos4;\n            }\n            \n            // Process remaining patterns one by one from the vectorized boundary\n            // Use the already-updated values from the vectorized part as inputs\n            for (int i = vectorizable_len; i < limit; i++) {\n                float t0 = a[i];\n                float t1 = a[i + 1];\n                float t2 = a[i + 2];\n                float t3 = a[i + 3];\n                float t4 = a[i + 4];\n                float t5 = a[i + 5];\n                \n                a[i] = t0 * t1;\n                a[i + 1] = t1 * t2;\n                a[i + 2] = t2 * t3;\n                a[i + 3] = t3 * t4;\n                a[i + 4] = t4 * t5;\n            }\n        } else {\n            // If array is too small for vectorization, use pure scalar\n            for (int i = 0; i < limit; i++) {\n                float t0 = a[i];\n                float t1 = a[i + 1];\n                float t2 = a[i + 2];\n                float t3 = a[i + 3];\n                float t4 = a[i + 4];\n                float t5 = a[i + 5];\n                \n                a[i] = t0 * t1;\n                a[i + 1] = t1 * t2;\n                a[i + 2] = t2 * t3;\n                a[i + 3] = t3 * t4;\n                a[i + 4] = t4 * t5;\n            }\n        }\n    }\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 2",
+      "unit_test_output": "Compile succeeded for round 6.\nExit code: 2\nstderr:\nMismatch in parameter a on trial 0 at index 2",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline2_20260421_230113/s116_pipeline2/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s116",
+        "input_snapshot": "results/all_tests_pipeline2_20260421_230113/s116_pipeline2/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline2_20260421_230113/s116_pipeline2/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "vectrans_preprocessed"
+      }
+    }
+  ]
+}

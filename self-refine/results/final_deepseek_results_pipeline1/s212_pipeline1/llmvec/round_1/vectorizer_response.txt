@@ -1,0 +1,30 @@
+```c
+#include <stddef.h>
+
+typedef float float32 __attribute__((ext_vector_type(4)));
+
+void vectorized_s212(int n, float *a, float *b, float *c, float *d) {
+    int i = 0;
+    // Vectorize with 4-wide SIMD
+    for (; i <= n - 5; i += 4) {
+        float32 va = *(float32 *)&a[i];
+        float32 vc = *(float32 *)&c[i];
+        float32 vb = *(float32 *)&b[i];
+        float32 vd = *(float32 *)&d[i];
+        float32 va_next = *(float32 *)&a[i + 1];
+        
+        // a[i] *= c[i]
+        va = va * vc;
+        *(float32 *)&a[i] = va;
+        
+        // b[i] += a[i+1] * d[i]
+        vb = vb + va_next * vd;
+        *(float32 *)&b[i] = vb;
+    }
+    // Scalar cleanup for remaining iterations
+    for (; i < n - 1; i++) {
+        a[i] *= c[i];
+        b[i] += a[i + 1] * d[i];
+    }
+}
+```

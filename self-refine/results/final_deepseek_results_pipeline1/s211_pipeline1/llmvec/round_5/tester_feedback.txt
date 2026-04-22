@@ -1,0 +1,7 @@
+The vectorizer candidate has a correctness bug in the vector loop.
+
+- **Incorrect vector loop bounds**: `vec_end = i + ((last_scalar - i + 1) / 4) * 4` computes the number of complete 4-element chunks, but the vector loop body reads `b[i+4]` (via `vb_next`), which is out of bounds when `i+4 > last_scalar+1`. The loop should stop earlier so that `i+4 <= LEN_1D-1`, i.e., `i <= LEN_1D-5`.
+
+- **Trip count mismatch**: The scalar cleanup loop expects to process indices up to `last_scalar = LEN_1D-2`, but the vector loop may leave indices that require reading `b[i+1]` beyond the array when `i` is too close to the end. The vector loop must ensure `i+4 < LEN_1D` for all iterations.
+
+- **Fix**: Change the vector loop bound to `i + ((LEN_1D - 4 - i) / 4) * 4` or equivalently `i + ((LEN_1D - 5 - i + 1) / 4) * 4` to guarantee safe reads of `b[i+4]`.

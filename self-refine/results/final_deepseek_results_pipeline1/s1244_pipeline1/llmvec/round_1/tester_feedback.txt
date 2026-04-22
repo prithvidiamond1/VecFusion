@@ -1,0 +1,7 @@
+The vectorizer candidate has a **read-beyond-bounds** bug in the vector loop.
+
+- The vector loop reads `a[i+1]` via `*(float32_t*)(a + i + 1)` when `i = n-3`, which accesses index `n-2` — this is safe.
+- However, the scalar epilogue reads `a[i+1]` for `i = n-1`, which accesses index `n` — **out of bounds** since `n = LEN_1D - 1` and valid indices are `0..LEN_1D-2`.
+- The mismatch at index 5 (likely `a[5]`) is caused by this out-of-bounds read corrupting the last scalar iteration's `d[i]` computation.
+- **Fix**: Change the scalar epilogue loop bound from `i < n` to `i < n - 1`, and handle the final element(s) separately or adjust the vector loop to cover more iterations.
+- Alternatively, ensure the vector loop processes all but the last element, then compute `d[n-2]` and `d[n-1]` with explicit bounds checks.

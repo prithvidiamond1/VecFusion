@@ -1,0 +1,5 @@
+The vectorizer candidate has a correctness bug in the early-exit logic.
+
+- The `goto end_loop` inside the vectorized loop incorrectly exits only the inner loop, but the scalar cleanup loop after it still runs, corrupting results when a break condition triggers early.
+- The `i += first` adjustment is wrong: `first` is the bit position of the first true element within the 4-element vector, but `i` is already at the start of the current vector chunk, so `i += first` skips elements that should have been processed.
+- Fix: replace the `goto end_loop` with a proper `break` that exits only the vectorized loop, and remove the `i += first` adjustment — the scalar cleanup loop will handle the remaining elements correctly starting from the current `i`.

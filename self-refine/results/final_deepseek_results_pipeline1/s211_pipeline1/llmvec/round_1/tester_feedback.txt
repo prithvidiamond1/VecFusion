@@ -1,0 +1,7 @@
+- The vectorized loop bounds `i + 4 <= LEN_1D - 1` are incorrect; the original scalar loop runs `i` from 1 to `LEN_1D - 2` (since `i < LEN_1D - 1`). The vectorized condition should be `i + 4 <= LEN_1D - 2` to ensure the last vector iteration does not exceed the scalar bound.
+
+- The vectorized loop body accesses `b[i+4]` (via `vb_next`), which is out of bounds when `i = LEN_1D - 5` under the current condition; this causes the mismatch at index 2. Fix the bound to `i + 4 <= LEN_1D - 2` to keep `b[i+4]` valid.
+
+- The scalar cleanup loop condition `i < LEN_1D - 1` is correct, but the vectorized loop must leave `i` at a value such that the cleanup covers exactly the remaining iterations from `i` to `LEN_1D - 2`. With the corrected bound, `i` will be `LEN_1D - 2` or less, and the cleanup will handle the last 1–3 elements correctly.
+
+- Ensure the vectorized loop uses a canonical form: `for (int i = 1; i <= LEN_1D - 5; i += 4)` (since `LEN_1D - 2` is the last scalar index, and vector length is 4, the last safe start is `LEN_1D - 5`). This makes the trip count explicit and avoids off-by-one errors.

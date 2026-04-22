@@ -1,0 +1,7 @@
+The vectorizer candidate has a correctness bug in the vectorized loop's break condition.
+
+- The vectorized loop breaks when *any* element satisfies `c[i] > b[i]`, but the scalar loop breaks only for the *first* such element. This changes program semantics: after the vector break, the scalar cleanup starts at `i` (the vector chunk start), re-executing the same indices and potentially breaking earlier than intended.
+
+- Fix: after the vectorized break, the scalar cleanup must skip the elements already processed in the vector chunk. Set `i` to the first element index within the chunk that triggered the break, not the chunk start.
+
+- Alternatively, restructure to use a masked store or predicated execution so that only elements before the break point are updated, preserving the original per-element break behavior.

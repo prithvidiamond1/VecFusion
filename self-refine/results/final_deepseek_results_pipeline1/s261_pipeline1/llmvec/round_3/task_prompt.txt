@@ -1,0 +1,75 @@
+
+Revise your candidate for `s261` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s261(int iterations,int LEN_1D, float* a,float* b,float* c, float* d)
+{
+    float t;
+    for (int nl = 0; nl < iterations; nl++) {
+        for (int i = 1; i < LEN_1D; ++i) {
+            t = a[i] + b[i];
+            a[i] = t + c[i-1];
+            t = c[i] * d[i];
+            c[i] = t;
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stddef.h>
+
+typedef float float32_t __attribute__((ext_vector_type(4)));
+
+void vectorized_s261(int iterations, int LEN_1D, float* a, float* b, float* c, float* d) {
+    for (int nl = 0; nl < iterations; nl++) {
+        int i = 1;
+        // Handle first 3 iterations scalar to align c[i-1] dependency
+        for (; i < 4 && i < LEN_1D; ++i) {
+            float t;
+            t = a[i] + b[i];
+            a[i] = t + c[i-1];
+            t = c[i] * d[i];
+            c[i] = t;
+        }
+        // Vectorized main loop: start at i=4 so c[i-1] is c[3], the last element of previous vector
+        for (; i + 3 < LEN_1D; i += 4) {
+            float32_t va = *(float32_t*)(a + i);
+            float32_t vb = *(float32_t*)(b + i);
+            float32_t vc_prev = *(float32_t*)(c + i - 1);
+            float32_t vc = *(float32_t*)(c + i);
+            float32_t vd = *(float32_t*)(d + i);
+
+            float32_t t1 = va + vb;
+            float32_t t2 = t1 + vc_prev;
+            *(float32_t*)(a + i) = t2;
+
+            float32_t t3 = vc * vd;
+            *(float32_t*)(c + i) = t3;
+        }
+        // Scalar cleanup tail
+        for (; i < LEN_1D; ++i) {
+            float t;
+            t = a[i] + b[i];
+            a[i] = t + c[i-1];
+            t = c[i] * d[i];
+            c[i] = t;
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        The vectorizer candidate has a correctness bug in the vectorized main loop.
+
+- **Incorrect vector alignment for `c[i-1]`**: The scalar prologue runs for `i = 1,2,3`, so `c[3]` is the last element written by the scalar loop. The vector loop loads `c[i-1]` as a full 4-element vector starting at `c[i-1]`. When `i=4`, this loads `c[3],c[4],c[5],c[6]`. But `c[3]` was already updated in the scalar loop, and the vector loop uses it as `vc_prev` for the first vector iteration — this is correct. However, the vector loop also loads `vc = *(float32_t*)(c + i)` which for `i=4` loads `c[4],c[5],c[6],c[7]`. The problem is that `c[4]` and `c[5]` are **not yet computed** by the scalar prologue (only `c[1],c[2],c[3]` were). The vector loop uses `vc` to compute `t3 = vc * vd`, but `c[4],c[5]` contain stale/undefined values.
+
+- **Fix**: The vector loop must load `vc` from the **previous iteration's computed values**, not from the original array. Since the recurrence `c[i] = c[i] * d[i]` is independent per element, the vector loop should compute `c[i]` using the **current** `c[i]` value (which for `i>=4` was never set by the scalar prologue). The scalar prologue must compute `c[0],c[1],c[2],c[3]` fully, then the vector loop should start at `i=4` and load `c[i]` from the array (which now has correct values for indices 0-3). But the mismatch at index 5 suggests the vector loop is using wrong `c` values.
+
+- **Specific fix**: Ensure the scalar prologue computes `c[0]` through `c[3]` (i.e., start `i=0` in scalar prologue, not `i=1`). Then the vector loop at `i=4` will load correct `c[4..7]` from the original array (which are still unmodified). Alternatively, restructure to compute `c[i]` in the vector loop using the loaded `vc` (which is the original value) — this is correct because `c[i]` only depends on itself and `d[i]`. The mismatch at index 5 indicates the vector loop's `c[i]` computation is using a wrong value, likely because the scalar prologue didn't compute `c[0]` and the vector loop's `c[i-1]` load includes `c[3]` which is correct, but `c[i]` load includes `c[4]` which is stale.
+
+- **Recommended fix**: Change scalar prologue to start at `i=0` and run until `i < 4 && i < LEN_1D`. This ensures `c[0],c[1],c[2],c[3]` are all computed. Then the vector loop at `i=4` loads `c[4..7]` (original values) and computes them correctly. The tail loop handles remaining elements.
+
+        Return a corrected candidate function named `vectorized_s261`.

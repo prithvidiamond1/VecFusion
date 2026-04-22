@@ -1,0 +1,55 @@
+
+Revise your candidate for `s317` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s317(int iterations,int LEN_1D)
+{
+    float q;
+    for (int nl = 0; nl < 5*iterations; nl++) {
+        q = (float)1.;
+        for (int i = 0; i < LEN_1D/2; i++) {
+            q *= (float).99;
+        }
+    }
+    return q;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float float32 __attribute__((ext_vector_type(4)));
+
+float vectorized_s317(int iterations, int LEN_1D) {
+    float q = 1.0f;
+    int total_outer = 5 * iterations;
+    int inner_len = LEN_1D / 2;
+
+    for (int nl = 0; nl < total_outer; nl++) {
+        float32 vq = {1.0f, 1.0f, 1.0f, 1.0f};
+        float32 vfactor = {0.99f, 0.99f, 0.99f, 0.99f};
+        int i = 0;
+        for (; i + 4 <= inner_len; i += 4) {
+            vq *= vfactor;
+        }
+        float inner_product = vq[0] * vq[1] * vq[2] * vq[3];
+        for (; i < inner_len; i++) {
+            inner_product *= 0.99f;
+        }
+        q *= inner_product;
+    }
+
+    return q;
+}
+        ```
+
+        Tester feedback:
+        The candidate compiles but produces incorrect results (exit code 2 indicates a runtime mismatch).
+
+**Fixes needed:**
+
+- The vectorized inner loop incorrectly computes `vq *= vfactor` for each 4-element chunk, but the scalar reference computes `q *= 0.99f` sequentially per iteration. The vector reduction `inner_product = vq[0] * vq[1] * vq[2] * vq[3]` after the loop does not match the sequential multiplication semantics — it multiplies four partial products that each already had `0.99^4` applied, leading to an exponent mismatch.
+- Fix: either accumulate a scalar product inside the vector loop (e.g., `inner_product *= (vq[0]*vq[1]*vq[2]*vq[3])`) or restructure to compute the correct exponent: `inner_product *= powf(0.99f, 4)` per vector iteration, then handle the remainder.
+- The outer loop's `total_outer = 5 * iterations` and `inner_len = LEN_1D / 2` are correct as given, but ensure `inner_len` is non-negative and the remainder loop bounds are sound.
+
+        Return a corrected candidate function named `vectorized_s317`.

@@ -1,0 +1,5 @@
+- **Fix builtin name**: Replace `__builtin_loadups` with the correct Clang builtin `__builtin_loadu_ps` (or use `__builtin_ia32_loadups` if targeting x86). The current name is not recognized.
+- **Correct return type**: `__builtin_loadu_ps` returns a `v4sf` directly, so the assignment `v4sf va = __builtin_loadu_ps(&a[i]);` will be type-correct.
+- **Check loop bound safety**: The inner vector loop `i <= LEN_1D - 4` is correct for 4-element aligned loads, but ensure `LEN_1D` is non-negative to avoid underflow in the bound expression.
+- **Trip count consistency**: The scalar remainder loop `for (; i < LEN_1D; i++)` correctly handles leftover elements after the vector loop, no fix needed there.
+- **No control-flow restructuring issues**: The outer loop and inner loops are structured canonically; no switch/case or branch-dependent semantics are present.

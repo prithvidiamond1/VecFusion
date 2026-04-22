@@ -1,0 +1,19 @@
+Compile failed.
+            Command: clang results/all_tests_pipeline1_20260422_044515/s2111_pipeline1/llmvec/candidate_round_1.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s2111_pipeline1/llmvec/candidate_round_1
+            stderr:
+            results/all_tests_pipeline1_20260422_044515/s2111_pipeline1/llmvec/candidate_round_1.c:19:9: error: expected identifier or '('
+   19 |         ```c
+      |         ^
+results/all_tests_pipeline1_20260422_044515/s2111_pipeline1/llmvec/candidate_round_1.c:88:35: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+   88 |                 s2111(iterations, aa_scalar); vectorized_s2111(iterations, aa_vector);
+      |                                   ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s2111_pipeline1/llmvec/candidate_round_1.c:8:41: note: passing argument to parameter 'aa' here
+    8 |         void s2111(int iterations,float aa[256][256])
+      |                                         ^
+results/all_tests_pipeline1_20260422_044515/s2111_pipeline1/llmvec/candidate_round_1.c:88:76: warning: incompatible pointer types passing 'float[128]' to parameter of type 'float (*)[256]' [-Wincompatible-pointer-types]
+   88 |                 s2111(iterations, aa_scalar); vectorized_s2111(iterations, aa_vector);
+      |                                                                            ^~~~~~~~~
+results/all_tests_pipeline1_20260422_044515/s2111_pipeline1/llmvec/candidate_round_1.c:24:45: note: passing argument to parameter 'aa' here
+   24 | void vectorized_s2111(int iterations, float aa[256][256]) {
+      |                                             ^
+2 warnings and 1 error generated.

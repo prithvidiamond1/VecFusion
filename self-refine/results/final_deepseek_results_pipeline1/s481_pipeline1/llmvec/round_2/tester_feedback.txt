@@ -1,0 +1,9 @@
+- **Incorrect early exit semantics**: The vectorized loop uses `return` when a negative `d` element is found, but the original scalar loop likely only exits the innermost loop iteration (`nl`), not the entire function. Change `return` to a break or flag-based exit that continues to the next `nl` iteration.
+
+- **Missing loop-carried dependency handling**: The vectorized loop updates `a[i]` in place, which is correct only if no other iteration reads the same `a` element. Verify that `a`, `b`, `c`, `d` do not alias; if they might, add `restrict` or fall back to scalar.
+
+- **Incorrect trip count for vectorized loop**: The bound `i <= LEN_1D - 4` may underflow if `LEN_1D < 4`. Add a guard to skip the vectorized loop when `LEN_1D < 4`.
+
+- **Unsafe vector load alignment**: `*(float32_t*)(d + i)` assumes 16-byte alignment. Use `__builtin_assume_aligned` or a safe unaligned load if alignment is not guaranteed.
+
+- **Reduction of `cmp` may be incorrect for early exit**: `__builtin_reduce_or(cmp)` checks if any element is negative, but the subsequent scalar loop over `j` uses `return` again. Replace the inner `return` with a flag that breaks out of the vectorized loop and skips the update for that `nl` iteration.

@@ -1,0 +1,9 @@
+The candidate compiles but produces incorrect results. The issue is in how the vector reduction is accumulated across iterations.
+
+**Fix:** Reset `dot_vec` to zero at the start of each outer loop iteration. Currently, `dot_vec` is initialized with `{0.0f, 0.0f, 0.0f, 0.0f}` but the accumulation `dot += dot_vec[0] + ...` adds the vector result from the *previous* iteration's vector loop into the current iteration's scalar `dot`. Move the vector reduction inside the inner loop or restructure to avoid double-counting.
+
+Specifically, change:
+```c
+dot += dot_vec[0] + dot_vec[1] + dot_vec[2] + dot_vec[3] + tail_dot;
+```
+to accumulate `dot_vec` into `dot` *after* the vector loop but *before* the next outer iteration starts, and reset `dot_vec` each iteration.

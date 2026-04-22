@@ -1,0 +1,3 @@
+- The vectorized loop incorrectly sets `i = first_break` after a break condition, but then the scalar cleanup loop starts at that same `i` and re-executes the element at `first_break`, causing a double update of `a[first_break]`. Fix: after the break, set `i = first_break + 1` so the scalar loop starts at the next element, or adjust the scalar loop to skip the already-processed break element.
+
+- The break condition check uses `vc > vb` but the original scalar code checks `c[i] > b[i]` after the update; the vectorized version checks before the update, which may cause a mismatch in the element that triggers the break. Ensure the comparison is performed on the same values as the scalar version (i.e., after the multiplication and addition).

@@ -1,0 +1,8 @@
+- **Fix architecture guard**: The code includes `<x86intrin.h>` which is x86-specific, but the test environment is not x86. Replace with a portable vector approach (e.g., use `__attribute__((__vector_size__(16)))` with standard arithmetic, no x86 intrinsics) or guard the include with `#ifdef __x86_64__`.
+- **Remove x86-specific builtins**: `__builtin_ia32_loadups` is x86-only. Use a portable vector load like `__builtin_nontemporal_load` or a simple loop-based load into the vector type.
+- **Fix vector initialization**: `v4sf vprod = {1.0f, 1.0f, 1.0f, 1.0f};` is fine, but ensure the scalar reduction `prod_scalar * vprod[0] * ...` correctly handles the case where the vector loop never executed (i.e., `LEN_1D < 4`). Currently `vprod` is initialized to all 1.0f, so that’s correct.
+- **Check trip count for vector loop**: The condition `i <= LEN_1D - 4` is correct for a 4-element stride, but ensure `LEN_1D` is non-negative (if negative, `LEN_1D - 4` underflows). Add a guard: `if (LEN_1D >= 4)` already exists, but also ensure `LEN_1D` is not negative.
+- **Scalar loop bounds**: The scalar loop `for (; i < LEN_1D; i++)` correctly handles the remainder after the vector loop, but if `LEN_1D` is negative, the loop condition `i < LEN_1D` is false, so it’s safe.
+- **Outer loop trip count**: `total_outer = 10 * iterations` is fine, but ensure `iterations` is non-negative (if negative, the loop won’t execute, which is safe).
+- **No unsafe control-flow motion**: The code has no switch/case or branch-dependent semantics that were moved incorrectly. The restructuring is sound.
+- **Recommendation**: Replace the x86-specific include and builtin with portable vector operations (e.g., use `__builtin_ia32_loadups` → manual load via `__builtin_memcpy` or a union cast).

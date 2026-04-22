@@ -1,0 +1,7 @@
+The candidate compiles but produces incorrect results (exit code 2 indicates a runtime mismatch).
+
+**Fixes needed:**
+
+- The vectorized inner loop incorrectly computes `vq *= vfactor` for each 4-element chunk, but the scalar reference computes `q *= 0.99f` sequentially per iteration. The vector reduction `inner_product = vq[0] * vq[1] * vq[2] * vq[3]` after the loop does not match the sequential multiplication semantics — it multiplies four partial products that each already had `0.99^4` applied, leading to an exponent mismatch.
+- Fix: either accumulate a scalar product inside the vector loop (e.g., `inner_product *= (vq[0]*vq[1]*vq[2]*vq[3])`) or restructure to compute the correct exponent: `inner_product *= powf(0.99f, 4)` per vector iteration, then handle the remainder.
+- The outer loop's `total_outer = 5 * iterations` and `inner_len = LEN_1D / 2` are correct as given, but ensure `inner_len` is non-negative and the remainder loop bounds are sound.

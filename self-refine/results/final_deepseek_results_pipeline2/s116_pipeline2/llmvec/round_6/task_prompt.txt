@@ -1,0 +1,139 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+Previous refinement rounds did not succeed.
+You may now aggressively restructure the transformed code if needed.
+You may rewrite control flow, split or peel loops, isolate switch/case behavior, derive trip counts explicitly,
+and perform larger semantic-preserving rewrites if that improves correctness or vectorization potential.
+At this stage, do not stay conservative just to preserve the prior shape.
+
+Revise your candidate for `s116` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s116(int iterations, int LEN_1D, float* a) {
+    for (int nl = 0; nl < iterations * 10; nl++) {
+        // Loop distribution: process each position in the 5-element pattern separately
+        // This creates uniform operations within each loop for better vectorization
+
+        // Position 0: a[i] = a[i+1] * a[i]
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            a[i] = a[i + 1] * a[i];
+        }
+
+        // Position 1: a[i+1] = a[i+2] * a[i+1]
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            a[i + 1] = a[i + 2] * a[i + 1];
+        }
+
+        // Position 2: a[i+2] = a[i+3] * a[i+2]
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            a[i + 2] = a[i + 3] * a[i + 2];
+        }
+
+        // Position 3: a[i+3] = a[i+4] * a[i+3]
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            a[i + 3] = a[i + 4] * a[i + 3];
+        }
+
+        // Position 4: a[i+4] = a[i+5] * a[i+4]
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            a[i + 4] = a[i + 5] * a[i + 4];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float float4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s116(int iterations, int LEN_1D, float* a) {
+    int outer_iterations = iterations * 10;
+    int limit = LEN_1D - 5;
+
+    for (int nl = 0; nl < outer_iterations; nl++) {
+        // Process complete groups of 4 patterns where we can safely load 4 consecutive patterns
+        // Each pattern needs elements i through i+5, so for 4 patterns we need i through i+8
+        // Therefore i must satisfy i+8 < LEN_1D => i < LEN_1D - 8
+        int vector_limit = LEN_1D - 8;
+        if (vector_limit > 0) {
+            int vectorizable_len = (vector_limit / 4) * 4;
+
+            for (int i = 0; i < vectorizable_len; i += 4) {
+                // Load all needed data for 4 consecutive patterns
+                float4 pos0 = *(float4*)&a[i];        // a[i]..a[i+3]
+                float4 pos1 = *(float4*)&a[i + 1];    // a[i+1]..a[i+4]
+                float4 pos2 = *(float4*)&a[i + 2];    // a[i+2]..a[i+5]
+                float4 pos3 = *(float4*)&a[i + 3];    // a[i+3]..a[i+6]
+                float4 pos4 = *(float4*)&a[i + 4];    // a[i+4]..a[i+7]
+                float4 pos5 = *(float4*)&a[i + 5];    // a[i+5]..a[i+8]
+
+                // Compute updates in original order
+                float4 new_pos0 = pos0 * pos1;        // a[i] = a[i] * a[i+1]
+                float4 new_pos1 = pos1 * pos2;        // a[i+1] = a[i+1] * a[i+2]
+                float4 new_pos2 = pos2 * pos3;        // a[i+2] = a[i+2] * a[i+3]
+                float4 new_pos3 = pos3 * pos4;        // a[i+3] = a[i+3] * a[i+4]
+                float4 new_pos4 = pos4 * pos5;        // a[i+4] = a[i+4] * a[i+5]
+
+                // Store results
+                *(float4*)&a[i] = new_pos0;
+                *(float4*)&a[i + 1] = new_pos1;
+                *(float4*)&a[i + 2] = new_pos2;
+                *(float4*)&a[i + 3] = new_pos3;
+                *(float4*)&a[i + 4] = new_pos4;
+            }
+
+            // Process remaining patterns one by one from the vectorized boundary
+            for (int i = vectorizable_len; i < limit; i++) {
+                float t0 = a[i];
+                float t1 = a[i + 1];
+                float t2 = a[i + 2];
+                float t3 = a[i + 3];
+                float t4 = a[i + 4];
+                float t5 = a[i + 5];
+
+                a[i] = t0 * t1;
+                a[i + 1] = t1 * t2;
+                a[i + 2] = t2 * t3;
+                a[i + 3] = t3 * t4;
+                a[i + 4] = t4 * t5;
+            }
+        } else {
+            // If array is too small for vectorization, use pure scalar
+            for (int i = 0; i < limit; i++) {
+                float t0 = a[i];
+                float t1 = a[i + 1];
+                float t2 = a[i + 2];
+                float t3 = a[i + 3];
+                float t4 = a[i + 4];
+                float t5 = a[i + 5];
+
+                a[i] = t0 * t1;
+                a[i + 1] = t1 * t2;
+                a[i + 2] = t2 * t3;
+                a[i + 3] = t3 * t4;
+                a[i + 4] = t4 * t5;
+            }
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The vectorized loop writes to `a[i+4]` for each vector group, but the scalar loop only writes up to `a[i+4]` as well. However, the vectorized loop processes 4 patterns at once, meaning the last write for the group at `i` touches `a[i+4]` through `a[i+7]` (since `new_pos4` is stored at `a[i+4]` as a float4). This overlaps with the next group's reads starting at `i+4`, causing a read-after-write hazard that changes semantics.
+
+- The vectorized loop incorrectly assumes each pattern is independent, but each pattern's writes (to indices `i` through `i+4`) overlap with neighboring patterns' reads (which need indices up to `i+5`). The vectorized version loads all data for 4 patterns before any stores, but the stores for earlier indices within the same vector group overwrite input values needed for later computations in the same group.
+
+- Specifically, for the 4‑pattern group starting at `i`, the computation for pattern `i+3` needs `a[i+3]` through `a[i+8]`. However, the store of `new_pos0` (for pattern `i`) overwrites `a[i]` before it is read for pattern `i+3`? Wait, pattern `i+3` does not read `a[i]`. Let's check: each pattern `j` reads `a[j]..a[j+5]` and writes `a[j]..a[j+4]`. For `j = i+3`, it reads `a[i+3]..a[i+8]`. The stores from patterns `i`, `i+1`, `i+2` write to `a[i]..a[i+6]`. That includes `a[i+3]..a[i+6]`, which are inputs for pattern `i+3`. So the vectorized loop loads `pos3` (which contains `a[i+3]..a[i+6]`) before storing, but then stores `new_pos3` to `a[i+3]..a[i+6]` later. However, `new_pos3` depends on `pos3` and `pos4`, and `pos4` was loaded before any stores, so the computation uses the original `a[i+3]..a[i+6]`. That seems okay because all loads happen before any stores. But the issue is that the stores for earlier patterns (`i`, `i+1`, `i+2`) write to `a[i+1]..a[i+6]`, which are part of the loaded data for later patterns? Actually, `pos1` covers `a[i+1]..a[i+4]`, `pos2` covers `a[i+2]..a[i+5]`, `pos3` covers `a[i+3]..a[i+6]`. The stores for pattern `i` write to `a[i]..a[i+4]` (via `new_pos0` at `a[i]` and `new_pos4` at `a[i+4]`). That overwrites `a[i+4]`, which is in `pos1`, `pos2`, `pos3`. But `pos1`, `pos2`, `pos3` were loaded before any stores, so they hold original values. However, `new_pos4` is stored at `a[i+4]` as a float4, meaning it writes 4 elements: `a[i+4]..a[i+7]`. That overwrites `a[i+4]..a[i+7]`, which are inputs for patterns `i+1`, `i+2`, `i+3` within the same vector group. But those patterns have already been computed using the original loaded values. So the overwrite is fine because it happens after all computations for the group. Wait, then why the mismatch?
+
+- The mismatch likely occurs at the boundary between vectorized and scalar loops. The scalar loop starts at `i = vectorizable_len` and reads `a[i+5]`. If `vectorizable_len` is not a multiple of the pattern stride? The pattern stride is 1, but the vectorization groups 4 consecutive patterns. The scalar loop should start at `i = vectorizable_len` and compute up to `limit`. However, the vectorized loop writes to `a[vectorizable_len]..a[vectorizable_len+3]` via the last group's stores? Let's check: the last vector group starts at `i = vectorizable_len - 4`. Its stores write to `a[vectorizable_len-4]..a[vectorizable_len+3]` (since `new_pos4` at `i+4` writes 4 elements). So `a[vectorizable_len]..a[vectorizable_len+3]` are written by the vectorized loop. The scalar loop then reads those elements (e.g., for `i = vectorizable_len`, it reads `a[vectorizable_len+5]` which is okay, but also `a[vectorizable_len]..a[vectorizable_len+4]` which were just overwritten). That's correct because the scalar loop should use the updated values from the vectorized loop for those indices. But the original scalar loop (if no vectorization) would have updated them in sequence. However, the vectorized loop updated them in a different order? Actually, the vectorized loop updates all 4 patterns simultaneously (using original values for all), which matches the sequential semantics because each pattern uses original inputs. So the boundary should be fine.
+
+- The test failure at index 2 suggests an early element is wrong. Possibly the vectorized loop's first group (i=0) incorrectly computes due to misalignment of loads/stores. Let's examine: for i=0, we load `pos0 = a[0..3]`, `pos1 = a[1..4]`, ..., `pos5 = a[5..8]`. We compute `new_pos0 = pos0 * pos1` which gives `[a[0]*a[1], a[1]*a[2], a[2]*a[3], a[3]*a[4]]`. Then we store `new_pos0` at `a[0..3]`. That's correct for patterns 0,1,2,3? Wait, pattern 0 writes `a[0] = a[0]*a[1]` (correct). Pattern 1 writes `a[1] = a[1]*a[2]` (correct). Pattern 2 writes `a[2] = a[2]*a[3]` (correct). Pattern 3 writes `a[3] = a[3]*a[4]` (correct). But the vectorized loop also stores `new_pos1` at `a[1..4]`, which overwrites `a[1]..a[4]` with `[a[1]*a[2], a[2]*a[3], a[3]*a[4], a[4]*a[5]]`. That overwrites `a[1]` (which was already set by pattern 0) with a different value (pattern 1's result). In the original loop, pattern 0 writes `a[0]`, then pattern 1 writes `a[1]` (overwriting the same location). So the vectorized loop
+
+        Return a corrected candidate function named `vectorized_s116`.

@@ -1,0 +1,15 @@
+- The test failure indicates a mismatch in array `a` after execution, but `a` is only read, not written, in the candidate code. This suggests the vectorization may have incorrectly modified `a` due to aliasing or overlapping memory.
+
+- The candidate uses `float4` vector loads/stores with pointer casts that may violate strict aliasing rules, potentially causing undefined behavior that corrupts `a`.
+
+- The vectorized loops write to `b` and `e` using `*(float4*)&b[base]`; if `b` or `e` alias with `a`, this could overwrite `a`'s values.
+
+- The remainder loops use scalar writes that are safe, but the vector writes may overlap beyond array bounds if `N` is not a multiple of `VEC_SIZE`; however `N=256` and `VEC_SIZE=4` make remainders safe.
+
+- To fix, ensure no aliasing: either assume restrict pointers or add runtime checks. Since the report shows mismatch in `a`, first verify that `a` does not overlap with `b`, `e`, or `s_vals`.
+
+- Use `__restrict` qualifiers on pointer parameters `a`, `b`, `c`, `d`, `e`, and `aa` to inform the compiler of no aliasing, preventing illegal vector stores from affecting `a`.
+
+- Alternatively, use union-based type-punning or `__builtin_assume_aligned` for safe vector access without breaking strict aliasing.
+
+- If `a` is intended to be unchanged, the mismatch may stem from vector stores corrupting adjacent memory; ensure vector stores are aligned to 16-byte boundaries and do not exceed array bounds.

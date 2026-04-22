@@ -1,0 +1,35 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Vectorize the scalar C function `s126` below.
+
+        Scalar source:
+        ```c
+        void s126(int iterations, float bb[256][256], float cc[256][256], float * flat_2d_array)
+{
+    int k;
+    for (int nl = 0; nl < 10*(iterations/256); nl++) {
+        k = 1;
+        for (int i = 0; i < 256; i++) {
+            float temp_bb = bb[0][i];
+            for (int j = 1; j < 256; j++) {
+                float flat_val = flat_2d_array[k-1];
+                temp_bb = temp_bb + flat_val * cc[j][i];
+                bb[j][i] = temp_bb;
+                ++k;
+            }
+            ++k;
+        }
+    }
+}
+        ```
+
+        Produce a candidate function named `vectorized_s126`.

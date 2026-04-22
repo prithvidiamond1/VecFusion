@@ -1,0 +1,118 @@
+This input code has already been processed by an earlier VecTrans stage.
+Assume dependency-breaking and preliminary restructuring may already have been attempted.
+Preserve the current transformed structure as much as possible.
+Focus on cleanup, canonicalization, correctness, and final vectorization.
+Pay special attention to complex control flow, switch/case logic, branch-dependent semantics,
+and loops whose trip counts are not immediately explicit.
+If a loop bound is implicit, derive it explicitly before rewriting the loop.
+Prefer canonical counted loops with clear bounds and step sizes.
+For these early rounds, avoid aggressively rewriting the code from scratch unless a clear blocker remains.
+Try local cleanup, control-flow simplification, loop-bound recovery, and canonicalization first.
+
+Revise your candidate for `s116` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        void s116(int iterations, int LEN_1D, float* a) {
+    for (int nl = 0; nl < iterations * 10; nl++) {
+        // Loop distribution: process each position in the 5-element pattern separately
+        // This creates uniform operations within each loop for better vectorization
+
+        // Position 0: a[i] = a[i+1] * a[i]
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            a[i] = a[i + 1] * a[i];
+        }
+
+        // Position 1: a[i+1] = a[i+2] * a[i+1]
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            a[i + 1] = a[i + 2] * a[i + 1];
+        }
+
+        // Position 2: a[i+2] = a[i+3] * a[i+2]
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            a[i + 2] = a[i + 3] * a[i + 2];
+        }
+
+        // Position 3: a[i+3] = a[i+4] * a[i+3]
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            a[i + 3] = a[i + 4] * a[i + 3];
+        }
+
+        // Position 4: a[i+4] = a[i+5] * a[i+4]
+        for (int i = 0; i < LEN_1D - 5; i += 5) {
+            a[i + 4] = a[i + 5] * a[i + 4];
+        }
+    }
+}
+        ```
+
+        Previous candidate:
+        ```c
+        typedef float float4 __attribute__((ext_vector_type(4)));
+
+void vectorized_s116(int iterations, int LEN_1D, float* a) {
+    int outer_iterations = iterations * 10;
+    int limit = LEN_1D - 5;
+
+    for (int nl = 0; nl < outer_iterations; nl++) {
+        // Compute safe vectorizable length ensuring i+5 < LEN_1D
+        int vectorizable_len = ((limit - 0) / 4) * 4;
+
+        // Position 0: a[i] = a[i+1] * a[i]
+        for (int i = 0; i < vectorizable_len; i += 4) {
+            float4 current = *(float4*)&a[i];
+            float4 next = *(float4*)&a[i + 1];
+            *(float4*)&a[i] = current * next;
+        }
+
+        // Position 1: a[i+1] = a[i+2] * a[i+1]
+        for (int i = 0; i < vectorizable_len; i += 4) {
+            float4 current = *(float4*)&a[i + 1];
+            float4 next = *(float4*)&a[i + 2];
+            *(float4*)&a[i + 1] = current * next;
+        }
+
+        // Position 2: a[i+2] = a[i+3] * a[i+2]
+        for (int i = 0; i < vectorizable_len; i += 4) {
+            float4 current = *(float4*)&a[i + 2];
+            float4 next = *(float4*)&a[i + 3];
+            *(float4*)&a[i + 2] = current * next;
+        }
+
+        // Position 3: a[i+3] = a[i+4] * a[i+3]
+        for (int i = 0; i < vectorizable_len; i += 4) {
+            float4 current = *(float4*)&a[i + 3];
+            float4 next = *(float4*)&a[i + 4];
+            *(float4*)&a[i + 3] = current * next;
+        }
+
+        // Position 4: a[i+4] = a[i+5] * a[i+4]
+        for (int i = 0; i < vectorizable_len; i += 4) {
+            float4 current = *(float4*)&a[i + 4];
+            float4 next = *(float4*)&a[i + 5];
+            *(float4*)&a[i + 4] = current * next;
+        }
+
+        // Scalar cleanup for remaining elements (sequential, not strided)
+        for (int i = vectorizable_len; i < limit; i++) {
+            a[i] = a[i + 1] * a[i];
+            a[i + 1] = a[i + 2] * a[i + 1];
+            a[i + 2] = a[i + 3] * a[i + 2];
+            a[i + 3] = a[i + 4] * a[i + 3];
+            a[i + 4] = a[i + 5] * a[i + 4];
+        }
+    }
+}
+        ```
+
+        Tester feedback:
+        - The scalar cleanup loop incorrectly processes all five positions for each leftover element `i`, causing overlapping writes and incorrect semantics.
+- The cleanup loop should only process the first position (`a[i] = a[i+1] * a[i]`) for each leftover `i` to match the original sequential loop's behavior.
+- The vectorizable length calculation `((limit - 0) / 4) * 4` is correct for ensuring `i+5 < LEN_1D` when `limit = LEN_1D - 5`.
+- However, the vectorized loops are strided by 4 but each processes a different offset (0,1,2,3,4), which is safe because each offset's accesses stay within `[i, i+5]`.
+- The mismatch at index 0 suggests the first element's value is wrong after the first outer iteration, likely due to cleanup overwriting.
+- Change the scalar cleanup to a single loop: `for (int i = vectorizable_len; i < limit; i++) { a[i] = a[i + 1] * a[i]; }`
+- Remove the extra four statements inside the cleanup loop that update `a[i+1]` through `a[i+4]`.
+- This ensures the transformation is equivalent to the original loop nest where each outer iteration processes all `i` from `0` to `limit-1` for the first statement before moving to the next statement.
+
+        Return a corrected candidate function named `vectorized_s116`.

@@ -1,0 +1,42 @@
+{
+  "pipeline": "pipeline1",
+  "success": true,
+  "final_stage": "vectrans",
+  "final_code_path": "results/all_tests_pipeline1_20260422_044515/s352_pipeline1/vectrans/final_candidate.c",
+  "steps": [
+    {
+      "stage": "llm_vectorizer",
+      "ok": false,
+      "candidate_code": "#include <stdint.h>\ntypedef float v4sf __attribute__((__vector_size__(16)));\n\nfloat vectorized_s352(int iterations, int LEN_1D, float* a, float *b) {\n    float dot = 0.0f;\n    for (int nl = 0; nl < iterations; nl++) {\n        v4sf dot_vec = {0.0f, 0.0f, 0.0f, 0.0f};\n        int i = 0;\n        int vec_end = LEN_1D & ~3;\n        if (LEN_1D >= 4) {\n            for (; i < vec_end; i += 4) {\n                v4sf a_vec = __builtin_ia32_loadups(a + i);\n                v4sf b_vec = __builtin_ia32_loadups(b + i);\n                dot_vec += a_vec * b_vec;\n            }\n        }\n        float tail_dot = 0.0f;\n        for (; i < LEN_1D; i++) {\n            tail_dot += a[i] * b[i];\n        }\n        dot += dot_vec[0] + dot_vec[1] + dot_vec[2] + dot_vec[3] + tail_dot;\n    }\n    return dot;\n}",
+      "summary": "LLM-Vectorizer did not converge within the configured round budget.",
+      "compile_feedback": "Compile failed.\n            Command: clang results/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/candidate_round_6.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/candidate_round_6\n            stderr:\n            results/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/candidate_round_6.c:32:30: error: use of unknown builtin '__builtin_ia32_loadups' [-Wimplicit-function-declaration]\n   32 |                 v4sf a_vec = __builtin_ia32_loadups(a + i);\n      |                              ^\nresults/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/candidate_round_6.c:32:22: error: initializing 'v4sf' (vector of 4 'float' values) with an expression of incompatible type 'int'\n   32 |                 v4sf a_vec = __builtin_ia32_loadups(a + i);\n      |                      ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nresults/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/candidate_round_6.c:33:22: error: initializing 'v4sf' (vector of 4 'float' values) with an expression of incompatible type 'int'\n   33 |                 v4sf b_vec = __builtin_ia32_loadups(b + i);\n      |                      ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n3 errors generated.",
+      "unit_test_output": "Compile failed.\n            Command: clang results/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/candidate_round_6.c -O3 -std=c11 -Wall -Wextra -o results/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/candidate_round_6\n            stderr:\n            results/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/candidate_round_6.c:32:30: error: use of unknown builtin '__builtin_ia32_loadups' [-Wimplicit-function-declaration]\n   32 |                 v4sf a_vec = __builtin_ia32_loadups(a + i);\n      |                              ^\nresults/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/candidate_round_6.c:32:22: error: initializing 'v4sf' (vector of 4 'float' values) with an expression of incompatible type 'int'\n   32 |                 v4sf a_vec = __builtin_ia32_loadups(a + i);\n      |                      ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nresults/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/candidate_round_6.c:33:22: error: initializing 'v4sf' (vector of 4 'float' values) with an expression of incompatible type 'int'\n   33 |                 v4sf b_vec = __builtin_ia32_loadups(b + i);\n      |                      ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n3 errors generated.",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/last_candidate.c",
+      "metadata": {
+        "scalar_function": "s352",
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/llm_vectorizer_input_snapshot.c",
+        "prepared_input": "results/all_tests_pipeline1_20260422_044515/s352_pipeline1/llmvec/llm_vectorizer_prepared_input.c",
+        "pipeline_context": "raw_source"
+      }
+    },
+    {
+      "stage": "vectrans",
+      "ok": true,
+      "candidate_code": "float s352_opt(int iterations, int LEN_1D, float* a, float *b)\n{\n    float dot = (float)0.;\n    for (int i = 0; i < LEN_1D; i += 5) {\n        dot = dot + a[i] * b[i] + a[i + 1] * b[i + 1] + a[i + 2]\n            * b[i + 2] + a[i + 3] * b[i + 3] + a[i + 4] * b[i + 4];\n    }\n    return dot;\n}",
+      "summary": "VecTrans produced a full-function final candidate and wrote it to the output log.",
+      "compile_feedback": "",
+      "unit_test_output": "",
+      "unit_test_error": "",
+      "formal_verification": "",
+      "rounds_used": 6,
+      "artifact_path": "results/all_tests_pipeline1_20260422_044515/s352_pipeline1/vectrans/final_candidate.c",
+      "metadata": {
+        "input_snapshot": "results/all_tests_pipeline1_20260422_044515/s352_pipeline1/vectrans/vectrans_input_snapshot.c",
+        "log_path": "results/all_tests_pipeline1_20260422_044515/s352_pipeline1/vectrans/vectrans_output.md"
+      }
+    }
+  ]
+}

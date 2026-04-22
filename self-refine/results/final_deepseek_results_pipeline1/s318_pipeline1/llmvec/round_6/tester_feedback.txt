@@ -1,0 +1,8 @@
+The candidate compiles but produces incorrect results (exit code 2 indicates a runtime mismatch). The issue is that the vectorizer restructured the loop but did not preserve the exact sequential semantics of the original scalar code.
+
+**Specific fixes needed:**
+
+- The loop processes elements sequentially with a data-dependent `max` and `index` update; this is not a reduction that can be safely vectorized without proving associativity/commutativity of the comparison. The vectorizer must either fall back to scalar execution or use a safe parallel prefix/segmented scan pattern.
+- The trip count `LEN_1D` is used directly as the loop bound, but `k` increments by `inc` each iteration, so the actual number of elements accessed is `LEN_1D` (starting from index 0). This is correct, but the vectorizer must ensure no out-of-bounds access when `inc` is not 1.
+- The `max` and `index` updates are branch-dependent; any vectorized version must correctly handle the case where multiple elements have the same maximum value (the first occurrence should be kept). The current vectorization likely reorders comparisons, causing `index` to be wrong.
+- The outer `nl` loop is a repeat loop; the inner loop's state (`max`, `index`) must be reset each iteration. The vectorizer must not hoist or merge these across outer iterations.

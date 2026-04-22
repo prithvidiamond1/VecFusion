@@ -1,0 +1,29 @@
+#include <stddef.h>
+
+void vectorized_s222(int iterations, int LEN_1D, float *a, float *b, float *c, float *e) {
+    if (iterations <= 0 || LEN_1D <= 1) return;
+    
+    for (int nl = 0; nl < iterations; nl++) {
+        float e_prev = e[0];
+        int i = 1;
+        // Peel first iteration to initialize e_prev correctly
+        {
+            float bc = b[i] * c[i];
+            a[i] += bc;
+            float e_sq = e_prev * e_prev;
+            e[i] = e_sq;
+            a[i] -= bc;
+            e_prev = e_sq;
+            i++;
+        }
+        // Vectorize remaining iterations with scalar recurrence
+        for (; i < LEN_1D; i++) {
+            float bc = b[i] * c[i];
+            a[i] += bc;
+            float e_sq = e_prev * e_prev;
+            e[i] = e_sq;
+            a[i] -= bc;
+            e_prev = e_sq;
+        }
+    }
+}

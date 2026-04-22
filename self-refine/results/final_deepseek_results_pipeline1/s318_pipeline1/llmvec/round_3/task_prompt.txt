@@ -1,0 +1,69 @@
+
+Revise your candidate for `s318` based on tester feedback.
+
+        Original scalar source:
+        ```c
+        float s318(int iterations,int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum;
+    for (int nl = 0; nl < iterations/2; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            if (fabsf(a[k]) <= max) {
+                goto L5;
+            }
+            index = i;
+            max = fabsf(a[k]);
+L5:
+            k += inc;
+        }
+        chksum = max + (float) index;
+    }
+    return max + index + 1;
+}
+        ```
+
+        Previous candidate:
+        ```c
+        #include <stdint.h>
+#include <math.h>
+
+float vectorized_s318(int iterations, int LEN_1D, float* a, int inc)
+{
+    int k, index;
+    float max, chksum = 0.0f;
+    for (int nl = 0; nl < iterations; nl++) {
+        k = 0;
+        index = 0;
+        max = fabsf(a[0]);
+        k += inc;
+        for (int i = 1; i < LEN_1D; i++) {
+            float val = fabsf(a[k]);
+            if (val > max) {
+                index = i;
+                max = val;
+            }
+            k += inc;
+        }
+        chksum = max + (float) index;
+    }
+    return chksum + 1.0f;
+}
+        ```
+
+        Tester feedback:
+        The candidate compiles but produces incorrect results (exit code 2 indicates a runtime mismatch). The issue is that the vectorizer likely restructured the loop incorrectly for the reduction pattern.
+
+**Specific fixes needed:**
+
+- The loop contains a conditional max reduction with index tracking (`if (val > max) { index = i; max = val; }`). Ensure the vectorizer preserves the sequential dependency: `index` must only update when `val > max`, not based on any reordered or speculative computation.
+- The trip count is `LEN_1D - 1` (starting at `i=1`). Verify the vectorizer uses this exact bound and does not introduce off-by-one errors when peeling or remainder-looping.
+- The induction variable `k` increments by `inc` each iteration. Confirm the vectorizer correctly handles the non-unit stride access `a[k]` — it must not assume contiguous memory or simplify `k += inc` into a linear index without accounting for the stride.
+- The scalar `max` is initialized before the inner loop and updated conditionally. The vectorizer must not hoist or speculate `max` updates across iterations in a way that changes the final value.
+- Ensure the final `chksum = max + (float) index` uses the scalar results from the last iteration, not a vector-reduced value that might combine partial results incorrectly.
+
+        Return a corrected candidate function named `vectorized_s318`.
