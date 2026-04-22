@@ -1,135 +1,165 @@
-# LLM4Compiler - VecTrans: Iterative Refinement LLM Optimization Framework for Auto-Vectorization
+# VecTrans + LLM-Vectorizer Integration
 
-The developed iterative LLM Compiler is based on [self-refine](https://selfrefine.info/). Three kinds of feedback are implemented: 
-(1) messages from LLVM Compiler like the option: "−Rpass−analysis=loop−vectorize" or "-debug-only=loop-vectorize";
-(2) semantic correctness information from automatic testing-based method or formal methods;
-(3) LLM itself(self-feedback); 
+A research prototype that combines **VecTrans** (LLM-guided source transformation for improved vectorization) with **LLM-Vectorizer** (LLM-generated loop vectorization with verification) to improve compiler auto-vectorization coverage and performance on benchmark kernels.
 
-and in the future, we will add new feedback from
-(4) performance from the runtime phases. -- TODO
+## Overview
 
-The aimed compilation optimization including vectorization, bug-fixing and so on. The current verification is mainly for the vectorization (LLM Vectorizer) on ARM Neon/SVE intrinsics.
+Modern compilers often miss vectorization opportunities due to aliasing, loop-carried dependencies, control flow complexity, or source patterns that obscure SIMD-friendly structure. This project builds combined execution pipelines that use LLM-based transformations and verification-driven vectorization before falling back to standard compiler optimization.
 
-For more introduction for VecTrans framework, please refer to: ```Zheng Z, Cheng L, Li L, et al. VecTrans: LLM Transformation Framework for Better Auto-vectorization on High-performance CPU[J]. arXiv preprint arXiv:2503.19449, 2025.```
+## Goals
 
-To use the iterative framework - VecTrans, follow the steps:
+- Increase the number of kernels that can be successfully vectorized.
+- Preserve correctness through validation / verification.
+- Improve runtime performance relative to compiler `-O3` baselines.
+- Evaluate behavior on benchmark suites such as TSVC.
+- Compare orchestration strategies across multiple pipelines.
 
-### (1) dependencies: ```anthropic```, ```openai```
+## Core Components
+
+### VecTrans
+Transforms scalar source code into forms that are more amenable to vectorization.
+
+Examples:
+- Loop distribution
+- Dependency-breaking rewrites
+- Simplified memory access patterns
+- Structure-preserving source refactors
+
+### LLM-Vectorizer
+Attempts direct loop vectorization using an LLM-guided generation/refinement loop.
+
+Examples:
+- SIMD-aware code generation
+- Multi-round refinement
+- Compiler feedback integration
+- Correctness checking
+
+### Compiler Baseline
+Standard fallback path using compiler optimizations (for example `clang -O3`).
+
+## Pipelines
+
+## Pipeline 1 — LLM-Vectorizer First
+Best when direct vectorization works immediately.
+
+```text
+Scalar Code
+   ↓
+LLM-Vectorizer
+   ├─ success → Final Result
+   └─ fail → VecTrans
+              ├─ success → Final Result
+              └─ fail → Compiler Baseline
+```
+
+## Pipeline 2 — VecTrans First
+Best when preprocessing helps expose vectorization opportunities.
+
+```text
+Scalar Code
+   ↓
+VecTrans Candidate
+   ├─ no candidate → Compiler Baseline
+   └─ candidate → LLM-Vectorizer on Candidate
+                     ├─ success → Final Result
+                     └─ fail → Compiler Baseline
+```
+
+## Repository Structure
+
+```text
+self-refine/
+├── src/
+│   ├── integration/
+│   │   ├── cli.py
+│   │   ├── orchestrator.py
+│   │   ├── adapters.py
+│   │   └── types.py
+│   ├── llm-vectorizer/
+│   └── ...
+├── tests/
+│   └── tsvc/
+├── scripts/
+│   ├── run_all_with_perf.sh
+│   └── ...
+├── results/
+└── README.md
+```
+
+## Running a Single Kernel
+
 ```bash
-pip install prompt-lib/
-pip install anthropic
-pip install openai
-pip install --upgrade openai
+PYTHONPATH=. python3 -m src.integration.cli tests/tsvc/s281.c \
+  --scalar-function s281 \
+  --pipeline pipeline2 \
+  --vectrans-root /path/to/self-refine \
+  --llmvec-root /path/to/self-refine/src/llm-vectorizer \
+  --outdir results/s281_pipeline2
 ```
 
-### (2) install the formal verification tool - alive2
-The full installation tutorial is attached in the end appendix. After installing the alive2, assume the installation path is: ```ALIVE2_HOME```. Run the following command to check the equivalence of the target llvm IR with source code llvm IR.
-```
-alive-tv source.ll target.ll
-```
-The following output could be printed: 
-```
-... ...
-Transformation seems to be correct!
+## Run Pipeline 1 Only
 
-Summary:
-  1 correct transformations
-  0 incorrect transformations
-  0 failed-to-prove transformations
-  0 Alive2 errors
-```
-
-### (3) env setup: ```set_env.sh```
 ```bash
-source set_env.sh
+PYTHONPATH=. python3 -m src.integration.cli tests/tsvc/s281.c \
+  --scalar-function s281 \
+  --pipeline pipeline1 \
+  --vectrans-root /path/to/self-refine \
+  --llmvec-root /path/to/self-refine/src/llm-vectorizer \
+  --outdir results/s281_pipeline1
 ```
-It is worth noting that the ```API_KEY```, ```LLM_BASE_URL```, ```LLVM_HOME```, ```ALIVE2_HOME``` and ```ENGINE``` need to be updated in the ```set_env.sh```. The default LLM model is ```deepseek v3``` from siliconflow.
+
+## Run Full Benchmark Suite
+
 ```bash
-#!/bin/bash
-
-export LLVM_HOME=~/LLVMCompiler
-export LLM_BASE_URL="https://api.siliconflow.cn/v1"
-export API_KEY=""
-export ENGINE="Pro/deepseek-ai/DeepSeek-V3"
-export ALIVE2_HOME=~/ALIVE2
-#
-export PATH=$BISHENG_HOME/bin:$ALIVE2_HOME:$PATH
-export LD_LIBRARY_LIB=$BISHENG_HOME/lib:$LD_LIBRARY_LIB
-#
-export CLANG_PATH=$BISHENG_HOME/bin/clang
-export PYTHONPATH=".:../:.:src:../:../../:.:prompt-lib"
+PIPELINES=pipeline2 scripts/run_all_with_perf.sh
 ```
 
-### (4) run the iterative inference
-> 
-The function entrance is ```./src/vectorizer/run_split.py```. Run the a command in the self-refine directory.
-```
-python src/vectorizer/run_split.py
-```
+Or:
 
-
-## Appendix A: The installation of alive2.
-### the dependency requirements.
-- cmake https://cmake.org/files/
-- gcc (>=10.3.1)
-- llvm/clang (20.1.3)
-- Z3
-- re2c
-
-### (1) LLVM
-```
-git clone https://github.com/llvm/llvm-project 
-cd llvm-project
-git checkout llvmorg-20.1.3
-
-mkdir build
-mkdir install
-
-cd build
-cmake -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;compiler-rt;" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/path/to/gcc -DCMAKE_CXX_COMPILER=/path/to/g++ -DCMAKE_INSTALL_PREFIX=/path/to/llvm-project/install ../llvm
-
-make -j64 && make -j64 install
+```bash
+PIPELINES=pipeline1 scripts/run_all_with_perf.sh
 ```
 
-then set the enviroment variables: 
-```
-export LD_LIBRARY_PATH=/path/to/llvm-project/install/lib:$LD_LIBRARY_PATH
-export LIBCLANG=/path/to/llvm-project/install/lib
-export PATH=/path/to/llvm-project/install/bin:$PATH
-export CC=/path/to/llvm-project/install/bin/clang
-export CXX==/path/to/llvm-project/install/bin/clang++
-```
+## Output Artifacts
 
-### (2) Z3
-```
-git clone https://github.com/Z3Prover/z3
+Typical run outputs:
 
-cd z3
-mkdir install
-CXX=/path/to/clang++ CC=/path/to/clang python scripts/mk_make.py --prefix=/path/to/z3/install
-cd build
-make -j64 && make -j64 install
+```text
+results/<run_name>/
+├── summary.json
+├── timings.csv
+├── generated_candidates/
+├── compiler/
+└── logs/
 ```
 
-### (3) re2c
-```
-git clone https://github.com/skvadrik/re2c
+### summary.json
+Contains:
+- selected final stage
+- per-stage success/failure
+- candidate paths
+- diagnostic metadata
 
-cd re2c
-mkdir .build && cd .build && cmake -DCMAKE_C_COMPILER=/path/to/clang -DCMAKE_CXX_COMPILER=/path/to/clang++ .. && cmake --build .
+## Evaluation Metrics
 
-export PATH=/path/to/re2c/.build/:$PATH
-```
+- **Coverage**: how many kernels verify successfully.
+- **Speedup vs O3**: runtime improvement over compiler baseline.
+- **Geometric Mean Speedup**: robust aggregate performance metric.
+- **Median Speedup**: resistant to outliers.
+- **Successful Speedups**: number of verified kernels faster than baseline.
 
-### (4) alive2
-```
-git clone https://github.com/AliveToolkit/alive2
 
-cd alive2
-mkdir build
-cd build
+## Requirements
 
-cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/path/to/clang -DCMAKE_CXX_COMPILER=/path/to/clang++ -DZ3_INCLUDE_DIR=/path/to/z3/install/include -DZ3_LIBRARIES=/path/to/z3/install/lib/libz3.so -DBUILD_TV=ON  ..
+Typical environment:
+- Python 3.10+
+- clang / LLVM toolchain
+- macOS or Linux
+- API access for supported LLM backends
+- Optional: Alive2 for formal validation
 
-ninja -j64 
-```
+
+## Acknowledgments
+
+Built as a research exploration combining ideas from VecTrans, LLM-vectorizer, compiler optimization, and benchmark-driven evaluation.
+
