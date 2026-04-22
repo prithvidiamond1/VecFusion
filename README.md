@@ -1,6 +1,5 @@
 # VecFusion
-
-VecFusion combines **VecTrans** and **LLM-Vectorizer** into a single experimental framework for improving compiler vectorization on loop kernels.
+VecFusion combines ideas from **[VecTrans](https://arxiv.org/abs/2503.19449)** and a basic recreation of **[LLM-Vectorizer](https://arxiv.org/abs/2406.04693)** into a unified auto-vectorization framework for improving compiler vectorization on loop kernels.
 
 The repository currently supports two combined pipelines:
 
