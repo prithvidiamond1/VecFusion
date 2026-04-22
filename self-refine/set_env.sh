@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export DEEPSEEK_API_KEY="sk-1de7ea9c92824294bc0b732709c704a4"
+export DEEPSEEK_API_KEY=""
 
 # VecTrans / OpenAI-compatible DeepSeek path
 export LLM_BASE_URL="https://api.deepseek.com/v1"

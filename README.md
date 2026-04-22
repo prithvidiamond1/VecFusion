@@ -1,165 +1,112 @@
-# VecTrans + LLM-Vectorizer Integration
+# VecFusion
 
-A research prototype that combines **VecTrans** (LLM-guided source transformation for improved vectorization) with **LLM-Vectorizer** (LLM-generated loop vectorization with verification) to improve compiler auto-vectorization coverage and performance on benchmark kernels.
+VecFusion combines **VecTrans** and **LLM-Vectorizer** into a single experimental framework for improving compiler vectorization on loop kernels.
 
-## Overview
+The repository currently supports two combined pipelines:
 
-Modern compilers often miss vectorization opportunities due to aliasing, loop-carried dependencies, control flow complexity, or source patterns that obscure SIMD-friendly structure. This project builds combined execution pipelines that use LLM-based transformations and verification-driven vectorization before falling back to standard compiler optimization.
+- **Pipeline 1:** LLM-Vectorizer first, then VecTrans, then compiler baseline fallback
+- **Pipeline 2:** VecTrans first, then LLM-Vectorizer refinement, then compiler baseline fallback
 
-## Goals
+The goal is to increase the number of correctly transformed kernels that can be verified and benefit from vectorization.
 
-- Increase the number of kernels that can be successfully vectorized.
-- Preserve correctness through validation / verification.
-- Improve runtime performance relative to compiler `-O3` baselines.
-- Evaluate behavior on benchmark suites such as TSVC.
-- Compare orchestration strategies across multiple pipelines.
-
-## Core Components
-
-### VecTrans
-Transforms scalar source code into forms that are more amenable to vectorization.
-
-Examples:
-- Loop distribution
-- Dependency-breaking rewrites
-- Simplified memory access patterns
-- Structure-preserving source refactors
-
-### LLM-Vectorizer
-Attempts direct loop vectorization using an LLM-guided generation/refinement loop.
-
-Examples:
-- SIMD-aware code generation
-- Multi-round refinement
-- Compiler feedback integration
-- Correctness checking
-
-### Compiler Baseline
-Standard fallback path using compiler optimizations (for example `clang -O3`).
-
-## Pipelines
-
-## Pipeline 1 — LLM-Vectorizer First
-Best when direct vectorization works immediately.
+## Repository structure
 
 ```text
-Scalar Code
-   ↓
-LLM-Vectorizer
-   ├─ success → Final Result
-   └─ fail → VecTrans
-              ├─ success → Final Result
-              └─ fail → Compiler Baseline
+src/
+  integration/
+    cli.py               # command-line entry point
+    orchestrator.py      # pipeline orchestration
+    adapters.py          # VecTrans / LLM-Vectorizer / compiler adapters
+scripts/
+  run_all_with_perf.sh   # run benchmark suite with timing
+results/                 # output directories for per-run artifacts
 ```
 
-## Pipeline 2 — VecTrans First
-Best when preprocessing helps expose vectorization opportunities.
+## Prerequisites
 
-```text
-Scalar Code
-   ↓
-VecTrans Candidate
-   ├─ no candidate → Compiler Baseline
-   └─ candidate → LLM-Vectorizer on Candidate
-                     ├─ success → Final Result
-                     └─ fail → Compiler Baseline
-```
-
-## Repository Structure
-
-```text
-self-refine/
-├── src/
-│   ├── integration/
-│   │   ├── cli.py
-│   │   ├── orchestrator.py
-│   │   ├── adapters.py
-│   │   └── types.py
-│   ├── llm-vectorizer/
-│   └── ...
-├── tests/
-│   └── tsvc/
-├── scripts/
-│   ├── run_all_with_perf.sh
-│   └── ...
-├── results/
-└── README.md
-```
-
-## Running a Single Kernel
-
-```bash
-PYTHONPATH=. python3 -m src.integration.cli tests/tsvc/s281.c \
-  --scalar-function s281 \
-  --pipeline pipeline2 \
-  --vectrans-root /path/to/self-refine \
-  --llmvec-root /path/to/self-refine/src/llm-vectorizer \
-  --outdir results/s281_pipeline2
-```
-
-## Run Pipeline 1 Only
-
-```bash
-PYTHONPATH=. python3 -m src.integration.cli tests/tsvc/s281.c \
-  --scalar-function s281 \
-  --pipeline pipeline1 \
-  --vectrans-root /path/to/self-refine \
-  --llmvec-root /path/to/self-refine/src/llm-vectorizer \
-  --outdir results/s281_pipeline1
-```
-
-## Run Full Benchmark Suite
-
-```bash
-PIPELINES=pipeline2 scripts/run_all_with_perf.sh
-```
-
-Or:
-
-```bash
-PIPELINES=pipeline1 scripts/run_all_with_perf.sh
-```
-
-## Output Artifacts
-
-Typical run outputs:
-
-```text
-results/<run_name>/
-├── summary.json
-├── timings.csv
-├── generated_candidates/
-├── compiler/
-└── logs/
-```
-
-### summary.json
-Contains:
-- selected final stage
-- per-stage success/failure
-- candidate paths
-- diagnostic metadata
-
-## Evaluation Metrics
-
-- **Coverage**: how many kernels verify successfully.
-- **Speedup vs O3**: runtime improvement over compiler baseline.
-- **Geometric Mean Speedup**: robust aggregate performance metric.
-- **Median Speedup**: resistant to outliers.
-- **Successful Speedups**: number of verified kernels faster than baseline.
-
-
-## Requirements
-
-Typical environment:
 - Python 3.10+
-- clang / LLVM toolchain
-- macOS or Linux
-- API access for supported LLM backends
-- Optional: Alive2 for formal validation
+- Clang/LLVM toolchain
+- A working C compiler environment
+- Access to the LLM backend(s) you plan to use
+- The VecTrans and LLM-Vectorizer codebases available locally if this repo is still structured as an integration layer over both
 
+Depending on your setup, you may also need:
 
-## Acknowledgments
+- `SDKROOT` configured on macOS
+- API credentials or base URLs for your selected LLM provider
+- Any verification tools used by your local workflow
 
-Built as a research exploration combining ideas from VecTrans, LLM-vectorizer, compiler optimization, and benchmark-driven evaluation.
+## Installation
 
+Clone the repository and create a virtual environment:
+
+```bash
+git clone <your-public-repo-url>
+cd VecFusion
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+If your environment depends on local paths to VecTrans and LLM-Vectorizer, make sure those paths are available and passed into the CLI when running experiments.
+
+## Running a single benchmark
+
+Use the integration CLI to run one source file through a chosen pipeline:
+
+```bash
+PYTHONPATH=. python3 -m src.integration.cli \
+  <source_file.c> \
+  --scalar-function <function_name> \
+  --pipeline pipeline1 \
+  --vectrans-root <path-to-vectrans> \
+  --llmvec-root <path-to-llm-vectorizer> \
+  --outdir results/<run_name>
+```
+
+Example:
+
+```bash
+PYTHONPATH=. python3 -m src.integration.cli \
+  tsvc/cfiles/s112.c \
+  --scalar-function s112 \
+  --pipeline pipeline2 \
+  --vectrans-root ../VecTrans \
+  --llmvec-root ../llm-vectorizer \
+  --outdir results/s112_pipeline2
+```
+
+## Running the benchmark suite
+
+To run the full suite with performance measurement:
+
+```bash
+PERF_REPEATS=5 scripts/run_all_with_perf.sh
+```
+
+If your script supports pipeline filtering, you can run only one pipeline by passing the corresponding option in your local version.
+
+## Output
+
+Each run writes artifacts to the selected output directory, typically including:
+
+- generated candidate code
+- stage-by-stage intermediate outputs
+- validation or verification diagnostics
+- a `summary.json` file describing the final result
+
+Typical summary fields include:
+
+- `pipeline`
+- `success`
+- `final_stage`
+- `final_code_path`
+- `steps`
+
+## Notes
+
+This project builds on **VecTrans** and related tooling. If you redistribute code derived from upstream Apache-licensed components, keep the required notices and license text in the repository.
+
+## License
+
+This repository is distributed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for the full text.
